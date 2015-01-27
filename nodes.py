@@ -195,9 +195,9 @@ class Attribute(BaseNode):
         self._tag = 'attribute'
 
 
-class Property(BaseNode):
+class Properties(BaseNode):
 
     def __init__(self, **kwargs):
-        super(Property, self).__init__(**kwargs)
-        self._type = 'Property'
-        self._tag = 'property'
+        super(Properties, self).__init__(**kwargs)
+        self._type = 'Properties'
+        self._tag = 'properties'

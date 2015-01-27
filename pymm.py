@@ -47,7 +47,7 @@ class FreeplaneFile(object):
 
 # this dictionary will be utilized by all factories to determine which type of factory to initialize
 # to handle all the children of an element
-tag2class = {'hook': Hook, 'property': Property, 'attribute': Attribute, 'edge': Edge,
+tag2class = {'hook': Hook, 'properties': Properties, 'attribute': Attribute, 'edge': Edge,
                     'icon': Icon, 'font': Font, 'map_styles': MapStyles, 'stylenode': StyleNode,
                     'cloud': Cloud, 'map': Map,'node': Node}
 
@@ -56,7 +56,7 @@ class BaseNodeFactory(object):
     def __init__(self, **kwargs):
         self.nodeType = BaseNode
 
-    def from_etree_element(self, element):
+    def convert_from_etree_element(self, element):
         '''converts an xml etree element to a node
         '''
         node = self.nodeType()  # could be anything: Map, Node, etc.
@@ -70,24 +70,23 @@ class BaseNodeFactory(object):
         unusedAttribs = {key.lower(): val for (key, val) in element.attrib.items() if key.lower() not in usedAttribs}
         if unusedAttribs:
             print('unused' + str(unusedAttribs))  # for diagnostics: determining if I need to add support for more stuff
-        self._additional_conversion(node, element)
         return node
 
-    def _additional_conversion(self, node, element):
+    def additional_conversion(self, node):  # should be called full tree conversion
         pass  # should be overridden by an inheriting class to perform addtional conversion before returning node
 
-    def to_etree_element(self, node):
-        attribs = {key.upper(): value for key, value in vars(node).items() if not key[0] == '_'}  # only use visible variables
+    def revert_to_etree_element(self, node):
+        attribs = {key.upper(): value for key, value in vars(node).items()
+                       if not key[0] == '_' and value is not None }  # only use visible variables
         print(node)
-        element = ET.Element(node.gettype().lower(), attribs)
+        element = ET.Element(node._tag, attribs)
         element[:] = node[:]
-        self._additional_reversion(element, node)
         return element
 
-    def _additional_reversion(self, element, node):
+    def additional_reversion(self, element):  # call after full tree reversion
         if len(element) > 0:  # if element has any children
-            element.text = node._tail  # set spacing/tail for written file layout
-        element.tail = node._tail
+            element.text = '\n'  # set spacing/tail for written file layout
+        element.tail = '\n'
 
 
 class NodeFactory(BaseNodeFactory):
@@ -130,9 +129,9 @@ class AttributeFactory(BaseNodeFactory):
     def __init__(self, **kwargs):
         self.nodeType = Attribute
 
-class PropertyFactory(BaseNodeFactory):
+class PropertiesFactory(BaseNodeFactory):
     def __init__(self, **kwargs):
-        self.nodeType = Property
+        self.nodeType = Properties
 
 class ConversionFactory(object):
     # this factory will just take a list of nodes to convert
@@ -141,7 +140,7 @@ class ConversionFactory(object):
     # within the first converted node.
     factories = [BaseNodeFactory, NodeFactory, MapFactory, CloudFactory,
                      HookFactory, MapStylesFactory, StyleNodeFactory, FontFactory, IconFactory,
-                     EdgeFactory, AttributeFactory, PropertyFactory]
+                     EdgeFactory, AttributeFactory, PropertiesFactory]
     ffs = [factory() for factory in factories]  # get an initialized instance of all factories
     tag2factory = {fctry.nodeType()._tag: fctry for fctry in ffs}  # get a dictionary that
                             # matches an elements tag to the factory which can handle that element
@@ -150,53 +149,101 @@ class ConversionFactory(object):
         pass
 
     def convert_etree_element_and_tree(self, et):
-        firstNode = self.convert_etree_element(et)
-        hasUnconvertedChildren = [firstNode]
-        while hasUnconvertedChildren:
-            node = hasUnconvertedChildren.pop()
-            unconverted = [c for c in node.iterate('*')]  # need all children. If we use node[:] then it will
-                                                                # filter out unconverted children
+        action1 = self.convert_etree_element
+        action2 = self.additional_conversion
+        return self.special_vert_full_tree(et, action1, action2)
+##        firstNode = self.convert_etree_element(et)
+##        hasUnconvertedChildren = [firstNode]
+##        while hasUnconvertedChildren:
+##            node = hasUnconvertedChildren.pop()
+##            unconverted = [c for c in node.iterate('*')]  # need all children. If we use node[:] then it will
+##                                                                # filter out unconverted children
+##            children = []
+##            while unconverted:
+##                etchild = unconverted.pop()
+##                child = self.convert_etree_element(etchild)
+##                children.append(child)
+##                hasUnconvertedChildren.append(child)
+##            node[:] = children
+##        notFullyConverted = [firstNode]
+##        while notFullyConverted:
+##            node = notFullyConverted.pop()
+##            notFullyConverted.extend(node[:])
+##            ff = self.get_factory_for(node)
+##            ff.additional_conversion(node)
+##        return firstNode
+
+    def special_vert_full_tree(self, element, action1, action2):
+        # element can be Node or Element
+        # e = from (the node / element being converted)
+        # convert or revert the element!
+        first = action1(element)
+        hasUnchangedChildren = [first]
+        while hasUnchangedChildren:
+            element = hasUnchangedChildren.pop()
+            unchanged = [child for child in element[:]]  # this won't work when nodes only return normal nodes
             children = []
-            while unconverted:
-                etchild = unconverted.pop()
-                child = self.convert_etree_element(etchild)
+            while unchanged:
+                unchangedChild = unchanged.pop()
+                child = action1(unchangedChild)
                 children.append(child)
-                hasUnconvertedChildren.append(child)
-            node[:] = children
-        return firstNode
+                hasUnchangedChildren.append(child)
+            element[:] = children
+        notFullyChanged = [first]
+        while notFullyChanged:
+            element = notFullyChanged.pop()
+            notFullyChanged.extend(element[:])
+            action2(element)  # 2nd action does not return anything. Element is changed.
+        return first
     
     def convert_etree_element(self, et):
-        if et.tag in self.tag2factory:
-            ff = self.tag2factory[et.tag]
-        else:
-            ff = self.defaultFactory
+        ff = self.get_conversion_factory_for(et)
         print('using factory' + str(ff))
-        node = ff.from_etree_element(et)
+        node = ff.convert_from_etree_element(et)
         return node
 
+    def additional_conversion(self, et):
+        ff = self.get_conversion_factory_for(et)
+        node = ff.additional_conversion(et)
+
+    def get_conversion_factory_for(self, et):
+        tag = None
+        if hasattr(et, 'tag'):  # for an etree element
+            tag = et.tag
+        if hasattr(et, '_tag'):  # for a node
+            tag = et._tag
+        if tag and tag in self.tag2factory:
+            return self.tag2factory[tag]
+        return self.defaultFactory
+
     def revert_node_and_tree(self, node):
-        firstET = self.revert_node(node)
-        hasUnrevertedChildren = [firstET]
-        while hasUnrevertedChildren:
-            et = hasUnrevertedChildren.pop()
-            unreverted = [c for c in et]
-            etchildren  = []
-            while unreverted:
-                child = unreverted.pop()
-                etchild = self.revert_node(child)
-                etchildren.append(etchild)
-                hasUnrevertedChildren.append(etchild)
-            et[:] = etchildren
-        return firstET
+        print(node)
+        action1 = self.revert_node
+        action2 = self.additional_reversion
+        return self.special_vert_full_tree(node, action1, action2)
+##        firstET = self.revert_node(node)
+##        hasUnrevertedChildren = [firstET]
+##        while hasUnrevertedChildren:
+##            et = hasUnrevertedChildren.pop()
+##            unreverted = [c for c in et]
+##            etchildren  = []
+##            while unreverted:
+##                child = unreverted.pop()
+##                etchild = self.revert_node(child)
+##                etchildren.append(etchild)
+##                hasUnrevertedChildren.append(etchild)
+##            et[:] = etchildren
+##        return firstET
 
     def revert_node(self, node):
-        if node._tag in self.tag2factory:
-            ff = self.tag2factory[node._tag]
-        else:
-            ff = self.defaultFactory
+        ff = self.get_conversion_factory_for(node)
         print('using factory for reversion' + str(ff))
-        et = ff.to_etree_element(node)
+        et = ff.revert_to_etree_element(node)
         return et
+
+    def additional_reversion(self, node):
+        ff = self.get_conversion_factory_for(node)
+        ff.additional_reversion(node)  # no return needed
     
 if __name__ == '__main__':
     fpf = FreeplaneFile()
