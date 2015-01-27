@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as ET
-from nodes import *
+from elements import *
 
 # to do: generic conversion for all children. Instead of housing "clouds, etc" in separate lists
 # house all children of node in same _children list. But when iterating through children, only
@@ -7,8 +7,8 @@ from nodes import *
 # out any that have the tag "cloud" This way it's more similar to xml. Also, instead
 # set type to be the actual nodetype. for example, RootNode will have tag "node" but type RootNode
 
-# setting node attributes should be done by basenode, not basenodefactory! simply initalize the
-# basenode with the attributes from the element
+# setting node attributes should be done by BaseElement, not BaseElementfactory! simply initalize the
+# BaseElement with the attributes from the element
 
 class FreeplaneFile(object):
 
@@ -51,22 +51,22 @@ tag2class = {'hook': Hook, 'properties': Properties, 'attribute': Attribute, 'ed
                     'icon': Icon, 'font': Font, 'map_styles': MapStyles, 'stylenode': StyleNode,
                     'cloud': Cloud, 'map': Map,'node': Node}
 
-class BaseNodeFactory(object):
+class BaseElementFactory(object):
     
     def __init__(self, **kwargs):
-        self.nodeType = BaseNode
+        self.elementType = BaseElement
 
     def convert_from_etree_element(self, element):
         '''converts an xml etree element to a node
         '''
-        node = self.nodeType()  # could be anything: Map, Node, etc.
+        node = self.elementType()  # could be anything: Map, Node, etc.
         usedAttribs = []
         for key, value in element.attrib.items():  # sets node text, amongst other things
             key = key.lower()  # lowercase because that's how all our node properties are
 ##            if hasattr(node, key):
             setattr(node, key, value)  # all xml-node attribs become fp-node attributes
             usedAttribs.append(key)
-        node[:] = element[:]  # append all unconverted children to this node!        
+        node[:] = element.findall('*')  # append all unconverted children to this node!
         unusedAttribs = {key.lower(): val for (key, val) in element.attrib.items() if key.lower() not in usedAttribs}
         if unusedAttribs:
             print('unused' + str(unusedAttribs))  # for diagnostics: determining if I need to add support for more stuff
@@ -76,11 +76,13 @@ class BaseNodeFactory(object):
         pass  # should be overridden by an inheriting class to perform addtional conversion before returning node
 
     def revert_to_etree_element(self, node):
+
         attribs = {key.upper(): value for key, value in vars(node).items()
                        if not key[0] == '_' and value is not None }  # only use visible variables
         print(node)
-        element = ET.Element(node._tag, attribs)
-        element[:] = node[:]
+        print(node.gettag())
+        element = ET.Element(node.gettag(), attribs)
+        element[:] = node.findall('*')
         return element
 
     def additional_reversion(self, element):  # call after full tree reversion
@@ -89,62 +91,62 @@ class BaseNodeFactory(object):
         element.tail = '\n'
 
 
-class NodeFactory(BaseNodeFactory):
+class NodeFactory(BaseElementFactory):
     def __init__(self, **kwargs):
-        self.nodeType = Node
+        self.elementType = Node
 
-class MapFactory(BaseNodeFactory):
+class MapFactory(BaseElementFactory):
     def __init__(self, **kwargs):
-        self.nodeType = Map
+        self.elementType = Map
 
-class CloudFactory(BaseNodeFactory):
+class CloudFactory(BaseElementFactory):
     def __init__(self, **kwargs):
-        self.nodeType = Cloud
+        self.elementType = Cloud
 
-class HookFactory(BaseNodeFactory):
+class HookFactory(BaseElementFactory):
     def __init__(self, **kwargs):
-        self.nodeType = Hook
+        self.elementType = Hook
 
-class MapStylesFactory(BaseNodeFactory):
+class MapStylesFactory(BaseElementFactory):
     def __init__(self, **kwargs):
-        self.nodeType = MapStyles
+        self.elementType = MapStyles
 
-class StyleNodeFactory(BaseNodeFactory):
+class StyleNodeFactory(BaseElementFactory):
     def __init__(self, **kwargs):
-        self.nodeType = StyleNode
+        self.elementType = StyleNode
 
-class FontFactory(BaseNodeFactory):
+class FontFactory(BaseElementFactory):
     def __init__(self, **kwargs):
-        self.nodeType = Font
+        self.elementType = Font
 
-class IconFactory(BaseNodeFactory):
+class IconFactory(BaseElementFactory):
     def __init__(self, **kwargs):
-        self.nodeType = Icon
+        self.elementType = Icon
 
-class EdgeFactory(BaseNodeFactory):
+class EdgeFactory(BaseElementFactory):
     def __init__(self, **kwargs):
-        self.nodeType = Edge
+        self.elementType = Edge
 
-class AttributeFactory(BaseNodeFactory):
+class AttributeFactory(BaseElementFactory):
     def __init__(self, **kwargs):
-        self.nodeType = Attribute
+        self.elementType = Attribute
 
-class PropertiesFactory(BaseNodeFactory):
+class PropertiesFactory(BaseElementFactory):
     def __init__(self, **kwargs):
-        self.nodeType = Properties
+        self.elementType = Properties
 
 class ConversionFactory(object):
     # this factory will just take a list of nodes to convert
     # and will convert by choosing which factory to use in converting a given node
     # it is also tasked with non-recursively converting all nodes contained
     # within the first converted node.
-    factories = [BaseNodeFactory, NodeFactory, MapFactory, CloudFactory,
+    factories = [BaseElementFactory, NodeFactory, MapFactory, CloudFactory,
                      HookFactory, MapStylesFactory, StyleNodeFactory, FontFactory, IconFactory,
                      EdgeFactory, AttributeFactory, PropertiesFactory]
     ffs = [factory() for factory in factories]  # get an initialized instance of all factories
-    tag2factory = {fctry.nodeType()._tag: fctry for fctry in ffs}  # get a dictionary that
+    tag2factory = {fctry.elementType().gettag(): fctry for fctry in ffs}  # get a dictionary that
                             # matches an elements tag to the factory which can handle that element
-    defaultFactory = BaseNodeFactory()
+    defaultFactory = BaseElementFactory()
     def __init__(self):
         pass
 
@@ -152,47 +154,38 @@ class ConversionFactory(object):
         action1 = self.convert_etree_element
         action2 = self.additional_conversion
         return self.special_vert_full_tree(et, action1, action2)
-##        firstNode = self.convert_etree_element(et)
-##        hasUnconvertedChildren = [firstNode]
-##        while hasUnconvertedChildren:
-##            node = hasUnconvertedChildren.pop()
-##            unconverted = [c for c in node.iterate('*')]  # need all children. If we use node[:] then it will
-##                                                                # filter out unconverted children
-##            children = []
-##            while unconverted:
-##                etchild = unconverted.pop()
-##                child = self.convert_etree_element(etchild)
-##                children.append(child)
-##                hasUnconvertedChildren.append(child)
-##            node[:] = children
-##        notFullyConverted = [firstNode]
-##        while notFullyConverted:
-##            node = notFullyConverted.pop()
-##            notFullyConverted.extend(node[:])
-##            ff = self.get_factory_for(node)
-##            ff.additional_conversion(node)
-##        return firstNode
 
     def special_vert_full_tree(self, element, action1, action2):
-        # element can be Node or Element
+        # element can be pymm element or etree element
         # e = from (the node / element being converted)
         # convert or revert the element!
         first = action1(element)
         hasUnchangedChildren = [first]
+        print('first: ' + str(first))
+        print(first.findall('*'))
         while hasUnchangedChildren:
             element = hasUnchangedChildren.pop()
-            unchanged = [child for child in element[:]]  # this won't work when nodes only return normal nodes
+            unchanged = [child for child in element.findall('*')]  # this must return all elements for pymm and etree
             children = []
             while unchanged:
                 unchangedChild = unchanged.pop()
                 child = action1(unchangedChild)
                 children.append(child)
                 hasUnchangedChildren.append(child)
-            element[:] = children
+            element[:] = children  # found it! this needs to set ALL children for element. But currently [:] only
+            # gets or sets the children of Nodes
+            # this requires a full change from what I currently have setup. I think this means that I'll need to set
+            # the behavior of the node differently. Obviously, the objective is to make reading nodes easier
+            # but if I can't access the nodes using the same syntax as etree elements, then I need to separate the node behavior.
+
+            # ok how about normal children node[1] or node[:] always access children?
+            # BUT accessing specifically the nodes of one of those is done by: node.nodes() -> returns iterator
+            # and that's a specific function from the basenode. So that way you can get pretty consistent behavior.
+            # and accessing nodes is a way to get the nodes as you find them.
         notFullyChanged = [first]
         while notFullyChanged:
             element = notFullyChanged.pop()
-            notFullyChanged.extend(element[:])
+            notFullyChanged.extend(element.findall('*'))
             action2(element)  # 2nd action does not return anything. Element is changed.
         return first
     
@@ -204,14 +197,14 @@ class ConversionFactory(object):
 
     def additional_conversion(self, et):
         ff = self.get_conversion_factory_for(et)
-        node = ff.additional_conversion(et)
+        ff.additional_conversion(et)
 
     def get_conversion_factory_for(self, et):
         tag = None
         if hasattr(et, 'tag'):  # for an etree element
             tag = et.tag
-        if hasattr(et, '_tag'):  # for a node
-            tag = et._tag
+        if hasattr(et, 'gettag'):  # for a node
+            tag = et.gettag()
         if tag and tag in self.tag2factory:
             return self.tag2factory[tag]
         return self.defaultFactory
@@ -221,19 +214,6 @@ class ConversionFactory(object):
         action1 = self.revert_node
         action2 = self.additional_reversion
         return self.special_vert_full_tree(node, action1, action2)
-##        firstET = self.revert_node(node)
-##        hasUnrevertedChildren = [firstET]
-##        while hasUnrevertedChildren:
-##            et = hasUnrevertedChildren.pop()
-##            unreverted = [c for c in et]
-##            etchildren  = []
-##            while unreverted:
-##                child = unreverted.pop()
-##                etchild = self.revert_node(child)
-##                etchildren.append(etchild)
-##                hasUnrevertedChildren.append(etchild)
-##            et[:] = etchildren
-##        return firstET
 
     def revert_node(self, node):
         ff = self.get_conversion_factory_for(node)
@@ -249,10 +229,11 @@ if __name__ == '__main__':
     fpf = FreeplaneFile()
     fpf.readfile('input.mm')
     element = fpf.xmlTree.getroot().findall('node')[0]
+    m = fpf.getmap()
     n = fpf.getroot()
-    nc = n[0][0]
-    hs = element.findall('hook')  # hooks for maps???
-    hs[0].attrib  # prints off 'NAME' : 'MapStyle'
+    #nc = n[0][0]
+    #hs = element.findall('hook')  # hooks for maps???
+    #hs[0].attrib  # prints off 'NAME' : 'MapStyle'
     try:
         fpf.writefile('output.mm')
     except:
