@@ -61,39 +61,47 @@ class BaseElementFactory(object):
         '''
         node = self.elementType()  # could be anything: Map, Node, etc.
         usedAttribs = []
-        for key, value in element.attrib.items():  # sets node text, amongst other things
-            key = key.lower()  # lowercase because that's how all our node properties are
-##            if hasattr(node, key):
-            setattr(node, key, value)  # all xml-node attribs become fp-node attributes
+        for key, value in element.attrib.items():
+            node[key] = value  # attribs of a node are stored dictionary style in the node
             usedAttribs.append(key)
-        node[:] = element.findall('*')  # append all unconverted children to this node!
+        node[:] = element[:]  # append all unconverted children to this node!
         unusedAttribs = {key.lower(): val for (key, val) in element.attrib.items() if key.lower() not in usedAttribs}
         if unusedAttribs:
             print('unused' + str(unusedAttribs))  # for diagnostics: determining if I need to add support for more stuff
         return node
 
     def additional_conversion(self, node):  # should be called full tree conversion
-        pass  # should be overridden by an inheriting class to perform addtional conversion before returning node
+        return node  # should be overridden by an inheriting class to perform addtional conversion before returning node
 
     def revert_to_etree_element(self, node):
 
-        attribs = {key.upper(): value for key, value in vars(node).items()
-                       if not key[0] == '_' and value is not None }  # only use visible variables
+        attribs = {key: value for key, value in node.items()
+                       if value is not None }  # only use visible variables
         print(node)
         print(node.gettag())
         element = ET.Element(node.gettag(), attribs)
-        element[:] = node.findall('*')
+        element[:] = node[:]
         return element
 
     def additional_reversion(self, element):  # call after full tree reversion
         if len(element) > 0:  # if element has any children
             element.text = '\n'  # set spacing/tail for written file layout
         element.tail = '\n'
+        return element
 
 
 class NodeFactory(BaseElementFactory):
     def __init__(self, **kwargs):
         self.elementType = Node
+
+    def additional_conversion(self, node):
+        node.settext(node['TEXT'])
+        del node['TEXT']  # remove text so that you can access the text of the node using node.gettext()
+        return node
+
+    def revert_to_etree_element(self, node):
+        node['TEXT'] = node.gettext()
+        return super(NodeFactory, self).revert_to_etree_element(node)
 
 class MapFactory(BaseElementFactory):
     def __init__(self, **kwargs):
@@ -186,7 +194,7 @@ class ConversionFactory(object):
         while notFullyChanged:
             element = notFullyChanged.pop()
             notFullyChanged.extend(element.findall('*'))
-            action2(element)  # 2nd action does not return anything. Element is changed.
+            element = action2(element)
         return first
     
     def convert_etree_element(self, et):
@@ -197,7 +205,7 @@ class ConversionFactory(object):
 
     def additional_conversion(self, et):
         ff = self.get_conversion_factory_for(et)
-        ff.additional_conversion(et)
+        return ff.additional_conversion(et)
 
     def get_conversion_factory_for(self, et):
         tag = None
@@ -223,7 +231,7 @@ class ConversionFactory(object):
 
     def additional_reversion(self, node):
         ff = self.get_conversion_factory_for(node)
-        ff.additional_reversion(node)  # no return needed
+        return ff.additional_reversion(node)
     
 if __name__ == '__main__':
     fpf = FreeplaneFile()

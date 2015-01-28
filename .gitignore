@@ -1,3 +1,4 @@
 *.mm
 *.txt
 *.pyc
+.idea
