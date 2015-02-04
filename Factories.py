@@ -4,19 +4,27 @@ from Elements import *
 class BaseElementFactory(object):
 
     elementType = BaseElement
+    childOrder = [BaseElement.tag, Cloud.tag, Edge.tag, Properties.tag, MapStyles.tag, Icon.tag,
+            Attribute.tag, Hook.tag, Font.tag, StyleNode.tag]  # order in which children will be written to file
+    lastChildOrder = [Node.tag] # order of nth to last for children. First node listed will be last child.
+    # xml etree appears to correctly convert html-safe to ascii: &lt; = <
 
     def convert_from_etree_element(self, element):
         '''converts an xml etree element to a node
         '''
         node = self.elementType()  # could be anything: Map, Node, etc.
+        self.childOrder = list(self.childOrder) + []  # make list instance so we don't modify class variable
+        self.lastChildOrder = list(self.lastChildOrder) + []
         usedAttribs = []
         for key, value in element.attrib.items():
             node[key] = value  # attribs of a node are stored dictionary style in the node
             usedAttribs.append(key)
         node[:] = element[:]  # append all unconverted children to this node!
-        unusedAttribs = {key: val for (key, val) in element.attrib.items() if key not in usedAttribs}
-        if unusedAttribs:
-            print('unused' + str(unusedAttribs))  # for diagnostics: determining if I need to add support for more stuff
+        if not node.tag == element.tag:
+            warnings.warn('element "' + str(element.tag) + '" does not have a corresponding conversion factory. ' +
+                          'Element will import and export correctly, but manipulation will be more difficult',
+                          UserWarning, stacklevel=2)
+            node.tag = element.tag
         return node
 
     def additional_conversion(self, node):  # should be called full tree conversion
@@ -24,8 +32,9 @@ class BaseElementFactory(object):
 
     def revert_to_etree_element(self, node):
         attribs = {key: value for key, value in node.items()  # unfortunately, you cannot make these attribs ordered
-                       if value is not None}  # without some serious hackjobs. Possible, but not worth it.
-        element = ET.Element(node.gettag(), **attribs)
+                       if value is not None}  # without some serious hackjobs. Possible, but NOT worth it.
+        self.sort_element_children(node)
+        element = ET.Element(node.tag, **attribs)
         element[:] = node[:]
         return element
 
@@ -35,13 +44,26 @@ class BaseElementFactory(object):
         element.tail = '\n'
         return element
 
+    def sort_element_children(self, element):  # for reverting to etree element. Organizes children for file readability
+        for tag in self.childOrder:
+            children = element.findall(tag)
+            for e in children:
+                element.remove(e)
+                element.append(e)
+        for tag in reversed(self.lastChildOrder):  # nodes you want to show last
+            children = element.findall(tag)
+            for e in children:
+                element.remove(e)
+                element.append(e)
+
 
 class NodeFactory(BaseElementFactory):
     elementType = Node
 
     def additional_conversion(self, node):
-        node.settext(node['TEXT'])
-        #del node['TEXT']  # remove text so that you can access the text of the node using node.gettext()
+        if 'TEXT' in node:
+            node.settext(node['TEXT'])  # if not, we may expect a richcontent child then....
+            #del node['TEXT']  # remove text so that you can access the text of the node using node.gettext()
         return node
 
     def revert_to_etree_element(self, node):

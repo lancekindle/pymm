@@ -1,14 +1,6 @@
 import xml.etree.ElementTree as ET
 import Factories
 
-# to do: generic conversion for all children. Instead of housing "clouds, etc" in separate lists
-# house all children of node in same _children list. But when iterating through children, only
-# return the nodes. Then calls to getclouds() can instead iterate through all children, picking
-# out any that have the tag "cloud" This way it's more similar to xml. Also, instead
-# set type to be the actual nodetype. for example, RootNode will have tag "node" but type RootNode
-
-# setting node attributes should be done by BaseElement, not BaseElementfactory! simply initalize the
-# BaseElement with the attributes from the element
 
 class FreeplaneFile(object):
 
@@ -43,7 +35,7 @@ class FreeplaneFile(object):
 
 
 class MindMapConverter(object):
-    # this factory will just take a list of nodes to convert
+    # this factory a node to convert
     # and will convert by choosing which factory to use in converting a given node
     # it is also tasked with non-recursively converting all nodes contained
     # within the first converted node.
@@ -65,7 +57,7 @@ class MindMapConverter(object):
         if not isinstance(factory, object):  # if we are passed a non-initialized factory, create factory instance
             factory = factory()
         element = factory.elementType()
-        self.tag2factory[element.gettag()] = factory
+        self.tag2factory[element.tag] = factory
 
     def convert_etree_element_and_tree(self, et):
         action1 = self.convert_etree_element
@@ -79,18 +71,18 @@ class MindMapConverter(object):
         first = action1(element)
         hasUnchangedChildren = [first]
         while hasUnchangedChildren:
-            element = hasUnchangedChildren.pop()
+            element = hasUnchangedChildren.pop(0)
             unchanged = [child for child in element[:]]  # this must return all elements for pymm and etree
             children = []
             while unchanged:
-                unchangedChild = unchanged.pop()
+                unchangedChild = unchanged.pop(0)  # pop from first index to preserve child order
                 child = action1(unchangedChild)
                 children.append(child)
                 hasUnchangedChildren.append(child)
             element[:] = children
         notFullyChanged = [first]
         while notFullyChanged:
-            element = notFullyChanged.pop()
+            element = notFullyChanged.pop(0)
             notFullyChanged.extend(element[:])
             element = action2(element)
         return first
@@ -106,10 +98,7 @@ class MindMapConverter(object):
 
     def get_conversion_factory_for(self, et):
         tag = None
-        if hasattr(et, 'tag'):  # for an etree element
-            tag = et.tag
-        if hasattr(et, 'gettag'):  # for a node
-            tag = et.gettag()
+        tag = et.tag
         if tag and tag in self.tag2factory:
             return self.tag2factory[tag]
         return self.defaultFactory

@@ -1,9 +1,10 @@
 from uuid import uuid4
+import warnings
 
 class ElementAccessor(object):
     # this object is intended to hold a reference to ONE node or element. When initialized with a set of tags,
-    # the object will search its reference node for those tags and allow access to them, including indexing
-    # and iteration.
+    # the object will search its reference node for those tags and allow access to them, including indexing,
+    # iteration, removal, deletion, etc.
 
     def __init__(self, element, tags=[]):
         self._tags = list(tags[:])
@@ -17,7 +18,7 @@ class ElementAccessor(object):
 
     def __iter__(self):
         for child in self._holder:
-            if child.gettag() in self._tags:
+            if child.tag in self._tags:
                 yield child
 
     def __getitem__(self, index):
@@ -51,6 +52,14 @@ class ElementAccessor(object):
     def remove(self, element):
         self._holder.remove(element)
 
+    def __str__(self):
+        return 'Accessor for: ' + str(self._tags)
+
+    def __repr__(self):
+        return '<' + str(self)[:15] + '...'*(len(str(self))>15) +' @' + hex(id(self)) + '>'
+
+
+
 
 class BaseElement(object):
     # BaseElement for basic child access functionality
@@ -59,6 +68,7 @@ class BaseElement(object):
     # (because the self.var would actually be pointing to the class variable)
     # this caught me at first, but since I re-initialize them in the init, everything is good.
     tag = 'invalid'  # must set to cloud, hook, edge, etc.
+    parent = None
     _attribs = {}  # pre-define these (outside of init like this) in other classes to define default element attribs
     _strConstructors = []  # list of attribs to use in construction __str__
 
@@ -75,6 +85,8 @@ class BaseElement(object):
             yield child
 
     def __contains__(self, key):
+        if isinstance(key, str):
+            return key in self._attribs
         if key in self._children:
             return True
         return False
@@ -84,7 +96,7 @@ class BaseElement(object):
             return self._children
         matching = []
         for element in self:
-            if element.gettag() == tag:
+            if element.tag == tag:
                 matching.append(element)
         return matching
             
@@ -101,11 +113,16 @@ class BaseElement(object):
             self._attribs[key] = value
         else:
             self._children[key] = value
+            if hasattr(value, 'parent'): # if we can set parent attribute of element
+                value.parent = self
 
     def __delitem__(self, key):
         if isinstance(key, str):
             del self._attribs[key]
         else:
+            element = self._children[key]
+            if hasattr(element, 'parent'):
+                element.parent = None
             del self._children[key]
 
     def index(self, item):
@@ -113,12 +130,17 @@ class BaseElement(object):
 
     def append(self, element):
         self._children.append(element)
+        if hasattr(element, 'parent'):
+            element.parent = self
 
     def extend(self, elements):
-        self._children.extend(elements)
+        for element in elements:
+            self.append(element)  # we call here so that we can set parent attribute. Unfortunately means its slowish
 
     def remove(self, element):
         self._children.remove(element)
+        if hasattr(element, 'parent'):
+            element.parent = None
 
     def items(self):
         return self._attribs.items()
@@ -126,12 +148,9 @@ class BaseElement(object):
     def keys(self):
         return self._attribs.keys()
 
-    def gettag(self):
-        return self.tag
-
     def __str__(self):
         extras = [' ' + prop + ': ' + value for prop, value in self.items() if prop in self._strConstructors]
-        s = self.gettag()
+        s = self.tag
         for descriptor in extras:
             s += descriptor
         return s
@@ -154,29 +173,14 @@ class Node(BaseElement):
         self.nodes = ElementAccessor(self, ['node'])
 
     def __str__(self):
-        return self.gettag() + ': ' + str(self.gettext())
-
-    def getRecognizableNodeTags(self):
-        return self._recognizableNodeTags
+        return self.tag + ': ' + str(self.gettext())
 
     def gettext(self):
         return self.text
 
     def settext(self, text):
         if isinstance(text, str):  # may either be html or just words.
-            self.text = text
-
-    def getclouds(self):
-        pass#return self._clouds[:]
-
-    def geticons(self):
-        pass#return self._icons[:]
-
-    def getattributes(self):
-        pass# return self._attributes.copy()  # not guarenteed to be immutable
-
-    def _additional_conversion(self):
-        pass  # need to convert text to html if some richcontent module is found
+            self.text = str(text)  # we call str() on text to convert to printable characters.
 
 
 class Map(BaseElement):
@@ -210,12 +214,43 @@ class Font(BaseElement):
 
 class Icon(BaseElement):
     tag = 'icon'
+    _attribs = {'BUILTIN': 'bookmark'}
+    _strConstructors = ['BUILTIN']
+    builtinList = ['help', 'bookmark', 'yes', 'button_ok', 'button_cancel', 'idea', 'messagebox_warning', 'stop-sign',
+                   'closed', 'info', 'clanbomber', 'checked', 'unchecked', 'wizard', 'gohome', 'knotify', 'password',
+                   'pencil', 'xmag', 'bell', 'launch', 'broken-line', 'stop', 'prepare', 'go', 'very_negative',
+                   'negative', 'neutral', 'positive', 'very_positive', 'full-1', 'full-2', 'full-3', 'full-4', 'full-5',
+                   'full-6', 'full-7', 'full-8', 'full-9', 'full-0', '0%', '25%', '50%', '75%', '100%', 'attach',
+                   'desktop_new', 'list', 'edit', 'kaddressbook', 'pencil', 'folder', 'kmail', 'Mail', 'revision',
+                   'video', 'audio', 'executable', 'image', 'internet', 'internet_warning', 'mindmap', 'narrative',
+                   'flag-black', 'flag-blue', 'flag-green', 'flag-orange', 'flag-pink', 'flag', 'flag-yellow', 'clock',
+                   'clock2', 'hourglass', 'calendar', 'family', 'female1', 'female2', 'females', 'male1', 'male2',
+                   'males', 'fema', 'group', 'ksmiletris', 'smiley-neutral', 'smiley-oh', 'smiley-angry','smiley_bad',
+                   'licq', 'penguin', 'freemind_butterfly', 'bee', 'forward', 'back', 'up', 'down', 'addition',
+                   'subtraction', 'multiplication', 'division']  # you can add additional icons right here if one is
+        # missing by simply appending to the class builtin list: Icon.builtinList.append(icon-name)
+
+    def set_icon(self, icon):
+        self['BUILTIN'] = icon
+        if icon not in self.builtinList:
+            warnings.warn('icon "' + str(icon) + '" not part of freeplanes builtin icon list. ' +
+                'Freeplane may not display icon. Use an icon from the builtinList instead', SyntaxWarning, stacklevel=2)
+
 
 class Edge(BaseElement):
     tag = 'edge'
+    styleList = ['linear', 'bezier', 'sharp_linear', 'sharp_bezier', 'horizontal', 'hide_edge']
+    widthList = ['thin', '1', '2', '4', '8']
+
+    def set_style(self, style):
+        self['STYLE'] = style
+        if style not in self.styleList:
+            warnings.warn('edge style "' + str(style) + '" not part of freeplanes edge styles list. ' +
+                'Freeplane may not display edge. Use a style from the styleList instead', SyntaxWarning, stacklevel=2)
     
 class Attribute(BaseElement):
     tag = 'attribute'
+    _attribs = {'NAME': '','VALUE': ''}
 
 class Properties(BaseElement):
     tag = 'properties'
