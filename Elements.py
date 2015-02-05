@@ -1,6 +1,8 @@
 from uuid import uuid4
 import warnings
 
+# see http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format for file specifications
+
 class ElementAccessor(object):
     # this object is intended to hold a reference to ONE node or element. When initialized with a set of tags,
     # the object will search its reference node for those tags and allow access to them, including indexing,
@@ -69,7 +71,10 @@ class BaseElement(object):
     # this caught me at first, but since I re-initialize them in the init, everything is good.
     tag = 'invalid'  # must set to cloud, hook, edge, etc.
     parent = None
+    _elementText = ''
+    _tailText = ''
     _attribs = {}  # pre-define these (outside of init like this) in other classes to define default element attribs
+    _attribSpecs = {}  # list all possible attributes of an element and its corresponding value type or choices
     _strConstructors = []  # list of attribs to use in construction __str__
 
     def __init__(self, **kwargs):
@@ -165,6 +170,10 @@ class BaseElement(object):
 class Node(BaseElement):
     tag = 'node'
     _attribs = {'ID': 'ID_' + str(uuid4().time)[:-1], 'TEXT': ''}
+    _attribSpecs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
+                    'POSITION': ['left', 'right'], 'STYLE': str, 'TEXT': str, 'LOCALIZED_TEXT': str, 'TYPE': str,
+                    'CREATED': int, 'MODIFIED': int, 'HGAP': int, 'VGAP': int, 'VSHIFT': int, 'ENCRYPTED_CONTENT': str,
+                    'OBJECT': str, 'MIN_WIDTH': int, 'MAX_WIDTH': int}
 
     def __init__(self, **kwargs):
         super(Node, self).__init__(**kwargs)
@@ -186,6 +195,7 @@ class Node(BaseElement):
 class Map(BaseElement):
     tag = 'map'
     _attribs = {'version': 'freeplane 1.3.0'}
+    _attribSpecs = {'version': str}
 
     def setroot(self, root):
         pass
@@ -196,25 +206,45 @@ class Map(BaseElement):
 
 class Cloud(BaseElement):
     tag = 'cloud'
+    shapeList = ['ARC', 'STAR','RECT','ROUND_RECT']
     _attribs = {'COLOR': '#333ff', 'SHAPE': 'ARC'}  # set defaults
+    _attribSpecs = {'COLOR': str, 'SHAPE': shapeList, 'WIDTH': str}
     _strConstructors = ['COLOR', 'SHAPE']  # extra information to send during call to __str__
 
 class Hook(BaseElement):
     tag = 'hook'
+    _attribs = {'NAME': 'invalid'}
+    _attribSpecs = {'NAME': str}
+
+class EmbeddedImage(Hook):
+    tag = 'hook'
+    _attribs = {'NAME': 'ExternalObject'}
+    _attribSpecs = {'NAME': str, 'URI': str, 'SIZE': float}
+
+class MapConfig(Hook):
+    tag = 'hook'
+    _attribs = {'NAME': 'MapStyle'}
+    _attribSpecs = {'max_node_width': int, 'zoom': float}
+
+class Equation(Hook):
+    tag = 'hook'
+    _attribs = {'NAME': 'plugins/latex/LatexNodeHook.properties'}
+    _attribSpecs = {'EQUATION': str}
 
 class MapStyles(BaseElement):
     tag = 'map_styles'
 
 class StyleNode(BaseElement):
     tag = 'stylenode'
+    _attribSpecs = {'LOCALIZED_TEXT': str, 'POSITION': ['left', 'right'], 'COLOR': str, 'MAX_WIDTH': int, 'STYLE': str}
 
 class Font(BaseElement):
     tag = 'font'
-    _attribs = {'BOLD': 'false', 'ITALIC': 'false', 'NAME': 'SansSerif', 'SIZE': '10'}  # set defaults
+    _attribs = {'BOLD': False, 'ITALIC': False, 'NAME': 'SansSerif', 'SIZE': '10'}  # set defaults
+    _attribSpecs = {'BOLD': bool, 'ITALIC': bool, 'NAME': str, 'SIZE': int}
 
 class Icon(BaseElement):
     tag = 'icon'
-    _attribs = {'BUILTIN': 'bookmark'}
     _strConstructors = ['BUILTIN']
     builtinList = ['help', 'bookmark', 'yes', 'button_ok', 'button_cancel', 'idea', 'messagebox_warning', 'stop-sign',
                    'closed', 'info', 'clanbomber', 'checked', 'unchecked', 'wizard', 'gohome', 'knotify', 'password',
@@ -229,6 +259,8 @@ class Icon(BaseElement):
                    'licq', 'penguin', 'freemind_butterfly', 'bee', 'forward', 'back', 'up', 'down', 'addition',
                    'subtraction', 'multiplication', 'division']  # you can add additional icons right here if one is
         # missing by simply appending to the class builtin list: Icon.builtinList.append(icon-name)
+    _attribs = {'BUILTIN': 'bookmark'}
+    _attribSpecs = {'BUILTIN': builtinList}
 
     def set_icon(self, icon):
         self['BUILTIN'] = icon
@@ -241,6 +273,7 @@ class Edge(BaseElement):
     tag = 'edge'
     styleList = ['linear', 'bezier', 'sharp_linear', 'sharp_bezier', 'horizontal', 'hide_edge']
     widthList = ['thin', '1', '2', '4', '8']
+    _attribSpecs = {'COLOR': str, 'STYLE': styleList, 'WIDTH': widthList}
 
     def set_style(self, style):
         self['STYLE'] = style
@@ -251,6 +284,24 @@ class Edge(BaseElement):
 class Attribute(BaseElement):
     tag = 'attribute'
     _attribs = {'NAME': '','VALUE': ''}
+    _attribSpecs = {'NAME': str, 'VALUE': str}
 
 class Properties(BaseElement):
     tag = 'properties'
+    _attribSpecs = {'show_icon_for_attributes': bool}
+
+class ArrowLink(BaseElement):
+    tag = 'arrowlink'
+    _attribs = {'DESTINATION': ''}
+    _attribSpecs = {'COLOR': str, 'DESTINATION': str, 'ENDARROW': str, 'ENDINCLINATION': str, 'ID': str,
+                    'STARTARROW': str, 'STARTINCLINATION': str, 'SOURCE_LABEL': str, 'MIDDLE_LABEL': str,
+                    'TARGET_LABEL': str, 'EDGE_LIKE': bool}
+
+class RichContent(BaseElement):
+    tag = 'richcontent'
+    _attribs = {'TYPE': 'NODE'}
+    _attribSpecs = {'TYPE': ['NODE', 'NOTE']}
+
+class AttributeLayout(BaseElement):
+    tag = 'attribute_layout'
+

@@ -44,7 +44,7 @@ class MindMapConverter(object):
         F = Factories
         factories = [F.BaseElementFactory, F.NodeFactory, F.MapFactory, F.CloudFactory,
                      F.HookFactory, F.MapStylesFactory, F.StyleNodeFactory, F.FontFactory, F.IconFactory,
-                     F.EdgeFactory, F.AttributeFactory, F.PropertiesFactory]
+                     F.EdgeFactory, F.AttributeFactory, F.PropertiesFactory, F.RichContentFactory]
         fff = [factory() for factory in factories]  # get an initialized instance of all factories
         self.tag2factory = {}
         for f in fff:            # get a dictionary that
