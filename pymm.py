@@ -17,7 +17,8 @@ class FreeplaneFile(object):
         self.xmlTree.write('output.mm')
 
     def getroot(self):
-        return self.mapnode[0]  # map has one child -> the root
+        #return self.mapnode[0]  # map has one child -> the root  # NOT TRUE! #there can be an attribute_registry here
+        return self.mapnode.findall('node')[0]
 
     def getmap(self):
         return self.mapnode
@@ -35,8 +36,8 @@ class FreeplaneFile(object):
 
 
 class MindMapConverter(object):
-    # this factory a node to convert
-    # and will convert by choosing which factory to use in converting a given node
+    # pass this factory a node to convert
+    # and it will convert by choosing which factory to use in converting a given node
     # it is also tasked with non-recursively converting all nodes contained
     # within the first converted node.
 
@@ -121,16 +122,12 @@ if __name__ == '__main__':
     fpf = FreeplaneFile()
     fpf.readfile('input.mm')
     element = fpf.xmlTree.getroot().findall('node')[0]
-    m = fpf.getmap()
-    n = fpf.getroot()
-    #nc = n[0][0]
-    #hs = element.findall('hook')  # hooks for maps???
-    #hs[0].attrib  # prints off 'NAME' : 'MapStyle'
+    m = fpf.getmap()  # map node
+    n = fpf.getroot()  # root node
     try:
         fpf.writefile('output.mm')
     except:
-        m = fpf.xmlTree._root
-        raise
+        pass
     finally:
-        m = fpf.xmlTree._root
+        e = fpf.xmlTree._root  # the ET root
 
