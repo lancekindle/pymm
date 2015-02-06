@@ -45,7 +45,8 @@ class MindMapConverter(object):
         F = Factories
         factories = [F.BaseElementFactory, F.NodeFactory, F.MapFactory, F.CloudFactory,
                      F.HookFactory, F.MapStylesFactory, F.StyleNodeFactory, F.FontFactory, F.IconFactory,
-                     F.EdgeFactory, F.AttributeFactory, F.PropertiesFactory, F.RichContentFactory]
+                     F.EdgeFactory, F.AttributeFactory, F.PropertiesFactory, F.RichContentFactory,
+                     F.AttributeRegistryFactory]
         fff = [factory() for factory in factories]  # get an initialized instance of all factories
         self.tag2factory = {}
         for f in fff:            # get a dictionary that
@@ -111,8 +112,7 @@ class MindMapConverter(object):
 
     def revert_node(self, node):
         ff = self.get_conversion_factory_for(node)
-        et = ff.revert_to_etree_element(node)
-        return et
+        return ff.revert_to_etree_element(node)
 
     def additional_reversion(self, node):
         ff = self.get_conversion_factory_for(node)
@@ -130,4 +130,5 @@ if __name__ == '__main__':
         pass
     finally:
         e = fpf.xmlTree._root  # the ET root
+    #print(ET.tostring(e[1][-2]))
 

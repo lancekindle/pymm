@@ -12,16 +12,9 @@ class ElementAccessor(object):
         self._tags = list(tags[:])
         self._holder = element
 
-    def __call__(self):  # this function will be called when the user is trying to access particular elements for
-        return self[:]  # example,node.nodes() where we assume nodes actually points to this instance.
-
-    # for same reason as BaseElement, we must disallow direct iteration. This makes calls much cleaner, and we ensure
-    # (reasonably) that when we do iterate, it will not be accidentally over an element's children.
-    # again, CLEANER CODE, easier to understand when reading code, and fewer writing mistakes.
-    # def __iter__(self):
-    #     for child in self._holder[:]:
-    #         if child.tag in self._tags:
-    #             yield child
+    ## allowing a () call on this object weakens the standard of using [:]
+    # def __call__(self):  # this function will be called when the user is trying to access particular elements for
+    #     return self[:]  # example,node.nodes() where we assume nodes actually points to this instance.
 
     def __getitem__(self, index):
         elements = []
@@ -43,7 +36,7 @@ class ElementAccessor(object):
         del self._holder[index]
 
     def __contains__(self, element):
-        return element in self
+        return element in self[:]
 
     def __len__(self):
         return len(self())
@@ -78,24 +71,16 @@ class BaseElement(object):
     _tailText = ''
     _children = []  # all child elements including nodes
     _attribs = {}  # pre-define these (outside of init like this) in other classes to define default element attribs
-    _attribSpecs = {}  # list all possible attributes of an element and its choices [...] or value type (str, int, etc.)
     _strConstructors = []  # list of attribs to use in str(self) construction
+    specs = {}  # list all possible attributes of an element and its choices [...] or value type (str, int, etc.)
 
     def __init__(self, **kwargs):
         self._attribs = self._attribs.copy()  # copy all class lists/dicts into instance
-        self._attribSpecs = self._attribSpecs.copy()
+        self.specs = self.specs.copy()
         self._strConstructors = list(self._strConstructors) + []
         self._children = list(self._children) + []
         for key, value in kwargs.items():
             self[key] = value
-
-    ## DO NOT use iter. Because it makes it unclear what is added. e.g.: n.append(c), n.extend(c). If the user were to
-    ## accidentally call n.extend(c), then it would actually add all of c's children, rather than c itself.
-    # by preventing __iter__ we can ensure that the sytax for adding children is cleaner. MUCH CLEANER
-    # downside is that child iteration will be slower, on account of it mostly being non-iteration
-    # def __iter__(self):  # why was I incorrect in thinking it was iteritem?
-    #     for child in self._children:
-    #         yield child
 
     def __contains__(self, key):
         if isinstance(key, str):
@@ -121,9 +106,9 @@ class BaseElement(object):
             return self._attribs[key]
         return self._children[key]
 
-    def __setitem__(self, key, value):  # in some cases, __setitem__ can set all children of node without going through append. Which means the node's parent is not set
+    def __setitem__(self, key, value):
         if isinstance(key, str):
-            self._attribs[key] = value
+            self._setdictitem(key, value)#._attribs[key] = value
         else:
             index, child = key, value
             if type(index) == slice:
@@ -137,6 +122,24 @@ class BaseElement(object):
             for child in children:
                 if hasattr(child, 'parent'):
                     child.parent = self
+
+    def _setdictitem(self, key, value):  # a way to force error checking on setting of attrib values.
+        self._attribs[key] = value  # regardless of whether we warn developer, add attribute.
+        if key not in self.specs:
+            warnings.warn('<' + self.tag + '> does not have "' + key + '" spec')
+        else:  # then key IS in attribSpecs
+            vtype = self.specs[key]
+            try:
+                if isinstance(vtype, list):
+                    vlist = vtype  # the value type is actually a list of possible string values
+                    if value not in vlist:
+                        vtype = ' one of ' + str(vtype)  # change vtype to string for warning user. vtype is useless now
+                        raise ValueError
+                elif not vtype == type(value):
+                    raise ValueError
+            except ValueError:
+                warnings.warn('<' + node.tag + '>[' + key + '] expected ' + str(vtype) + ', got ' + str(value) +
+                          ' instead: ' + str(type(value)), UserWarning, stacklevel=2)
 
     def __delitem__(self, key):
         if isinstance(key, str):
@@ -156,6 +159,8 @@ class BaseElement(object):
             element.parent = self
 
     def extend(self, elements):
+        if isinstance(elements, BaseElement):
+            raise TypeError('can only assign an iterable')
         for element in elements:
             self.append(element)  # we call here so that we can set parent attribute. Unfortunately means its slowish
 
@@ -180,14 +185,11 @@ class BaseElement(object):
     def __repr__(self):
         return '<' + str(self)[:13] + '...'*(len(str(self))>13) +' @' + hex(id(self)) + '>'
 
-    def gethooks(self):
-        pass#return self._hooks[:]
-
 
 class Node(BaseElement):
     tag = 'node'
     _attribs = {'ID': 'ID_' + str(uuid4().time)[:-1], 'TEXT': ''}
-    _attribSpecs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
+    specs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
                     'POSITION': ['left', 'right'], 'STYLE': str, 'TEXT': str, 'LOCALIZED_TEXT': str, 'TYPE': str,
                     'CREATED': int, 'MODIFIED': int, 'HGAP': int, 'VGAP': int, 'VSHIFT': int, 'ENCRYPTED_CONTENT': str,
                     'OBJECT': str, 'MIN_WIDTH': int, 'MAX_WIDTH': int}
@@ -212,54 +214,58 @@ class Node(BaseElement):
 class Map(BaseElement):
     tag = 'map'
     _attribs = {'version': 'freeplane 1.3.0'}
-    _attribSpecs = {'version': str}
+    specs = {'version': str}
+
+    def __init__(self, **kwargs):
+        super(Map, self).__init__(**kwargs)
+        self.nodes = ElementAccessor(self, ['node'])
 
     def setroot(self, root):
-        pass
+        self.nodes[:] = [root]
 
     def getroot(self):
-        pass
+        return self.nodes[0]  # there should only be one node on Map!
 
 
 class Cloud(BaseElement):
     tag = 'cloud'
     shapeList = ['ARC', 'STAR','RECT','ROUND_RECT']
     _attribs = {'COLOR': '#333ff', 'SHAPE': 'ARC'}  # set defaults
-    _attribSpecs = {'COLOR': str, 'SHAPE': shapeList, 'WIDTH': str}
+    specs = {'COLOR': str, 'SHAPE': shapeList, 'WIDTH': str}
     _strConstructors = ['COLOR', 'SHAPE']  # extra information to send during call to __str__
 
 class Hook(BaseElement):
     tag = 'hook'
     _attribs = {'NAME': 'overwritten'}
-    _attribSpecs = {'NAME': str}
+    specs = {'NAME': str}
 
 class EmbeddedImage(Hook):
     _attribs = {'NAME': 'ExternalObject'}
-    _attribSpecs = {'NAME': str, 'URI': str, 'SIZE': float}
+    specs = {'NAME': str, 'URI': str, 'SIZE': float}
 
 class MapConfig(Hook):
     _attribs = {'NAME': 'MapStyle', 'zoom': 1.0}
-    _attribSpecs = {'NAME': str, 'max_node_width': int, 'zoom': float}
+    specs = {'NAME': str, 'max_node_width': int, 'zoom': float}
 
 class Equation(Hook):
     _attribs = {'NAME': 'plugins/latex/LatexNodeHook.properties'}
-    _attribSpecs = {'NAME': str, 'EQUATION': str}
+    specs = {'NAME': str, 'EQUATION': str}
 
 class AutomaticEdgeColor(Hook):
     _attribs = {'NAME': 'AutomaticEdgeColor', 'COUNTER': 0}
-    _attribSpecs = {'NAME': str, 'COUNTER': int}
+    specs = {'NAME': str, 'COUNTER': int}
 
 class MapStyles(BaseElement):
     tag = 'map_styles'
 
 class StyleNode(BaseElement):
     tag = 'stylenode'
-    _attribSpecs = {'LOCALIZED_TEXT': str, 'POSITION': ['left', 'right'], 'COLOR': str, 'MAX_WIDTH': int, 'STYLE': str}
+    specs = {'LOCALIZED_TEXT': str, 'POSITION': ['left', 'right'], 'COLOR': str, 'MAX_WIDTH': int, 'STYLE': str}
 
 class Font(BaseElement):
     tag = 'font'
     _attribs = {'BOLD': False, 'ITALIC': False, 'NAME': 'SansSerif', 'SIZE': 10}  # set defaults
-    _attribSpecs = {'BOLD': bool, 'ITALIC': bool, 'NAME': str, 'SIZE': int}
+    specs = {'BOLD': bool, 'ITALIC': bool, 'NAME': str, 'SIZE': int}
 
 class Icon(BaseElement):
     tag = 'icon'
@@ -278,7 +284,7 @@ class Icon(BaseElement):
                    'subtraction', 'multiplication', 'division']  # you can add additional icons right here if one is
         # missing by simply appending to the class builtin list: Icon.builtinList.append(icon-name)
     _attribs = {'BUILTIN': 'bookmark'}
-    _attribSpecs = {'BUILTIN': builtinList}
+    specs = {'BUILTIN': builtinList}
 
     def set_icon(self, icon):
         self['BUILTIN'] = icon
@@ -291,7 +297,7 @@ class Edge(BaseElement):
     tag = 'edge'
     styleList = ['linear', 'bezier', 'sharp_linear', 'sharp_bezier', 'horizontal', 'hide_edge']
     widthList = ['thin', '1', '2', '4', '8']
-    _attribSpecs = {'COLOR': str, 'STYLE': styleList, 'WIDTH': widthList}
+    specs = {'COLOR': str, 'STYLE': styleList, 'WIDTH': widthList}
 
     def set_style(self, style):
         self['STYLE'] = style
@@ -302,25 +308,31 @@ class Edge(BaseElement):
 class Attribute(BaseElement):
     tag = 'attribute'
     _attribs = {'NAME': '','VALUE': ''}
-    _attribSpecs = {'NAME': str, 'VALUE': str, 'OBJECT': str}
+    specs = {'NAME': str, 'VALUE': str, 'OBJECT': str}
 
 class Properties(BaseElement):
     tag = 'properties'
     _attribs = {'show_icon_for_attributes': True, 'show_note_icons': True, 'show_notes_in_map': False}
-    _attribSpecs = {'show_icon_for_attributes': bool, 'show_note_icons': bool, 'show_notes_in_map': bool}
+    specs = {'show_icon_for_attributes': bool, 'show_note_icons': bool, 'show_notes_in_map': bool}
 
 class ArrowLink(BaseElement):
     tag = 'arrowlink'
     _attribs = {'DESTINATION': ''}
-    _attribSpecs = {'COLOR': str, 'DESTINATION': str, 'ENDARROW': str, 'ENDINCLINATION': str, 'ID': str,
+    specs = {'COLOR': str, 'DESTINATION': str, 'ENDARROW': str, 'ENDINCLINATION': str, 'ID': str,
                     'STARTARROW': str, 'STARTINCLINATION': str, 'SOURCE_LABEL': str, 'MIDDLE_LABEL': str,
                     'TARGET_LABEL': str, 'EDGE_LIKE': bool}
 
 class RichContent(BaseElement):
     tag = 'richcontent'
     _attribs = {'TYPE': 'NODE'}
-    _attribSpecs = {'TYPE': ['NODE', 'NOTE']}
-    html = ''  # string version of html code! But we don't include the <html> tag since that's redundant
+    specs = {'TYPE': ['NODE', 'NOTE']}
+    html = ''  # string version of html code! But we don't include the <html> or <body> tags since those are redundant
+
+class RichContentNode(RichContent):
+    _attribs = {'TYPE': 'NODE'}
+
+class RichContentNote(RichContent):
+    _attribs = {'TYPE': 'NOTE'}
 
 class AttributeLayout(BaseElement):
     tag = 'attribute_layout'
@@ -328,4 +340,4 @@ class AttributeLayout(BaseElement):
 class AttributeRegistry(BaseElement):
     tag = 'attribute_registry'
     _attribs = {'SHOW_ATTRIBUTES': 'all'}  # if we select 'all' the element should be omitted from file.
-    _attribSpecs = {'SHOW_ATTRIBUTES': ['selected', 'all', 'hide']}
+    specs = {'SHOW_ATTRIBUTES': ['selected', 'all', 'hide']}

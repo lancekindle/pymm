@@ -51,16 +51,23 @@ class BaseElementFactory(object):
         return node  # should be overridden by an inheriting class to perform addtional conversion before returning node
 
     def revert_to_etree_element(self, node):
+        if isinstance(node, ET.Element):
+            warnings.warn('program is reverting an ET Element! ' + str(node) + ' which means that it will lose text' +
+            ' and tail properties. If you wish to preserve those, consider attaching ET Element as child of an' +
+            ' Element in the "additional_reversion" function. This message indicates that the Element was added during' +
+            ' the "revert_to_etree_element" function call. See RichContentFactory for an example.',
+            RuntimeWarning, stacklevel=2)
         attribs = self.revert_attribs(node)
         self.sort_element_children(node)
         element = ET.Element(node.tag, **attribs)  # fyi: impossible to write attribs in specific order.
-        element[:] = node[:]                       # ETree always sorts em
+        element[:] = node[:]                       # ETree always sorts em  PS HERE is where we fail to write text&tail
         return element
 
     def additional_reversion(self, element):  # call after full tree reversion
-        if len(element) > 0:
+        if len(element) > 0 and not element.text:
             element.text = '\n'  # set spacing for written file layout, (but only if it has children!)
-        element.tail = '\n'
+        if not element.tail:  # if tail is blank; we'll fill it in!
+            element.tail = '\n'
         return element
 
     def sort_element_children(self, element):  # for reverting to etree element. Organizes children for file readability
@@ -83,29 +90,24 @@ class BaseElementFactory(object):
         transfers all attributes from element to node, converting where necessary.
         '''
         convertedAttribs = {}
-        for key, value in attribs.items():
-            #key, value = str(key), str(value)  # converting from et element: assume all keys and values are strings
+        for key, value in attribs.items():  # converting from et element: assume all keys and values are strings
             try:
-                if key in node._attribSpecs:
-                    vtype = node._attribSpecs[key]
+                if key in node.specs:
+                    vtype = node.specs[key]
                     if isinstance(vtype, list):  # a list for multiple values (always strings)
-                        vlist = vtype  # the value type is actually a list of possible values
-                        if value not in vlist:  # do nothing but warn. Do not change value
-                            raise ValueError(key + '=' + value + ' not in ' + str(vlist))
-                    # skip checking if vtype == str.. we don't modify in that case
-                    elif vtype == float:  # decimal/float
-                        value = float(value)
-                    elif vtype == int:  # integer
-                        value = int(value)
+                        vlist = vtype
+                        if value not in vlist:
+                            raise ValueError  # do nothing but warn. Do not change value
                     elif vtype == bool:  # boolean logic
-                        if value.lower() == 'false':
-                            value = False
-                        elif value.lower() == 'true':
-                            value = True
+                        truefalse = {'true': True,'false': False}
+                        if value.lower() in truefalse:
+                            value = truefalse[value.lower()]
                         else:
                             raise ValueError(key + '=' + value + ' not boolean')
+                    else:
+                        value = vtype(value)  # float or integer
                 else:
-                    raise ValueError(key +'=' + value + ' not part of <' + node.tag + '> specs')
+                    raise ValueError
             except ValueError:
                 warnings.warn('Attrib ' + key + '=' + value + ' not valid <' + node.tag + '> specs', SyntaxWarning,
                               stacklevel=2)
@@ -118,43 +120,29 @@ class BaseElementFactory(object):
         :param node - attribs from which to be converted:
         :param element - element to which to apply attribs:
         :return element:
-        transfers all attributes from node to element, converting where necessary.
+        transfers all attributes from node to element, converting where necessary. If value conversion fails, simply
+        convert value to string
         '''
-        attribs = {key: value for key, value in node.items() if value is not None}
+        attribs = {key: value for key, value in node.items() if value is not None}  # drop all None-valued attribs
         revertedAttribs = {}
         for key, value in attribs.items():
-            try:
-                if key in node._attribSpecs:
-                    vtype = node._attribSpecs[key]
-                    if isinstance(vtype, list):  # a list for multiple values (always strings)
-                        vlist = vtype  # the value type is actually a list of possible values
-                        if value not in vlist:  # do nothing but warn. Do not change value
-                            raise ValueError(str(key) + '=' + str(value) + ' not in ' + str(vlist))
-                    # skip checking if vtype == str.. we don't modify in that case
-                    elif vtype == float:  # decimal/float
-                        value = str(float(value))
-                    elif vtype == int:  # integer
-                        value = str(int(value))
-                    elif vtype == bool:  # boolean logic
-                        if str(value).lower() not in ['true', 'false']:
-                            raise ValueError(str(key) + '=' + str(value) + ' not boolean as expected')
-                        value = str(value).lower()  # get 'false' or 'true' strings
+            if key in node.specs:  # convert values, defaulting to str(value) if necessary
+                vtype = node.specs[key]
+                if isinstance(vtype, list):  # a list for multiple values (always strings)
+                    pass
+                elif vtype == bool:  # boolean logic
+                    value = str(value).lower()  # get 'false' or 'true' strings
                 else:
-                    raise ValueError(key +'=' + value + ' not part of <' + node.tag + '> specs')
-            except ValueError:
-                key, value = str(key), str(value)
-                warnings.warn('Attrib ' + key + '=' + value + ' not valid <' + node.tag + '> specs', SyntaxWarning,
-                              stacklevel=2)
-            finally:
-                key, value = str(key), str(value)
-                revertedAttribs[key] = value
+                    value = str(vtype(value))  # float or integer
+            key, value = str(key), str(value)
+            revertedAttribs[key] = value
         return revertedAttribs
 
 
 class NodeFactory(BaseElementFactory):
     elementType = Node
-    childOrder = [BaseElement.tag, ArrowLink.tag, Cloud.tag, Edge.tag, Font.tag, Hook.tag, Icon.tag, Node.tag,
-                  RichContent.tag, AttributeLayout.tag, Attribute.tag]
+    childOrder = [BaseElement.tag, ArrowLink.tag, Cloud.tag, Edge.tag, Font.tag, Hook.tag, Properties.tag,
+                  RichContent.tag, Icon.tag, Node.tag, AttributeLayout.tag, Attribute.tag]
 
     def additional_conversion(self, node):
         if 'TEXT' in node:
@@ -168,6 +156,14 @@ class NodeFactory(BaseElementFactory):
 
 class MapFactory(BaseElementFactory):
     elementType = Map
+
+    def additional_reversion(self, element):
+        element = super(MapFactory, self).additional_reversion(element)
+        comment = ET.Comment('To view this file, download free mind mapping software Freeplane from ' +
+                   'http://freeplane.sourceforge.net')
+        comment.tail = '\n'
+        element[:] = [comment] + element[:]
+        return element
 
 class CloudFactory(BaseElementFactory):
     elementType = Cloud
@@ -199,8 +195,12 @@ class AttributeFactory(BaseElementFactory):
 class PropertiesFactory(BaseElementFactory):
     elementType = Properties
 
+class AttributeRegistryFactory(BaseElementFactory):
+    elementType = AttributeRegistry
+
 class RichContentFactory(BaseElementFactory):
     elementType = RichContent
+    otherElementTypes = [(RichContentNode, 'TYPE', 'NODE'),(RichContentNote, 'TYPE', 'NOTE')]
 
     def convert_from_etree_element(self, element):
         node = super(RichContentFactory, self).convert_from_etree_element(element)
@@ -211,7 +211,7 @@ class RichContentFactory(BaseElementFactory):
             child = htmlchildren.pop(0)
             if child.tag == 'html':
                 parent.remove(child)
-                node.remove(child)  # once this is gone...
+                node.remove(child)  # should be only child of node
                 htmlchildren = child[:]
                 parent = child
                 continue
@@ -221,6 +221,7 @@ class RichContentFactory(BaseElementFactory):
             if child.tag == 'body':
                 parent.remove(child)
                 htmlchildren = child[:]
+                parent = child
                 break
         html = ''
         for child in htmlchildren:
@@ -229,7 +230,27 @@ class RichContentFactory(BaseElementFactory):
         return node
 
     def additional_conversion(self, node):
+        # by the time this is called, its parent node is already converted
         node = super(RichContentFactory, self).additional_conversion(node)
         if node.parent:
             node.parent.settext(node.html)
+            if 'TEXT' in node.parent:  # this may be redundant. Look at node conversion factory to confirm
+                del node.parent['TEXT']
         return node
+
+    def revert_to_etree_element(self, node):
+        # by this time we've already converted this richcontent's parent. But the node.parent still points to the
+        # correct parent node, so it should work!
+        html = '<html>\n  <body>\n    ' + node.parent.gettext() + '</body>\n</html>\n'
+        element = super(RichContentFactory, self).revert_to_etree_element(node)
+        #element.append(ET.fromstring(html))  # do NOT add ET child in this function. Keep it as text form, add it
+                                              # later, in additional_reversion function
+        element.text = html
+        return element
+
+    def additional_reversion(self, element):
+        html = element.text
+        element.text = '\n'
+        element.append(ET.fromstring(html))
+        element.tail = '\n'  # skip writing element.text. Hopefully that'll preserve the richcontent?
+        return element
