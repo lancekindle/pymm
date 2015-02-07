@@ -181,8 +181,8 @@ class BaseElement(object):
         return self._attribs.keys()
 
     def __str__(self):
-        extras = [' ' + prop + ': ' + value for prop, value in self.items() if prop in self._strConstructors]
-        s = self.tag
+        extras = [' ' + prop + '=' + value for prop, value in self.items() if prop in self._strConstructors]
+        s = self.tag + ':'
         for descriptor in extras:
             s += descriptor
         return s
@@ -192,7 +192,7 @@ class BaseElement(object):
 
 
 class Node(BaseElement):
-    tag = 'nodedd'
+    tag = 'node'
     nodes = ElementAccessor.constructor(['node'])
     _attribs = {'ID': 'ID_' + str(uuid4().time)[:-1], 'TEXT': ''}
     specs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
@@ -205,7 +205,7 @@ class Node(BaseElement):
         self.nodes = self.nodes()
 
     def __str__(self):
-        return self.tag + ': ' + self['TEXT']
+        return self.tag + ': ' + self['TEXT'].replace('\n', '')
 
 class Map(BaseElement):
     tag = 'map'

@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 import Factories
 from collections import namedtuple
 from Factories import RemoveElementAndChildrenFromTree
+from copy import deepcopy
 
 
 class FreeplaneFile(object):
@@ -63,13 +64,6 @@ class MindMapTreeConverter(object):
         element = factory.elementType()
         self.tag2factory[element.tag] = factory
 
-    def convert_etree_element_and_tree(self, et):
-        action1 = self.convert_etree_element
-        action2 = self.additional_conversion
-        node = self._special_vert_full_tree(et, action1, action2)
-        self.defaultFactory.display_any_warnings()  # get this out so the developer is warned.
-        return node
-
     def _special_vert_full_tree(self, element, action1, action2):
         # element can be pymm element or etree element
         # e = from (the node / element being converted)
@@ -101,6 +95,14 @@ class MindMapTreeConverter(object):
             parentsAndChildren = [cap(child, element) for child in element[:]]
             notFullyChanged.extend(parentsAndChildren)
         return first
+
+    def convert_etree_element_and_tree(self, et):
+        et = deepcopy(et)
+        action1 = self.convert_etree_element
+        action2 = self.additional_conversion
+        node = self._special_vert_full_tree(et, action1, action2)
+        self.defaultFactory.display_any_warnings()  # get this out so the developer is warned.
+        return node
     
     def convert_etree_element(self, et, parent):
         ff = self.get_conversion_factory_for(et)
@@ -119,6 +121,7 @@ class MindMapTreeConverter(object):
         return self.defaultFactory
 
     def revert_node_and_tree(self, node):
+        node = deepcopy(node)
         action1 = self.revert_node
         action2 = self.additional_reversion
         return self._special_vert_full_tree(node, action1, action2)
