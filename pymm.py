@@ -1,12 +1,14 @@
 import xml.etree.ElementTree as ET
 import Factories
+from collections import namedtuple
+from Factories import RemoveElementAndChildrenFromTree
 
 
 class FreeplaneFile(object):
 
     def __init__(self):
         self.xmlTree = ET.ElementTree()
-        self.mmc = MindMapConverter()
+        self.mmtc = MindMapTreeConverter()
 
     def readfile(self, filename):
         self.xmlTree.parse(filename)
@@ -25,17 +27,17 @@ class FreeplaneFile(object):
     
     def _convert(self, xmlTree):
         etMapNode = xmlTree.getroot()
-        self.mapnode = self.mmc.convert_etree_element_and_tree(etMapNode)
+        self.mapnode = self.mmtc.convert_etree_element_and_tree(etMapNode)
 
     def _revert(self, mapNode):
         #mapF = MapFactory()
-        etMapNode = self.mmc.revert_node_and_tree(self.mapnode)
+        etMapNode = self.mmtc.revert_node_and_tree(self.mapnode)
         #etMapNode = mapF.to_etree_element(self.mapnode)
         # need to convert mapNode too!
         self.xmlTree._root = etMapNode
 
 
-class MindMapConverter(object):
+class MindMapTreeConverter(object):
     # pass this factory a node to convert
     # and it will convert by choosing which factory to use in converting a given node
     # it is also tasked with non-recursively converting all nodes contained
@@ -64,39 +66,50 @@ class MindMapConverter(object):
     def convert_etree_element_and_tree(self, et):
         action1 = self.convert_etree_element
         action2 = self.additional_conversion
-        return self._special_vert_full_tree(et, action1, action2)
+        node = self._special_vert_full_tree(et, action1, action2)
+        self.defaultFactory.display_any_warnings()  # get this out so the developer is warned.
+        return node
 
     def _special_vert_full_tree(self, element, action1, action2):
         # element can be pymm element or etree element
         # e = from (the node / element being converted)
         # convert or revert the element!
-        first = action1(element)
+        cap = namedtuple('ChildAndParent', ['child','parent'])
+        first = action1(element, None)
         hasUnchangedChildren = [first]
         while hasUnchangedChildren:
             element = hasUnchangedChildren.pop(0)
-            unchanged = [child for child in element[:]]  # this must return all elements for pymm and etree
+            unchanged = [cap(child, element) for child in element[:]]
             children = []
             while unchanged:
-                unchangedChild = unchanged.pop(0)  # pop from first index to preserve child order
-                child = action1(unchangedChild)
+                unchangedChild, parent = unchanged.pop(0)  # pop from first index to preserve child order
+                try:
+                    child = action1(unchangedChild, parent)
+                except RemoveElementAndChildrenFromTree:
+                    continue  # removes element from tree being built by not adding it to children(s) list
                 children.append(child)
                 hasUnchangedChildren.append(child)
             element[:] = children
-        notFullyChanged = [first]
+        notFullyChanged = [cap(first, None)]
         while notFullyChanged:
-            element = notFullyChanged.pop(0)
-            notFullyChanged.extend(element[:])
-            element = action2(element)
+            element, parent = notFullyChanged.pop(0)
+            try:
+                element = action2(element, parent)
+            except RemoveElementAndChildrenFromTree:
+                parent.remove(element)
+                continue
+            parentsAndChildren = [cap(child, element) for child in element[:]]
+            notFullyChanged.extend(parentsAndChildren)
         return first
     
-    def convert_etree_element(self, et):
+    def convert_etree_element(self, et, parent):
         ff = self.get_conversion_factory_for(et)
-        node = ff.convert_from_etree_element(et)
+        node = ff.convert_from_etree_element(et, parent)
         return node
 
-    def additional_conversion(self, et):
+    def additional_conversion(self, et, parent):
         ff = self.get_conversion_factory_for(et)
-        return ff.additional_conversion(et)
+        return ff.additional_conversion(et, parent)
 
     def get_conversion_factory_for(self, et):
         tag = None
@@ -110,13 +123,13 @@ class MindMapConverter(object):
         action2 = self.additional_reversion
         return self._special_vert_full_tree(node, action1, action2)
 
-    def revert_node(self, node):
+    def revert_node(self, node, parent):
         ff = self.get_conversion_factory_for(node)
-        return ff.revert_to_etree_element(node)
+        return ff.revert_to_etree_element(node, parent)
 
-    def additional_reversion(self, node):
+    def additional_reversion(self, node, parent):
         ff = self.get_conversion_factory_for(node)
-        return ff.additional_reversion(node)
+        return ff.additional_reversion(node, parent)
     
 if __name__ == '__main__':
     fpf = FreeplaneFile()
@@ -127,8 +140,7 @@ if __name__ == '__main__':
     try:
         fpf.writefile('output.mm')
     except:
-        pass
+        raise
     finally:
         e = fpf.xmlTree._root  # the ET root
     #print(ET.tostring(e[1][-2]))
-

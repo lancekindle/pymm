@@ -1,7 +1,8 @@
 from uuid import uuid4
 import warnings
-
+import re
 # see http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format for file specifications
+
 
 class ElementAccessor(object):
     # this object is intended to hold a reference to ONE node or element. When initialized with a set of tags,
@@ -56,6 +57,11 @@ class ElementAccessor(object):
     def __repr__(self):
         return '<' + str(self)[:15] + '...'*(len(str(self))>15) +' @' + hex(id(self)) + '>'
 
+    @classmethod
+    def constructor(cls, tags):
+        def element_access_construction(element):  # just call self.nodes() or self.clouds(), self.etc... to initialize
+            return cls(element, tags)
+        return element_access_construction
 
 
 
@@ -79,8 +85,7 @@ class BaseElement(object):
         self.specs = self.specs.copy()
         self._strConstructors = list(self._strConstructors) + []
         self._children = list(self._children) + []
-        for key, value in kwargs.items():
-            self[key] = value
+        self._attribs.update(kwargs)
 
     def __contains__(self, key):
         if isinstance(key, str):
@@ -126,7 +131,7 @@ class BaseElement(object):
     def _setdictitem(self, key, value):  # a way to force error checking on setting of attrib values.
         self._attribs[key] = value  # regardless of whether we warn developer, add attribute.
         if key not in self.specs:
-            warnings.warn('<' + self.tag + '> does not have "' + key + '" spec')
+            warnings.warn('<' + self.tag + '> does not have "' + key + '" spec', UserWarning, stacklevel=2)
         else:  # then key IS in attribSpecs
             vtype = self.specs[key]
             try:
@@ -138,7 +143,7 @@ class BaseElement(object):
                 elif not vtype == type(value):
                     raise ValueError
             except ValueError:
-                warnings.warn('<' + node.tag + '>[' + key + '] expected ' + str(vtype) + ', got ' + str(value) +
+                warnings.warn('<' + self.tag + '>[' + key + '] expected ' + str(vtype) + ', got ' + str(value) +
                           ' instead: ' + str(type(value)), UserWarning, stacklevel=2)
 
     def __delitem__(self, key):
@@ -187,7 +192,8 @@ class BaseElement(object):
 
 
 class Node(BaseElement):
-    tag = 'node'
+    tag = 'nodedd'
+    nodes = ElementAccessor.constructor(['node'])
     _attribs = {'ID': 'ID_' + str(uuid4().time)[:-1], 'TEXT': ''}
     specs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
                     'POSITION': ['left', 'right'], 'STYLE': str, 'TEXT': str, 'LOCALIZED_TEXT': str, 'TYPE': str,
@@ -196,20 +202,10 @@ class Node(BaseElement):
 
     def __init__(self, **kwargs):
         super(Node, self).__init__(**kwargs)
-        self.text = '' # should initialize some html editor instance. That allows you to edit an html document
-        # or just write it in plain text.
-        self.nodes = ElementAccessor(self, ['node'])
+        self.nodes = self.nodes()
 
     def __str__(self):
-        return self.tag + ': ' + str(self.gettext())
-
-    def gettext(self):
-        return self.text
-
-    def settext(self, text):
-        if isinstance(text, str):  # may either be html or just words.
-            self.text = str(text)  # we call str() on text to convert to printable characters.
-
+        return self.tag + ': ' + self['TEXT']
 
 class Map(BaseElement):
     tag = 'map'
@@ -234,38 +230,47 @@ class Cloud(BaseElement):
     specs = {'COLOR': str, 'SHAPE': shapeList, 'WIDTH': str}
     _strConstructors = ['COLOR', 'SHAPE']  # extra information to send during call to __str__
 
+
 class Hook(BaseElement):
     tag = 'hook'
     _attribs = {'NAME': 'overwritten'}
     specs = {'NAME': str}
 
+
 class EmbeddedImage(Hook):
     _attribs = {'NAME': 'ExternalObject'}
     specs = {'NAME': str, 'URI': str, 'SIZE': float}
+
 
 class MapConfig(Hook):
     _attribs = {'NAME': 'MapStyle', 'zoom': 1.0}
     specs = {'NAME': str, 'max_node_width': int, 'zoom': float}
 
+
 class Equation(Hook):
     _attribs = {'NAME': 'plugins/latex/LatexNodeHook.properties'}
     specs = {'NAME': str, 'EQUATION': str}
+
 
 class AutomaticEdgeColor(Hook):
     _attribs = {'NAME': 'AutomaticEdgeColor', 'COUNTER': 0}
     specs = {'NAME': str, 'COUNTER': int}
 
+
 class MapStyles(BaseElement):
     tag = 'map_styles'
+
 
 class StyleNode(BaseElement):
     tag = 'stylenode'
     specs = {'LOCALIZED_TEXT': str, 'POSITION': ['left', 'right'], 'COLOR': str, 'MAX_WIDTH': int, 'STYLE': str}
 
+
 class Font(BaseElement):
     tag = 'font'
     _attribs = {'BOLD': False, 'ITALIC': False, 'NAME': 'SansSerif', 'SIZE': 10}  # set defaults
     specs = {'BOLD': bool, 'ITALIC': bool, 'NAME': str, 'SIZE': int}
+
 
 class Icon(BaseElement):
     tag = 'icon'
@@ -304,16 +309,19 @@ class Edge(BaseElement):
         if style not in self.styleList:
             warnings.warn('edge style "' + str(style) + '" not part of freeplanes edge styles list. ' +
                 'Freeplane may not display edge. Use a style from the styleList instead', SyntaxWarning, stacklevel=2)
-    
+
+
 class Attribute(BaseElement):
     tag = 'attribute'
     _attribs = {'NAME': '','VALUE': ''}
     specs = {'NAME': str, 'VALUE': str, 'OBJECT': str}
 
+
 class Properties(BaseElement):
     tag = 'properties'
     _attribs = {'show_icon_for_attributes': True, 'show_note_icons': True, 'show_notes_in_map': False}
     specs = {'show_icon_for_attributes': bool, 'show_note_icons': bool, 'show_notes_in_map': bool}
+
 
 class ArrowLink(BaseElement):
     tag = 'arrowlink'
@@ -322,17 +330,6 @@ class ArrowLink(BaseElement):
                     'STARTARROW': str, 'STARTINCLINATION': str, 'SOURCE_LABEL': str, 'MIDDLE_LABEL': str,
                     'TARGET_LABEL': str, 'EDGE_LIKE': bool}
 
-class RichContent(BaseElement):
-    tag = 'richcontent'
-    _attribs = {'TYPE': 'NODE'}
-    specs = {'TYPE': ['NODE', 'NOTE']}
-    html = ''  # string version of html code! But we don't include the <html> or <body> tags since those are redundant
-
-class RichContentNode(RichContent):
-    _attribs = {'TYPE': 'NODE'}
-
-class RichContentNote(RichContent):
-    _attribs = {'TYPE': 'NOTE'}
 
 class AttributeLayout(BaseElement):
     tag = 'attribute_layout'
@@ -341,3 +338,34 @@ class AttributeRegistry(BaseElement):
     tag = 'attribute_registry'
     _attribs = {'SHOW_ATTRIBUTES': 'all'}  # if we select 'all' the element should be omitted from file.
     specs = {'SHOW_ATTRIBUTES': ['selected', 'all', 'hide']}
+
+
+class RichContent(BaseElement):
+    ''' there is no need to use richcontent in freeplane. all nodes will automatically convert their html to richcontent
+        if their html contains html tags (such as <b>). And will auto-downgrade from richcontent if you replace
+        a nodes html-like html with plaintext  (all accessed using node.html). Unfortunately, the richcontent that is
+        available is fully-fledged html. So trying to set up something to parse it will need to simply have a
+        getplaintext() function to allow the user to quickly downgrade text to something readable. Until that time, html
+        text is going to be very messy.
+    '''
+    tag = 'richcontent'
+    _strConstructors = ['TYPE']
+    specs = {'TYPE': str}
+    html = ''
+
+    def is_html(self):
+        return bool(re.findall(r'<[^>]+>', self.html))
+
+class NodeText(RichContent):
+    ''' developer does not need to create NodeText, ever. This is created by the node itself during reversion if the
+        nodes html includes html tags
+    '''
+    _attribs = {'TYPE': 'NODE'}
+
+
+class NodeNote(RichContent):
+    _attribs = {'TYPE': 'NOTE'}
+
+
+class NodeDetails(RichContent):
+    _attribs = {'TYPE': 'DETAILS'}

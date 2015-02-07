@@ -1,6 +1,11 @@
 import xml.etree.ElementTree as ET
 from Elements import *
 import warnings
+from copy import copy
+
+
+class RemoveElementAndChildrenFromTree(BaseException):
+    pass
 
 class BaseElementFactory(object):
 
@@ -17,6 +22,14 @@ class BaseElementFactory(object):
         self.childOrder = list(self.childOrder) + []  # make list instance so we don't modify class variable
         self.lastChildOrder = list(self.lastChildOrder) + []
         self.otherElementTypes = list(self.otherElementTypes) + []
+        self.noFactoryWarnings = set()  # collect tags that didn't have factories and use it to send out ONE warning
+
+    def display_any_warnings(self):
+        if self.noFactoryWarnings:
+            warnings.warn('elements ' + str(self.noFactoryWarnings) + ' do not have conversion factories. ' +
+                           'Elements will import and export correctly, but warnings about specs will follow',
+                           RuntimeWarning, stacklevel=2)
+        self.noFactoryWarnings = set()  # reset warnings so we won't display the same onces
 
     def compute_element_type(self, element):
         etype = self.elementType  # default
@@ -31,31 +44,29 @@ class BaseElementFactory(object):
             etype = possibleElementType  # choose last of choices, then
         return etype
 
-    def convert_from_etree_element(self, element):
+    def convert_from_etree_element(self, element, parent):
         '''converts an xml etree element to a node
+        :param parent:
         '''
         etype = self.compute_element_type(element)  # choose between self.elementType and otherElementTypes
         node = etype()  # could be anything: Map, Node, etc.
         attribs = self.convert_attribs(node, element.attrib)
-        for key, value in attribs.items():
-            node[key] = value  # attribs of a node are stored dictionary style in the node
+        node = etype(**attribs)  # yep, we initialize it a second time, but this time with attribs
         node[:] = element[:]  # append all unconverted children to this node!
         if not node.tag == element.tag:
-            warnings.warn('element <' + str(element.tag) + '> does not have a factory. ' +
-                          'Element will import and export correctly, but warnings about specs will follow',
-                          RuntimeWarning, stacklevel=2)
+            self.noFactoryWarnings.add(element.tag)
             node.tag = element.tag
         return node
 
-    def additional_conversion(self, node):  # should be called full tree conversion
+    def additional_conversion(self, node, parent):  # should be called full tree conversion
         return node  # should be overridden by an inheriting class to perform addtional conversion before returning node
 
-    def revert_to_etree_element(self, node):
-        if isinstance(node, ET.Element):
+    def revert_to_etree_element(self, node, parent):
+        if isinstance(node, ET.Element):  # we expected a pymm element, not an Etree Element
             warnings.warn('program is reverting an ET Element! ' + str(node) + ' which means that it will lose text' +
             ' and tail properties. If you wish to preserve those, consider attaching ET Element as child of an' +
-            ' Element in the "additional_reversion" function. This message indicates that the Element was added during' +
-            ' the "revert_to_etree_element" function call. See RichContentFactory for an example.',
+            ' Element in the "additional_reversion" function instead. This message indicates that the Element was ' +
+            'added during the "revert_to_etree_element" function call. See RichContentFactory for an example.',
             RuntimeWarning, stacklevel=2)
         attribs = self.revert_attribs(node)
         self.sort_element_children(node)
@@ -63,7 +74,7 @@ class BaseElementFactory(object):
         element[:] = node[:]                       # ETree always sorts em  PS HERE is where we fail to write text&tail
         return element
 
-    def additional_reversion(self, element):  # call after full tree reversion
+    def additional_reversion(self, element, parent):  # call after full tree reversion
         if len(element) > 0 and not element.text:
             element.text = '\n'  # set spacing for written file layout, (but only if it has children!)
         if not element.tail:  # if tail is blank; we'll fill it in!
@@ -103,10 +114,10 @@ class BaseElementFactory(object):
                         if value.lower() in truefalse:
                             value = truefalse[value.lower()]
                         else:
-                            raise ValueError(key + '=' + value + ' not boolean')
+                            raise ValueError
                     else:
                         value = vtype(value)  # float or integer
-                else:
+                elif node.specs:  # if we do have specs but didn't find our key in them, THEN give warning
                     raise ValueError
             except ValueError:
                 warnings.warn('Attrib ' + key + '=' + value + ' not valid <' + node.tag + '> specs', SyntaxWarning,
@@ -144,21 +155,38 @@ class NodeFactory(BaseElementFactory):
     childOrder = [BaseElement.tag, ArrowLink.tag, Cloud.tag, Edge.tag, Font.tag, Hook.tag, Properties.tag,
                   RichContent.tag, Icon.tag, Node.tag, AttributeLayout.tag, Attribute.tag]
 
-    def additional_conversion(self, node):
-        if 'TEXT' in node:
-            node.settext(node['TEXT'])  # if not, we may expect a richcontent child then....
-            #del node['TEXT']  # remove text so that you can access the text of the node using node.gettext()
+    def additional_conversion(self, node, parent):
+        super(NodeFactory, self).additional_conversion(node, parent)
+        node = self.convert_node_text(node)
         return node
 
-    def revert_to_etree_element(self, node):
-        node['TEXT'] = node.gettext()
-        return super(NodeFactory, self).revert_to_etree_element(node)
+    def revert_to_etree_element(self, node, parent):
+        node = self.revert_node_text(node)
+        return super(NodeFactory, self).revert_to_etree_element(node, parent)
+
+    def revert_node_text(self, node):
+        node = copy(node)  # why do this? Because then I can delete node['TEXT'] without affecting original tree
+        ntext = NodeText()  # developer / user NEVER needs to create his own RichContent for node html
+        ntext.html = node['TEXT']
+        if ntext.is_html():
+            node.append(ntext)
+            del node['TEXT']  # using richcontent, do not leave attribute 'TEXT' for node
+        return node
+
+    def convert_node_text(self, node):
+        richElements = node.findall('richcontent')
+        while richElements:
+            richElem = richElements.pop(0)
+            if isinstance(richElem, NodeText):
+                node['TEXT'] = richElem.html
+                node.remove(richElem)  # this NodeText is no longer needed
+        return node
 
 class MapFactory(BaseElementFactory):
     elementType = Map
 
-    def additional_reversion(self, element):
-        element = super(MapFactory, self).additional_reversion(element)
+    def additional_reversion(self, element, parent):
+        element = super(MapFactory, self).additional_reversion(element, parent)
         comment = ET.Comment('To view this file, download free mind mapping software Freeplane from ' +
                    'http://freeplane.sourceforge.net')
         comment.tail = '\n'
@@ -200,57 +228,26 @@ class AttributeRegistryFactory(BaseElementFactory):
 
 class RichContentFactory(BaseElementFactory):
     elementType = RichContent
-    otherElementTypes = [(RichContentNode, 'TYPE', 'NODE'),(RichContentNote, 'TYPE', 'NOTE')]
+    otherElementTypes = [(NodeText, 'TYPE', 'NODE'), (NodeNote, 'TYPE', 'NOTE'), (NodeDetails, 'TYPE', 'DETAILS')]
 
-    def convert_from_etree_element(self, element):
-        node = super(RichContentFactory, self).convert_from_etree_element(element)
-        # need to convert child html, head, body to nothing, and get text from rest!
-        htmlchildren = element[:]
-        parent = element
-        while htmlchildren:
-            child = htmlchildren.pop(0)
-            if child.tag == 'html':
-                parent.remove(child)
-                node.remove(child)  # should be only child of node
-                htmlchildren = child[:]
-                parent = child
-                continue
-            if child.tag == 'head':
-                parent.remove(child)
-                continue  # we popped off child, so continuing essentially gets rid of it.
-            if child.tag == 'body':
-                parent.remove(child)
-                htmlchildren = child[:]
-                parent = child
-                break
-        html = ''
-        for child in htmlchildren:
-            html += ET.tostring(child)
-        node.html = html
-        return node
+    def convert_from_etree_element(self, element, parent):
+        richElement = super(RichContentFactory, self).convert_from_etree_element(element, parent)
+        html = ''                        # this makes a critical assumption that there'll be 1 child. If not, upon
+        for htmlElement in richElement:  # reversion, ET may complain about "ParseError: junk after document element...
+            html += ET.tostring(htmlElement)
+        richElement.html = html
+        richElement[:] = []  # remove html children to prevent their conversion.
+        return richElement
 
-    def additional_conversion(self, node):
-        # by the time this is called, its parent node is already converted
-        node = super(RichContentFactory, self).additional_conversion(node)
-        if node.parent:
-            node.parent.settext(node.html)
-            if 'TEXT' in node.parent:  # this may be redundant. Look at node conversion factory to confirm
-                del node.parent['TEXT']
-        return node
-
-    def revert_to_etree_element(self, node):
-        # by this time we've already converted this richcontent's parent. But the node.parent still points to the
-        # correct parent node, so it should work!
-        html = '<html>\n  <body>\n    ' + node.parent.gettext() + '</body>\n</html>\n'
-        element = super(RichContentFactory, self).revert_to_etree_element(node)
-        #element.append(ET.fromstring(html))  # do NOT add ET child in this function. Keep it as text form, add it
-                                              # later, in additional_reversion function
-        element.text = html
+    def revert_to_etree_element(self, richElem, parent):
+        html = richElem.html
+        element = super(RichContentFactory, self).revert_to_etree_element(richElem, parent)
+        element.text = html  # temporarily store html string in element.text  (will convert in additional_reversion)
         return element
 
-    def additional_reversion(self, element):
+    def additional_reversion(self, element, parent):
         html = element.text
         element.text = '\n'
+        super(RichContentFactory, self).additional_reversion(element, parent)  # just sets tail...
         element.append(ET.fromstring(html))
-        element.tail = '\n'  # skip writing element.text. Hopefully that'll preserve the richcontent?
         return element
