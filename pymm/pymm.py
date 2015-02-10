@@ -1,36 +1,40 @@
 import xml.etree.ElementTree as ET
-from . import Factories
-from .Elements import Node  # keep this import; developer will mostly likely want access to Node more than anything.
+from . import mindmapFactories
+from . import mindmapElements
+from .mindmapElements import Node  # keep this import; developer will mostly likely want access to Node more than anything.
 
 
 class FreeplaneFile(object):
 
-    def __init__(self):
-        self.xmlTree = ET.ElementTree()
-        self.mmf = Factories.MindMapFactory()
+    mmFactory = mindmapFactories.MindMapFactory
 
-    def readfile(self, filename):
-        self.xmlTree.parse(filename)
-        self._convert(self.xmlTree)
+    def __init__(self, mapElement=None):
+        self.mmFactory = self.mmFactory()  # initialize mindmap factory.
+        self.mmMap = mindmapElements.Map()
+        self.mmMap.append(mindmapElements.Node())  # set up map and root node
+        if mapElement is not None:
+            self.mmMap = mapElement  # we make the assumption that this is a mindmap Map
 
-    def writefile(self, filename):
-        self._revert(self.mapnode)
-        self.xmlTree.write('output.mm')
+    def readfile(self, file_or_filename):
+        etMap = ET.parse(file_or_filename)
+        self.mmMap = self.convert(etMap)
+
+    def writefile(self, file_or_filename):
+        etMap = self.revert(self.mmMap)  # the user passed in .....
+        xmlTree = ET.ElementTree(etMap)
+        xmlTree.write(file_or_filename)
 
     def getroot(self):
-        #return self.mapnode[0]  # map has one child -> the root  # NOT TRUE! #there can be an attribute_registry here
-        return self.mapnode.findall('node')[0]
+        return self.mmMap.nodes[0]
+
+    def setroot(self, root):
+        self.mmMap.nodes[0] = root
 
     def getmap(self):
-        return self.mapnode
+        return self.mmMap
     
-    def _convert(self, xmlTree):
-        etMapNode = xmlTree.getroot()
-        self.mapnode = self.mmf.convert_etree_element_and_tree(etMapNode)
+    def convert(self, etElement):
+        return self.mmFactory.convert_etree_element_and_tree(etElement)
 
-    def _revert(self, mapNode):
-        #mapF = MapFactory()
-        etMapNode = self.mmf.revert_node_and_tree(self.mapnode)
-        #etMapNode = mapF.to_etree_element(self.mapnode)
-        # need to convert mapNode too!
-        self.xmlTree._root = etMapNode
+    def revert(self, mmElement):
+        return self.mmFactory.revert_node_and_tree(mmElement)

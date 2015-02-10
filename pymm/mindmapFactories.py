@@ -1,11 +1,8 @@
 import xml.etree.ElementTree as ET
-from .Elements import *
+from .mindmapElements import *
 import warnings
 from copy import deepcopy
 
-
-class RemoveElementAndChildrenFromTree(BaseException):
-    pass
 
 class BaseElementFactory(object):
 
@@ -47,6 +44,7 @@ class BaseElementFactory(object):
     def convert_from_etree_element(self, element, parent):
         '''converts an xml etree element to a node
         :param parent:
+        If you return None, this element and all its children will be dropped from tree.
         '''
         etype = self.compute_element_type(element)  # choose between self.elementType and otherElementTypes
         node = etype()  # could be anything: Map, Node, etc.
@@ -59,9 +57,11 @@ class BaseElementFactory(object):
         return node
 
     def additional_conversion(self, node, parent):  # should be called full tree conversion
+        # If you return None, this element and all its children will be dropped from tree.
         return node  # should be overridden by an inheriting class to perform addtional conversion before returning node
 
     def revert_to_etree_element(self, node, parent):
+        # If you return None, this element and all its children will be dropped from tree.
         if isinstance(node, ET.Element):  # we expected a pymm element, not an Etree Element
             warnings.warn('program is reverting an ET Element! ' + str(node) + ' which means that it will lose text' +
             ' and tail properties. If you wish to preserve those, consider attaching ET Element as child of an' +
@@ -75,6 +75,7 @@ class BaseElementFactory(object):
         return element
 
     def additional_reversion(self, element, parent):  # call after full tree reversion
+        # If you return None, this element and all its children will be dropped from tree.
         if len(element) > 0 and not element.text:
             element.text = '\n'  # set spacing for written file layout, (but only if it has children!)
         if not element.tail:  # if tail is blank; we'll fill it in!
@@ -291,9 +292,8 @@ class MindMapFactory(object):
             children = []
             while unchanged:
                 unchangedChild, parent = unchanged.pop(0)  # pop from first index to preserve child order
-                try:
-                    child = action1(unchangedChild, parent)
-                except RemoveElementAndChildrenFromTree:
+                child = action1(unchangedChild, parent)
+                if child is None:
                     continue  # removes element from tree being built by not adding it to children(s) list
                 children.append(child)
                 hasUnchangedChildren.append(child)
@@ -301,12 +301,12 @@ class MindMapFactory(object):
         notFullyChanged = [(first, None)]  # child = first. Parent = None
         while notFullyChanged:
             element, parent = notFullyChanged.pop(0)
-            try:
-                element = action2(element, parent)
-            except RemoveElementAndChildrenFromTree:
-                parent.remove(element)
-                continue
-            parentsAndChildren = [(child, element) for child in element[:]]  # child w/ parent
+            elem = action2(element, parent)
+            if elem is None:
+                if element in parent[:]:    # if you return None during conversion / reversion, this will ensure it is
+                    parent.remove(element)  # fully removed from the tree by removing its reference from the parent
+                continue                    # and not allowing its children to be added.
+            parentsAndChildren = [(child, elem) for child in elem[:]]  # child w/ parent
             notFullyChanged.extend(parentsAndChildren)
         return first
 
