@@ -6,16 +6,12 @@ import re
 
 class ElementAccessor(object):
     # this object is intended to hold a reference to ONE node or element. When initialized with a set of tags,
-    # the object will search its reference node for those tags and allow access to them, including indexing,
+    # the object will search its reference elemnt for those tags and allow access to them, including indexing,
     # removal, deletion, etc. to iterate, simply use self[:] e.g. node.nodes[:]
 
     def __init__(self, element, tags=[]):
         self._tags = list(tags[:])
         self._holder = element
-
-    ## allowing a () call on this object weakens the standard of using [:]
-    # def __call__(self):  # this function will be called when the user is trying to access particular elements for
-    #     return self[:]  # example,node.nodes() where we assume nodes actually points to this instance.
 
     def __getitem__(self, index):
         elements = []
@@ -23,11 +19,11 @@ class ElementAccessor(object):
             elements.extend(self._holder.findall(tag))
         return elements[index]
 
-    def __setitem__(self, key, value):  #should we allow the user to set nodes? I think so :)  just need to make it consistnt
-        allElements = self()
-        for element in allElements:
-            self._holder.remove(element)
-        allElements[key] = value  # if user chooses node.nodes()[:] = [] for example, only this way would work
+    def __setitem__(self, index, elem):   # removes elements, then re-appends them after modification.
+        allElements = self[:]             # sloppy, but it works. And elements are reordered later anyways.
+        for element in allElements:       # what really matters is that the order of elements of the same tag are not
+            self._holder.remove(element)  # altered.
+        allElements[index] = elem
         for element in allElements:
             self._holder.append(element)
 

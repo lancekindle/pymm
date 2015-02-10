@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
-from Elements import *
+from .Elements import *
 import warnings
-from copy import copy
+from copy import deepcopy
 
 
 class RemoveElementAndChildrenFromTree(BaseException):
@@ -165,7 +165,8 @@ class NodeFactory(BaseElementFactory):
         return super(NodeFactory, self).revert_to_etree_element(node, parent)
 
     def revert_node_text(self, node):
-        node = copy(node)  # why do this? Because then I can delete node['TEXT'] without affecting original tree
+        #node = copy(node)  # I can delete node['TEXT'] without affecting original tree. DON'T NEED SINCE WE DEEPCOPY
+                            # full tree structure before converting even the first node.
         ntext = NodeText()  # developer / user NEVER needs to create his own RichContent for node html
         ntext.html = node['TEXT']
         if ntext.is_html():
@@ -249,5 +250,100 @@ class RichContentFactory(BaseElementFactory):
         html = element.text
         element.text = '\n'
         super(RichContentFactory, self).additional_reversion(element, parent)  # just sets tail...
-        element.append(ET.fromstring(html))
+        element.append(ET.fromstring(html))  # this element will have additional_version() called on it. It Should
+                                            # have no effect, however.
         return element
+
+
+class MindMapFactory(object):
+    # pass this factory a node to convert
+    # and it will convert by choosing which factory to use in converting a given node
+    # it is also tasked with non-recursively converting all nodes contained
+    # within the first converted node.
+    # you can add_factory(factory) if you have created a new node type / new factory to handle different features here
+
+    def __init__(self, **kwargs):
+        factories = [BaseElementFactory, NodeFactory, MapFactory, CloudFactory,
+                     HookFactory, MapStylesFactory, StyleNodeFactory, FontFactory, IconFactory,
+                     EdgeFactory, AttributeFactory, PropertiesFactory, RichContentFactory,
+                     AttributeRegistryFactory]
+        fff = [factory() for factory in factories]  # get an initialized instance of all factories
+        self.tag2factory = {}
+        for f in fff:            # get a dictionary that
+            self.add_factory(f)  # matches an elements tag to the factory which can handle that element
+        self.defaultFactory = BaseElementFactory()
+
+    def add_factory(self, factory):
+        if not isinstance(factory, object):  # if we are passed a non-initialized factory, create factory instance
+            factory = factory()
+        element = factory.elementType()
+        self.tag2factory[element.tag] = factory
+
+    def _special_vert_full_tree(self, element, action1, action2):
+        # element can be pymm element or etree element
+        # e = from (the node / element being converted)
+        # convert or revert the element!
+        first = action1(element, None)
+        hasUnchangedChildren = [first]
+        while hasUnchangedChildren:
+            element = hasUnchangedChildren.pop(0)
+            unchanged = [(child, element) for child in element[:]] # combine child w/ parent into tuple
+            children = []
+            while unchanged:
+                unchangedChild, parent = unchanged.pop(0)  # pop from first index to preserve child order
+                try:
+                    child = action1(unchangedChild, parent)
+                except RemoveElementAndChildrenFromTree:
+                    continue  # removes element from tree being built by not adding it to children(s) list
+                children.append(child)
+                hasUnchangedChildren.append(child)
+            element[:] = children
+        notFullyChanged = [(first, None)]  # child = first. Parent = None
+        while notFullyChanged:
+            element, parent = notFullyChanged.pop(0)
+            try:
+                element = action2(element, parent)
+            except RemoveElementAndChildrenFromTree:
+                parent.remove(element)
+                continue
+            parentsAndChildren = [(child, element) for child in element[:]]  # child w/ parent
+            notFullyChanged.extend(parentsAndChildren)
+        return first
+
+    def convert_etree_element_and_tree(self, et):
+        et = deepcopy(et)
+        action1 = self.convert_etree_element
+        action2 = self.additional_conversion
+        node = self._special_vert_full_tree(et, action1, action2)
+        self.defaultFactory.display_any_warnings()  # get this out so the developer is warned.
+        return node
+
+    def convert_etree_element(self, et, parent):
+        ff = self.get_conversion_factory_for(et)
+        node = ff.convert_from_etree_element(et, parent)
+        return node
+
+    def additional_conversion(self, et, parent):
+        ff = self.get_conversion_factory_for(et)
+        return ff.additional_conversion(et, parent)
+
+    def get_conversion_factory_for(self, et):
+        tag = None
+        tag = et.tag
+        if tag and tag in self.tag2factory:
+            return self.tag2factory[tag]
+        return self.defaultFactory
+
+    def revert_node_and_tree(self, node):
+        node = deepcopy(node)
+        action1 = self.revert_node
+        action2 = self.additional_reversion
+        return self._special_vert_full_tree(node, action1, action2)
+
+    def revert_node(self, node, parent):
+        ff = self.get_conversion_factory_for(node)
+        return ff.revert_to_etree_element(node, parent)
+
+    def additional_reversion(self, node, parent):
+        ff = self.get_conversion_factory_for(node)
+        return ff.additional_reversion(node, parent)
