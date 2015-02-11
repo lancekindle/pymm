@@ -37,4 +37,4 @@ class FreeplaneFile(object):
         return self.mmFactory.convert_etree_element_and_tree(etElement)
 
     def revert(self, mmElement):
-        return self.mmFactory.revert_node_and_tree(mmElement)
+        return self.mmFactory.revert_mm_element_and_tree(mmElement)

@@ -2,11 +2,12 @@ from uuid import uuid4
 import warnings
 import re
 # see http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format for file specifications
+#terminology: elem, element = MindMap Elements (no etree elements allowed! Use a mmFactory to convert those
 
 
 class ElementAccessor(object):
-    # this object is intended to hold a reference to ONE node or element. When initialized with a set of tags,
-    # the object will search its reference elemnt for those tags and allow access to them, including indexing,
+    # this object is intended to hold a reference to ONE element. When initialized with a set of tags,
+    # the object will search its reference element for those tags and allow access to them, including indexing,
     # removal, deletion, etc. to iterate, simply use self[:] e.g. node.nodes[:]
 
     def __init__(self, element, tags=[]):
@@ -69,19 +70,23 @@ class BaseElement(object):
     # this caught me at first, but since I re-initialize them in the init, everything is good.
     tag = 'BaseElement'  # must set to cloud, hook, edge, etc.
     parent = None
-    _elementText = ''
-    _tailText = ''
+    _text = ''    # equivalent to ElementTree's .text  -- text between start tag and next element   # I only keep this
+    _tail = ''    # equivalent to ElementTree's .tail  -- text after end tag                        # for compatibility
     _children = []  # all child elements including nodes
     _attribs = {}  # pre-define these (outside of init like this) in other classes to define default element attribs
     _strConstructors = []  # list of attribs to use in str(self) construction
     specs = {}  # list all possible attributes of an element and its choices [...] or value type (str, int, etc.)
+    #limiters = {}  # For limiting children. requires a tag, an identifying set of specs (optional), and number allowed.
 
-    def __init__(self, **kwargs):
-        self._attribs = self._attribs.copy()  # copy all class lists/dicts into instance
-        self.specs = self.specs.copy()
-        self._strConstructors = list(self._strConstructors) + []
+    def __init__(self, attribs={}, **kwargs):
         self._children = list(self._children) + []
-        self._attribs.update(kwargs)
+        self._attribs = self._attribs.copy()  # copy all class lists/dicts into instance
+        self._strConstructors = list(self._strConstructors) + []
+        self.specs = self.specs.copy()
+        #self.limiters = self.limiters.copy()
+        self._attribs.update(attribs)
+        self.update(kwargs)  # make this call different than updating _attribs directly because it's more likely that
+                             # a developer specifically typed this out. This will error check it
 
     def __contains__(self, key):
         if isinstance(key, str):
@@ -126,7 +131,7 @@ class BaseElement(object):
 
     def _setdictitem(self, key, value):  # a way to force error checking on setting of attrib values.
         self._attribs[key] = value  # regardless of whether we warn developer, add attribute.
-        if key not in self.specs:
+        if key not in self.specs:   # add keywords and arguments to element.specs to address unnecessary warnings
             warnings.warn('<' + self.tag + '> does not have "' + key + '" spec', UserWarning, stacklevel=2)
         else:  # then key IS in attribSpecs
             vtype = self.specs[key]
@@ -164,6 +169,10 @@ class BaseElement(object):
             raise TypeError('can only assign an iterable')
         for element in elements:
             self.append(element)  # we call here so that we can set parent attribute. Unfortunately means its slowish
+
+    def update(self, attribs):
+        for k, v in attribs.items():  # add attributes one at a time, which allows element to warn if passed key is
+            self[k] = v               # not part of its specs.
 
     def remove(self, element):
         self._children.remove(element)
