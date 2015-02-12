@@ -28,6 +28,14 @@ Building a mindmap is easy::
     for ntext in nodeNames:
         n.append(mm.Node(TEXT=ntext))
     fpf.writefile('output.mm')
+Reading, editting, and writing a mindmap is also easy::
+    import pymm
+    from pymm import mindmapElements as mm
+    fpf = pymm.fpf()
+    fpf.readfile(r'../docs/pymm_documentation.mm')
+    r = fpf.getroot()
+    r.append(mm.Node('TEXT'='another child of root'))
+    fpf.writefile(r'../docs/output.mm')
 """
 setup(
     name = 'pymm',

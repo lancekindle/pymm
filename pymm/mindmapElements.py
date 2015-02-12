@@ -4,6 +4,17 @@ import re
 # see http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format for file specifications
 #terminology: elem, element = MindMap Elements (no etree elements allowed! Use a mmFactory to convert those
 
+# if you want to update __all__ simply run dir(mindmapElements) (after
+# import) to list all available modules. Then remove unwanted modules
+
+__all__ = ['ArrowLink', 'Attribute', 'AttributeLayout', 
+	'AttributeRegistry', 'AutomaticEdgeColor', 'BaseElement', 
+	'Cloud', 'Edge', 'ElementAccessor', 'EmbeddedImage', 'Equation', 
+	'Font', 'Hook', 'Icon', 'Map', 'MapConfig', 'MapStyles', 'Node', 
+	'NodeDetails', 'NodeNote', 'NodeText', 'Properties', 'RichContent', 
+	'StyleNode']
+ 
+
 
 class ElementAccessor(object):
     # this object is intended to hold a reference to ONE element. When initialized with a set of tags,
@@ -216,10 +227,11 @@ class Map(BaseElement):
     tag = 'map'
     _attribs = {'version': 'freeplane 1.3.0'}
     specs = {'version': str}
+    nodes = ElementAccessor.constructor(['node'])
 
     def __init__(self, **kwargs):
         super(Map, self).__init__(**kwargs)
-        self.nodes = ElementAccessor(self, ['node'])
+        self.nodes = self.nodes()
 
     def setroot(self, root):
         self.nodes[:] = [root]

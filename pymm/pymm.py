@@ -1,7 +1,8 @@
 import xml.etree.ElementTree as ET
 from . import mindmapFactories
 from . import mindmapElements
-from .mindmapElements import Node  # keep this import; developer will mostly likely want access to Node more than anything.
+
+__all__ = ['FreeplaneFile']
 
 
 class FreeplaneFile(object):

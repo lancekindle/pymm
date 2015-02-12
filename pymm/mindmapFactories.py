@@ -8,6 +8,13 @@ from copy import deepcopy
             # element == could be either one. Sometimes it must conform to either one, other times it doesn't yet
                        # conform to a specific element
 
+__all__ = ['AttributeFactory', 'AttributeRegistryFactory', 
+	'BaseElementFactory', 'CloudFactory', 'EdgeFactory',
+	'FontFactory', 'HookFactory', 'IconFactory', 'MapFactory', 
+	'MapStylesFactory', 'MindMapFactory', 'NodeFactory', 
+	'PropertiesFactory', 'RichContentFactory', 'StyleNodeFactory']
+                       
+
 class BaseElementFactory(object):
 
     elementType = BaseElement
