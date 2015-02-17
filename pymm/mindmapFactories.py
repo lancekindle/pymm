@@ -1,22 +1,24 @@
 import xml.etree.ElementTree as ET
 from .mindmapElements import *
 import warnings
-from copy import deepcopy
+import copy
 
 #terminology  ... mme, mmElem, mmElement == MindMap element
             #.... ete, etElem, etElement == ElementTree element
             # element == could be either one. Sometimes it must conform to either one, other times it doesn't yet
                        # conform to a specific element
-
-__all__ = ['AttributeFactory', 'AttributeRegistryFactory', 
-	'BaseElementFactory', 'CloudFactory', 'EdgeFactory',
-	'FontFactory', 'HookFactory', 'IconFactory', 'MapFactory', 
-	'MapStylesFactory', 'MindMapFactory', 'NodeFactory', 
-	'PropertiesFactory', 'RichContentFactory', 'StyleNodeFactory']
                        
 
 class BaseElementFactory(object):
+    ''' Convert between ElementTree elements and pymm elements.
 
+    Conversion from ElementTree element to pymm elements is done by passing the etElement to convert_from_et_element()
+    After converting the full tree's worth of elements, re-iterate through the tree (starting at top-level) and pass
+    that element into this factory's finish_conversion(). For each conversion / reversion function, convert the full
+    xml tree before using the finish_ function. Factory does not keep children. In converting full xml-tree, you will
+    have to add the children how you see fit. Generally, it is best to add the children after initial convert / revert
+    and then immediately convert / revert those children. This pattern avoids recursion limits in python.
+    '''
     elementType = BaseElement
     childOrder = [BaseElement.tag, ArrowLink.tag, Cloud.tag, Edge.tag, Properties.tag, MapStyles.tag, Icon.tag,
                   AttributeLayout.tag, Attribute.tag, Hook.tag, Font.tag, StyleNode.tag, RichContent.tag, Node.tag]
@@ -33,6 +35,7 @@ class BaseElementFactory(object):
         self.noFactoryWarnings = set()  # collect tags that didn't have factories and use it to send out ONE warning
 
     def display_any_warnings(self):
+        ''' Display warnings for elements found without a specific factory. Call once after full convert / revert '''
         if self.noFactoryWarnings:
             warnings.warn('elements ' + str(self.noFactoryWarnings) + ' do not have conversion factories. ' +
                            'Elements will import and export correctly, but warnings about specs will follow',
@@ -40,6 +43,12 @@ class BaseElementFactory(object):
         self.noFactoryWarnings = set()  # reset warnings so we won't display the same ones
 
     def compute_element_type(self, etElement):
+        ''' Choose amongst several pymm elements for etree element with same tag using attribute properties
+
+        Used in special cases when user wants to sub-categorize elements with the same tag. For example, RichContent
+        has several different types: NODE, NOTE, and DETAILS. Specify which type of element to create by adding
+        attribute distinguishers to factory.otherElementTypes. The same factory will be used, however.
+        '''
         etype = self.elementType  # default
         otherChoices = []
         for otherType, key, value in self.otherElementTypes:
@@ -52,9 +61,11 @@ class BaseElementFactory(object):
             etype = possibleElementType  # choose last of choices, then
         return etype
 
-    def convert_from_etree_element(self, etElement, parent):
-        '''converts an xml etree etElement to a mmElem
+    def convert_from_etree_element(self, etElement, parent=None):
+        '''converts an etree etElement to a pymm element
+
         :param parent:
+        :returns mmElement or None
         If you return None, this etElement and all its children will be dropped from tree.
         '''
         etype = self.compute_element_type(etElement)  # choose between self.elementType and otherElementTypes
@@ -67,11 +78,15 @@ class BaseElementFactory(object):
             mmElem.tag = etElement.tag
         return mmElem
 
-    def additional_conversion(self, mmElement, parent):  # should be called full tree conversion
-        # If you return None, this element and all its children will be dropped from tree.
-        return mmElement  # override by an inheriting class to perform addtional conversion before returning mmElement
+    def finish_conversion(self, mmElement, parent=None):  # should be called full tree conversion
+        ''' Finishes conversion of mindmap element. Call only after convert_from_etree_element() has converted tree
 
-    def revert_to_etree_element(self, mmElement, parent):
+        :return mindmap Element or None
+        if return None, it is expected that this element and all its children will be dropped from tree
+        '''
+        return mmElement
+
+    def revert_to_etree_element(self, mmElement, parent=None):
         # If you return None, this element and all its children will be dropped from tree.
         if isinstance(mmElement, ET.Element):  # we expected a pymm element, not an Etree Element
             warnings.warn('program is reverting an ET Element! ' + str(mmElement) + ' which means that it will lose text' +
@@ -87,7 +102,7 @@ class BaseElementFactory(object):
         etElem.tail = mmElement._tail
         return etElem
 
-    def additional_reversion(self, etElement, parent):  # call after full tree reversion
+    def finish_reversion(self, etElement, parent=None):  # call after full tree reversion
         # If you return None, this etElement and all its children will be dropped from tree.
         if len(etElement) > 0 and not etElement.text:
             etElement.text = '\n'  # set spacing for written file layout, (but only if it has children!)
@@ -169,13 +184,13 @@ class NodeFactory(BaseElementFactory):
     childOrder = [BaseElement.tag, ArrowLink.tag, Cloud.tag, Edge.tag, Font.tag, Hook.tag, Properties.tag,
                   RichContent.tag, Icon.tag, Node.tag, AttributeLayout.tag, Attribute.tag]
 
-    def additional_conversion(self, mmNode, parent):
-        super(NodeFactory, self).additional_conversion(mmNode, parent)
-        mmNode = self.convert_node_text(mmNode)
+    def finish_conversion(self, mmElement, parent=None):
+        super(NodeFactory, self).finish_conversion(mmElement, parent)
+        mmNode = self.convert_node_text(mmElement)
         return mmNode
 
-    def revert_to_etree_element(self, mmNode, parent):
-        mmNode = self.revert_node_text(mmNode)
+    def revert_to_etree_element(self, mmElement, parent=None):
+        mmNode = self.revert_node_text(mmElement)
         return super(NodeFactory, self).revert_to_etree_element(mmNode, parent)
 
     def revert_node_text(self, mmNode):
@@ -198,8 +213,8 @@ class NodeFactory(BaseElementFactory):
 class MapFactory(BaseElementFactory):
     elementType = Map
 
-    def additional_reversion(self, etMap, parent):
-        etMap = super(MapFactory, self).additional_reversion(etMap, parent)
+    def finish_reversion(self, etElement, parent=None):
+        etMap = super(MapFactory, self).finish_reversion(etElement, parent)
         comment = ET.Comment('To view this file, download free mind mapping software Freeplane from ' +
                    'http://freeplane.sourceforge.net')
         comment.tail = '\n'
@@ -243,8 +258,8 @@ class RichContentFactory(BaseElementFactory):
     elementType = RichContent
     otherElementTypes = [(NodeText, 'TYPE', 'NODE'), (NodeNote, 'TYPE', 'NOTE'), (NodeDetails, 'TYPE', 'DETAILS')]
 
-    def convert_from_etree_element(self, etRichC, parent):
-        mmRichC = super(RichContentFactory, self).convert_from_etree_element(etRichC, parent)
+    def convert_from_etree_element(self, etElement, parent=None):
+        mmRichC = super(RichContentFactory, self).convert_from_etree_element(etElement, parent)
         html = ''                        # this makes a critical assumption that there'll be 1 child. If not, upon
         for htmlElement in mmRichC:  # reversion, ET may complain about "ParseError: junk after document etRichC...
             html += ET.tostring(htmlElement)
@@ -252,22 +267,22 @@ class RichContentFactory(BaseElementFactory):
         mmRichC[:] = []  # remove html children to prevent their conversion.
         return mmRichC
 
-    def revert_to_etree_element(self, mmRichC, parent):
-        html = mmRichC.html
-        element = super(RichContentFactory, self).revert_to_etree_element(mmRichC, parent)
+    def revert_to_etree_element(self, mmElement, parent=None):
+        html = mmElement.html
+        element = super(RichContentFactory, self).revert_to_etree_element(mmElement, parent)
         element.text = html  # temporarily store html string in element.text  (will convert in additional_reversion)
         return element
 
-    def additional_reversion(self, etRichC, parent):
-        html = etRichC.text
-        etRichC.text = '\n'
-        super(RichContentFactory, self).additional_reversion(etRichC, parent)  # just sets tail...
+    def finish_reversion(self, etElement, parent=None):
+        html = etElement.text
+        etElement.text = '\n'
+        etRichC = super(RichContentFactory, self).finish_reversion(etElement, parent)  # just sets tail...
         etRichC.append(ET.fromstring(html))  # this etRichC will have additional_reversion() called on it. It Should
         return etRichC                       # have no effect, however.
 
 
-class MindMapFactory(object):
-    # pass this factory a node to convert
+class MindMapConverter(object):
+    # pass this Converter a node to convert
     # and it will convert by choosing which factory to use in converting a given node
     # it is also tasked with non-recursively converting all nodes contained
     # within the first converted node.
@@ -321,7 +336,7 @@ class MindMapFactory(object):
         return first
 
     def convert_etree_element_and_tree(self, etElement):
-        etElement = deepcopy(etElement)
+        etElement = copy.deepcopy(etElement)
         action1 = self.convert_etree_element
         action2 = self.additional_conversion
         node = self._special_vert_full_tree(etElement, action1, action2)
@@ -335,7 +350,7 @@ class MindMapFactory(object):
 
     def additional_conversion(self, mmElement, parent):
         ff = self.get_conversion_factory_for(mmElement)
-        return ff.additional_conversion(mmElement, parent)
+        return ff.finish_conversion(mmElement, parent)
 
     def get_conversion_factory_for(self, element):  # intended for etElement or mmElement
         tag = element.tag
@@ -344,7 +359,7 @@ class MindMapFactory(object):
         return self.defaultFactory
 
     def revert_mm_element_and_tree(self, mmElement):
-        mmElement = deepcopy(mmElement)
+        mmElement = copy.deepcopy(mmElement)
         action1 = self.revert_mm_element
         action2 = self.additional_reversion
         return self._special_vert_full_tree(mmElement, action1, action2)
@@ -355,4 +370,4 @@ class MindMapFactory(object):
 
     def additional_reversion(self, etElement, parent):
         ff = self.get_conversion_factory_for(etElement)
-        return ff.additional_reversion(etElement, parent)
+        return ff.finish_reversion(etElement, parent)
