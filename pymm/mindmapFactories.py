@@ -300,6 +300,10 @@ class MindMapConverter(object):
         self.defaultFactory = BaseElementFactory()
 
     def add_factory(self, factory):
+        ''' Add or Overwrite factory used for xml element. Specific to a tag specified by the factory's elementType
+
+        :param factory: a pymm element factory
+        '''
         if not isinstance(factory, object):  # if we are passed a non-initialized factory, create factory instance
             factory = factory()
         element = factory.elementType()

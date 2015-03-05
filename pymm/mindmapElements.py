@@ -13,28 +13,35 @@ class ElementAccessor(object):
     # the object will search its reference element for those tags and allow access to them, including indexing,
     # removal, deletion, etc. to iterate, simply use self[:] e.g. node.nodes[:]
 
-    def __init__(self, element, tags=[]):
-        self._tags = list(tags[:])
-        self._holder = element
+    def __init__(self, element, tags):
+        # would be awesome to allow tags to be a regex instead of a normal
+        if isinstance(tags, str):  # allow user to pass in single string for searchable element tag
+            if not tags:
+                raise ValueError('element accessor requires non-empty string for tag')
+            tags = [tags]
+        if not len(tags):
+            raise ValueError('element accessor requires non-empty tags')
+        self._tags = (t for t in tags)  # use tuple for list of tags to imply that this "list" should not be altered
+        self._container = element
 
     def __getitem__(self, index):
         elements = []
         for tag in self._tags:
-            elements.extend(self._holder.findall(tag))
+            elements.extend(self._container.findall(tag))
         return elements[index]
 
     def __setitem__(self, index, elem):   # removes elements, then re-appends them after modification.
         subchildren = self[:]             # sloppy, but it works. And elements are reordered later anyways.
         for element in subchildren:       # what really matters is that the order of elements of the same tag are not
-            self._holder.remove(element)  # altered.
+            self._container.remove(element)  # altered.
         subchildren[index] = elem
         for element in subchildren:
-            self._holder.append(element)
+            self._container.append(element)
 
     def __delitem__(self, key):
         element = self[key]
-        index = self._holder.index(element)
-        del self._holder[index]
+        index = self._container.index(element)
+        del self._container[index]
 
     def __contains__(self, element):
         return element in self[:]
@@ -43,13 +50,13 @@ class ElementAccessor(object):
         return len(self[:])
 
     def append(self, element):
-        self._holder.append(element)
+        self._container.append(element)
 
     def extend(self, elements):
-        self._holder.extend(elements)
+        self._container.extend(elements)
 
     def remove(self, element):
-        self._holder.remove(element)
+        self._container.remove(element)
 
     def __str__(self):
         return 'Accessor for: ' + str(self._tags)
