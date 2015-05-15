@@ -132,22 +132,11 @@ class BaseElementFactory(object):
         convertedAttribs = {}
         for key, value in attribs.items():  # converting from et element: assume all keys and values are strings
             try:
-                if key in mmElement.specs:
-                    vtype = mmElement.specs[key]
-                    if isinstance(vtype, list):  # a list for multiple values (always strings)
-                        vlist = vtype
-                        if value not in vlist:
-                            raise ValueError  # do nothing but warn. Do not change value
-                    elif vtype == bool:  # boolean logic
-                        truefalse = {'true': True,'false': False}
-                        if value.lower() in truefalse:
-                            value = truefalse[value.lower()]
-                        else:
-                            raise ValueError
-                    else:
-                        value = vtype(value)  # float or integer
-                elif mmElement.specs:  # if we do have specs but didn't find our key in them, THEN give warning
-                    raise ValueError
+                if key not in mmElement.specs:
+                    if mmElement.specs:  # give warning if specs is filled out but didn't find key
+                        raise ValueError
+                entries = mmElement.specs[key]
+                value = self.convert_attrib_value_using_spec_entries(value, entries)
             except ValueError:
                 warnings.warn('Attrib ' + key + '=' + value + ' not valid <' + mmElement.tag + '> specs', SyntaxWarning,
                               stacklevel=2)
@@ -155,25 +144,41 @@ class BaseElementFactory(object):
                 convertedAttribs[key] = value
         return convertedAttribs
 
+    def convert_attrib_value_using_spec_entries(value, entries):
+        # first verify that entries is a list
+        if not type(entries) == type(list()):
+            entries = [entries]
+        for entry in choices:
+            if type(entry) == type:
+                valueType = entry
+                value = valueType(value)  # convert value to new type
+                break
+            elif type(entry) == type(lambda x: x):  # if the entry is a function
+                valueConverter = entry
+                value = valueConverter(value)  # convert value using function
+                break
+            else:
+                valueString = entry
+                if valueString == value:
+                    break
+        else:  # little used else on a for loop: execute only if for loop wasn't broken
+            raise ValueError  # value was not matched or converted by any entry
+        return value
+
     def revert_attribs(self, mmElement):
         '''
-        :param mmElement - attribs from which to be converted:
-        :param element - element to which to apply attribs:
-        :return element:
-        transfers all attributes from mmElement to element, converting where necessary. If value conversion fails, simply
-        convert value to string
+        :param mmElement - contains the attribs to be reverted:
+        using mmElements' specs, reverts attribs to string instances, validating that value are proper type. If a
+        specific attribs' value is None, attrib will not be included
+        if attrib is not in specs, attrib will not be included
         '''
         attribs = {key: value for key, value in mmElement.items() if value is not None}  # drop all None-valued attribs
         revertedAttribs = {}
         for key, value in attribs.items():
-            if key in mmElement.specs:  # convert values, defaulting to str(value) if necessary
-                vtype = mmElement.specs[key]
-                if isinstance(vtype, list):  # a list for multiple values (always strings)
-                    pass
-                elif vtype == bool:  # boolean logic
-                    value = str(value).lower()  # get 'false' or 'true' strings
-                else:
-                    value = str(vtype(value))  # float or integer
+            if key not in mmElement.specs:
+                continue  # skip adding attrib that isn't in specs
+            entries = mmElement.specs[key]
+            value = self.convert_attrib_value_using_spec_entries(value, entries)  # ? lowercase boolean output?
             key, value = str(key), str(value)
             revertedAttribs[key] = value
         return revertedAttribs
@@ -309,10 +314,11 @@ class MindMapConverter(object):
         element = factory.elementType()
         self.tag2factory[element.tag] = factory
 
-    def _special_vert_full_tree(self, element, action1, action2):
-        # element can be pymm element or etree element
-        # e = from (the node / element being converted)
-        # convert or revert the element!
+    def _apply_convert_fxns_to_full_tree(self, element, fxn1, fxn2):
+        firstPassRoot = self._apply_first_pass_fxn_to_full_tree(element, fxn1)
+        return self._apply_second_pass_fxn_to_full_tree(firstPassRoot, fxn2)
+
+    def _apply_first_pass_fxn_to_full_tree(self, element, fxn1):
         first = action1(element, None)
         hasUnchangedChildren = [first]
         while hasUnchangedChildren:
@@ -327,23 +333,29 @@ class MindMapConverter(object):
                 children.append(child)
                 hasUnchangedChildren.append(child)
             element[:] = children
+        return first
+
+    def _apply_second_pass_fxn_to_full_tree(self, element, fxn2):
+        first = element
         notFullyChanged = [(first, None)]  # child = first. Parent = None
         while notFullyChanged:
             element, parent = notFullyChanged.pop(0)
             elem = action2(element, parent)
-            if elem is None:
-                if element in parent[:]:    # if you return None during conversion / reversion, this will ensure it is
-                    parent.remove(element)  # fully removed from the tree by removing its reference from the parent
-                continue                    # and not allowing its children to be added.
+            if elem is None and parent is not None:  # if you return None during conversion / reversion, this will ensure it is
+                self._remove_child_element(elem, parent)  # fully removed from the tree by removing its reference from the
+                continue  # parent and not allowing its children to be added
             parentsAndChildren = [(child, elem) for child in elem[:]]  # child w/ parent
             notFullyChanged.extend(parentsAndChildren)
         return first
+
+    def _remove_child_element(self, child, parent):
+        parent.remove(child)
 
     def convert_etree_element_and_tree(self, etElement):
         etElement = copy.deepcopy(etElement)
         action1 = self.convert_etree_element
         action2 = self.additional_conversion
-        node = self._special_vert_full_tree(etElement, action1, action2)
+        node = self._apply_convert_fxns_to_full_tree(etElement, action1, action2)
         self.defaultFactory.display_any_warnings()  # get this out so the developer is warned.
         return node
 
@@ -366,7 +378,7 @@ class MindMapConverter(object):
         mmElement = copy.deepcopy(mmElement)
         action1 = self.revert_mm_element
         action2 = self.additional_reversion
-        return self._special_vert_full_tree(mmElement, action1, action2)
+        return self._apply_convert_fxns_to_full_tree(mmElement, action1, action2)
 
     def revert_mm_element(self, mmElement, parent):
         ff = self.get_conversion_factory_for(mmElement)
