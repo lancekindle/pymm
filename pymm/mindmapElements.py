@@ -1,121 +1,51 @@
 from uuid import uuid4
 import warnings
 import re
+import copy
+import _elementAccess
 # see http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format for file specifications
 # terminology: elem, element = MindMap Elements (no etree elements allowed! Use a mmFactory to convert those
 
-# if you want to update __all__ simply run dir(mindmapElements) (after
-# import) to list all available modules. Then remove unwanted modules
- 
 
-class ElementAccessor(object):
-    # this object is intended to hold a reference to ONE element. When initialized with a set of tags,
-    # the object will search its reference element for those tags and allow access to them, including indexing,
-    # removal, deletion, etc. to iterate, simply use self[:] e.g. node.nodes[:]
+class BaseElement(_elementAccess.Attrib):
+    """ pymm's Base Element. All other elements inherit from BaseElement, which represents an element in a similar style
+    to xml.etree.ElementTree. with enhancements aimed at providing faster mindmap manipulation. Each element has a
+    specific identifier, a tag, that specifies what type of element it is. If a specific xml element type does not have
+    a corresponding pymm element, it will become a BaseElement, but the corresponding "BaseElement" tag will be replaced
+    with the actual xml element's tag.
 
-    def __init__(self, element, tags):
-        # would be awesome to allow tags to be a regex instead of a normal
-        if isinstance(tags, str):  # allow user to pass in single string for searchable element tag
-            if not tags:
-                raise ValueError('element accessor requires non-empty string for tag')
-            tags = [tags]
-        if not len(tags):
-            raise ValueError('element accessor requires non-empty tags')
-        self._tags = (t for t in tags)  # use tuple for list of tags to imply that this "list" should not be altered
-        self._container = element
-
-    def __getitem__(self, index):
-        elements = []
-        for tag in self._tags:
-            elements.extend(self._container.findall(tag))
-        return elements[index]
-
-    def __setitem__(self, index, elem):   # removes elements, then re-appends them after modification.
-        subchildren = self[:]             # sloppy, but it works. And elements are reordered later anyways.
-        for element in subchildren:       # what really matters is that the order of elements of the same tag are not
-            self._container.remove(element)  # altered.
-        subchildren[index] = elem
-        for element in subchildren:
-            self._container.append(element)
-
-    def __delitem__(self, key):
-        element = self[key]
-        index = self._container.index(element)
-        del self._container[index]
-
-    def __contains__(self, element):
-        return element in self[:]
-
-    def __len__(self):
-        return len(self[:])
-
-    def append(self, element):
-        self._container.append(element)
-
-    def extend(self, elements):
-        self._container.extend(elements)
-
-    def remove(self, element):
-        self._container.remove(element)
-
-    def __str__(self):
-        return 'Accessor for: ' + str(self._tags)
-
-    def __repr__(self):
-        return '<' + str(self)[:15] + '...'*(len(str(self)) > 15) + ' @' + hex(id(self)) + '>'
-
-    @classmethod
-    def constructor(cls, tags):
-        def element_access_construction(element):  # just call self.nodes() or self.clouds(), self.etc... to initialize
-            return cls(element, tags)
-        return element_access_construction
-
-
-class BaseElement(object):
-    """ pymm's Base Element. Can represent any element that xml.etree.ElementTree can.
-
-    BaseElement includes additional attributes to improve upon ElementTree's approach.
-    It stores all its children in a list that you can access through explicit slicing or indexing of BaseElement.
-    e.g.: BaseE[:], BaseE[0], etc. Native iteration through children is NOT supported. Use slicing for child iteration.
-    append(), extend(), index(), pop(), and remove() are usable functions for accessing an element's children.
+    It stores all its children in a list that you can access and modify @ BaseElement.children.
     BaseElement stores xml attributes in a dictionary, which can be accessed as if the element sub-classed Dict.
     e.g.: BaseE['TEXT'] or BaseE['SIZE'] can access BaseElement's attributes TEXT and SIZE, respectively. xml
     attributes are those key=value declarations that exist within an xml-elements opening (<) and closing (>) tags.
     The functions items(), keys(), and update() are used to access BaseElement's attributes.
+
+    :param tag: the tag specifying type of element
+    :param parent: a link to the element's parent element
+    :param specs: a dictionary of expected xml attributes and their expected types (i.e. int, list, string, etc.).When
+                changing an element's attribute, the new attribute will be checked against the specs, and an warning
+                generated if the new attribute does not match the specs. Can be modified to allow additional specs. I.E.
+                elem['TEXT'] = 'HI 5' sets the element's TEXT attribute to 'HI 5'. If specs contains the key 'TEXT', the
+                type of value 'HI 5' (str) will be checked against the value of specs['TEXT'], and allowed if they match
     """
-    # BaseElement for basic child access functionality
-    # NOTE: It is extremely dangerous to define lists and dictionaries on a class-level.If you forget to initialize it
-    # via: self._str = list(self._str...) or self.dict = self.dict.copy() then any changes will affect the CLASS VARS!
-    # (because the self.var would actually be pointing to the class variable)
-    # this caught me at first, but since I re-initialize them in the init, everything is good.
     tag = 'BaseElement'  # must set to cloud, hook, edge, etc.
     parent = None
-    _text = ''    # equivalent to ElementTree's .text  -- text between start tag and next element   # I only keep this
-    _tail = ''    # equivalent to ElementTree's .tail  -- text after end tag                        # for compatibility
-    _children = []  # all child elements including nodes
-    _attribs = {}  # pre-define these (outside of init like this) in other classes to define default element attribs
-    _strConstructors = []  # list of attribs to use in str(self) construction
-    specs = {}  # list all possible attributes of an element and its choices [...] or value type (str, int, etc.)
+    _text = ''    # equivalent to ElementTree's .text  -- text between start tag and next element   # keep this for
+    _tail = ''    # equivalent to ElementTree's .tail  -- text after end tag                        # .mm compatibility
+    children = []  # all child elements including nodes
+    attrib = {}  # pre-define these (outside of init like this) in other classes to define default element attribs
+    _descriptors = []  # list of attribs that can be used to better describe instance. Used in str(self) construction
+    specs = {}  # list all possible attributes of an element and valid entries / types in a list or standalone:
+                    # [str, int, 'thin', etc.], str, int, 'thin', etc.
 
     def __init__(self, attribs={}, **kwargs):
-        self._children = list(self._children) + []
-        self._attribs = self._attribs.copy()  # copy all class lists/dicts into instance
-        self._strConstructors = list(self._strConstructors) + []
-        self.specs = self.specs.copy()
-        self._attribs.update(attribs)
-        for k, v in kwargs.items():  # make this call different than updating _attribs directly because it's more likely
+        self.children = list(self.children)
+        self.attrib = copy.deepcopy(self.attrib)  # copy all class lists/dicts into instance
+        self._descriptors = list(self._descriptors) + []
+        self.specs = copy.deepcopy(self.specs)
+        self.attrib.update(attribs)
+        for k, v in kwargs.items():  # make this call different than updating attrib directly because it's more likely
             self[k] = v  # that a developer specifically typed this out. This will error check it
-
-    def __contains__(self, key_or_element):
-        """ Returns if key_or_element is part of this Elements dictionary or children, respectively.
-        :param key_or_element: dictionary key (string) OR child element.
-        :return: Boolean
-        """
-        if isinstance(key_or_element, str):
-            return key_or_element in self._attribs
-        if key_or_element in self._children:
-            return True
-        return False
 
     def findall(self, tag):
         """ Return all child elements with matching tag. Return all children if '*' passed in.
@@ -124,92 +54,24 @@ class BaseElement(object):
         :return: list of matching children. Return empty list if none found.
         """
         if tag == '*':
-            return self._children
+            return self.children
         matching = []
-        for element in self[:]:
+        for element in self.children:
             if element.tag == tag:
                 matching.append(element)
         return matching
-            
+
     def __len__(self):
         """ Return number of children in node """
-        return len(self[:])
-
-    def __getitem__(self, index_or_key):
-        """ Return dictionary value or child element(s) if passed value is key, or index / slice, respectively.
-
-        :param index_or_key:
-        :return child element OR attribute value: depending if param passed was index/slice or key string, respectively
-        """
-        if isinstance(index_or_key, str):
-            return self._attribs[index_or_key]
-        return self._children[index_or_key]
-
-    def __setitem__(self, index_or_key, elements_or_value):
-        """ Set Element's children or attribute
-
-        :param index_or_key: list index / slice or dictionary key. If dictionary key, key MUST be string
-        :param elements_or_value: child element(s) to set, OR dictionary value.
-        """
-        if isinstance(index_or_key, str):
-            self._setdictitem(index_or_key, elements_or_value)  # error-check self._attribs[key] = value
-        else:
-            index, child = index_or_key, elements_or_value
-            if type(index) == slice:
-                if isinstance(child, BaseElement):  # prevent assigning element[:] = c where c is a solitary child
-                    raise TypeError('can only assign an iterable')
-                children = child  # "child" is actually an iterable of children
-                self._children[index] = children
-            else:
-                self._children[index] = child
-                children = [child]
-            for child in children:
-                if hasattr(child, 'parent'):
-                    child.parent = self
-
-    def _setdictitem(self, key, value):  # a way to force error checking on setting of attrib values.
-        """  Error check (key: value) pair against Element.specs, warn user if mismatch found but still allow operation.
-
-        :param key: dictionary key (string expected)
-        :param value: dictionary value
-        """
-        self._attribs[key] = value  # regardless of whether we warn developer, add attribute.
-        if key not in self.specs:   # add keywords and arguments to element.specs to address unnecessary warnings
-            warnings.warn('<' + self.tag + '> does not have "' + key + '" spec', UserWarning, stacklevel=2)
-        else:  # then key IS in attribSpecs
-            vtype = self.specs[key]
-            try:
-                if isinstance(vtype, list):
-                    vlist = vtype  # the value type is actually a list of possible string values
-                    if value not in vlist:
-                        vtype = ' one of ' + str(vtype)  # change vtype to string for warning user. vtype is useless now
-                        raise ValueError
-                elif not vtype == type(value):
-                    raise ValueError
-            except ValueError:
-                warnings.warn('<' + self.tag + '>[' + key + '] expected ' + str(vtype) + ', got ' + str(value) +
-                              ' instead: ' + str(type(value)), UserWarning, stacklevel=2)
-
-    def __delitem__(self, index_or_key):
-        """ Delete element child or dictionary key: value pair given an index / slice or key, respectively
-
-        :param index_or_key: Dictionary value (string) or index / slice
-        """
-        if isinstance(index_or_key, str):
-            del self._attribs[index_or_key]
-        else:
-            element = self._children[index_or_key]
-            if hasattr(element, 'parent'):
-                element.parent = None
-            del self._children[index_or_key]
+        return len(self.children)
 
     def index(self, element):
         """ Return index of child element in Element's children list """
-        return self._children.index(element)
+        return self.children.index(element)
 
     def append(self, element):
         """ Append element to Element's children list """
-        self._children.append(element)
+        self.children.append(element)
         if hasattr(element, 'parent'):
             element.parent = self
 
@@ -220,53 +82,32 @@ class BaseElement(object):
         for element in elements:
             self.append(element)  # we call here so that we can set parent attribute. Unfortunately means its slowish
 
-    def update(self, attribs):
-        """ Update Element's attributes """
-        for k, v in attribs.items():  # add attributes one at a time, which allows element to warn if passed key is
-            self[k] = v               # not part of its specs.
-
     def remove(self, element):
         """ Remove element from children """
-        self._children.remove(element)
+        self.children.remove(element)
         if hasattr(element, 'parent'):
             element.parent = None
 
     def pop(self, index=-1):
         """ Remove and return element in children list """
-        return self._children.pop(index)
-
-    def items(self):
-        """ Return attribute items in (key, value) format """
-        return self._attribs.items()
-
-    def keys(self):
-        """ Return attribute keys """
-        return self._attribs.keys()
-
-    def __str__(self):
-        """ Construct string representation of self. Configured to display more info: self._strConstructors.append() """
-        extras = [' ' + prop + '=' + value for prop, value in self.items() if prop in self._strConstructors]
-        s = self.tag + ':'
-        for descriptor in extras:
-            s += descriptor
-        return s
-
-    def __repr__(self):
-        """ Return shortened description of self """
-        return '<' + str(self)[:13] + '...'*(len(str(self)) > 13) + ' @' + hex(id(self)) + '>'
+        return self.children.pop(index)
 
 
 class Node(BaseElement):
+    """ The most common element in a mindmap. The Node is the visual group, with an expandable branch of children.
+    Nodes contain the text you type, contains links to other nodes or urls, contains pictures, and can be made visually
+    unique through clouds, edge-line colors, or rich-text formatting. A Node contains an ID and text by default
+    """
     tag = 'node'
-    nodes = ElementAccessor.constructor(['node'])
-    _attribs = {'ID': 'random#', 'TEXT': ''}
+    nodes = _elementAccess.Children.preconstructor(['node'])
+    attrib = {'ID': 'random#', 'TEXT': ''}
     specs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
              'POSITION': ['left', 'right'], 'STYLE': str, 'TEXT': str, 'LOCALIZED_TEXT': str, 'TYPE': str,
-             'CREATED': int, 'MODIFIED': int, 'HGAP': int, 'VGAP': int, 'VSHIFT': int, 'ENCRYPTED_CONTENT': str,
-             'OBJECT': str, 'MIN_WIDTH': int, 'MAX_WIDTH': int}
+             'CREATED': int, 'MODIFIED': int, 'HGAP': int, 'VGAP': int, 'VSHIFT': int,
+             'ENCRYPTED_CONTENT': str, 'OBJECT': str, 'MIN_WIDTH': int, 'MAX_WIDTH': int}
 
     def __init__(self, **kwargs):
-        self['ID'] = 'ID_' + str(uuid4().time)[:-1]
+        self['ID'] = 'ID_' + str(uuid4().time).replace('L', '')
         super(Node, self).__init__(**kwargs)
         self.nodes = self.nodes()
 
@@ -275,10 +116,13 @@ class Node(BaseElement):
 
 
 class Map(BaseElement):
+    """ Map is the first element of any mindmap. It is the highest-level element and all other elements are sub-children
+    of the Map. Map generally contains only two direct children: the RootNode, and MapStyle.
+    """
     tag = 'map'
-    _attribs = {'version': 'freeplane 1.3.0'}
+    attrib = {'version': 'freeplane 1.3.0'}
     specs = {'version': str}
-    nodes = ElementAccessor.constructor(['node'])
+    nodes = _elementAccess.Children.preconstructor(['node'])
 
     def __init__(self, **kwargs):
         super(Map, self).__init__(**kwargs)
@@ -292,57 +136,91 @@ class Map(BaseElement):
 
 
 class Cloud(BaseElement):
+    """ Cloud is a visual indicator around a particular Node, making it stand out above other Nodes. As a child of the
+    Node, a cloud applies its visual style to its parent Node and that nodes children and sub-children. The cloud has
+    two main attributes to control its visual style: SHAPE, and COLOR. SHAPE must be chosen from Cloud.shapeList, while
+    COLOR can be any string representation starting with #, and using two hexidecimal characters for each color in RGB
+    """
     tag = 'cloud'
     shapeList = ['ARC', 'STAR', 'RECT', 'ROUND_RECT']
-    _attribs = {'COLOR': '#333ff', 'SHAPE': 'ARC'}  # set defaults
+    attrib = {'COLOR': '#f0f0f0', 'SHAPE': 'ARC'}  # set defaults
     specs = {'COLOR': str, 'SHAPE': shapeList, 'WIDTH': str}
-    _strConstructors = ['COLOR', 'SHAPE']  # extra information to send during call to __str__
+    _descriptors = ['COLOR', 'SHAPE']  # extra information to send during call to __str__
 
 
 class Hook(BaseElement):
+    """ Hook is used frequently throughout a mindmap to represent different added elements. Hook is often subclassed
+    as a result. The NAME attribute of a hook tells what type of hook it is. Add a Hook as a child to apply the effect.
+    """
     tag = 'hook'
-    _attribs = {'NAME': 'overwritten'}
+    attrib = {'NAME': 'overwritten'}
     specs = {'NAME': str}
 
 
 class EmbeddedImage(Hook):
-    _attribs = {'NAME': 'ExternalObject'}
+    """ place EmbeddedImage as the child of a Node to embed the image into the given node. Must supply the full or
+    relative path to the image using EmbeddedImage['URI'] = path
+    """
+    attrib = {'NAME': 'ExternalObject'}
     specs = {'NAME': str, 'URI': str, 'SIZE': float}
 
 
 class MapConfig(Hook):
-    _attribs = {'NAME': 'MapStyle', 'zoom': 1.0}
+    """ MapConfig is only used once in a mindmap: as the child of RootNode. It provides a few configurations to the map,
+    such as zoom-level, or max_node_width which defines how many characters long a node runs before wrapping.
+    """
+    attrib = {'NAME': 'MapStyle', 'zoom': 1.0}
     specs = {'NAME': str, 'max_node_width': int, 'zoom': float}
 
 
 class Equation(Hook):
-    _attribs = {'NAME': 'plugins/latex/LatexNodeHook.properties'}
+    """ Equation allows a LaTeX-style equation to be inserted into a particular Node. Define the equation using
+    Equation['EQUATION'] = latex-string
+    """
+    attrib = {'NAME': 'plugins/latex/LatexNodeHook.properties'}
     specs = {'NAME': str, 'EQUATION': str}
 
 
 class AutomaticEdgeColor(Hook):
-    _attribs = {'NAME': 'AutomaticEdgeColor', 'COUNTER': 0}
+    """ AutomaticEdgeColor is a child of RootNode. If AutomaticEdgeColor is present, then creating new child nodes of
+    the root will have their edge automatically colored differently. The COUNTER attribute keeps track of how many edges
+    have been automatically colored.
+    """
+    attrib = {'NAME': 'AutomaticEdgeColor', 'COUNTER': 0}
     specs = {'NAME': str, 'COUNTER': int}
 
 
 class MapStyles(BaseElement):
+    """ MapStyles is the child of the MapConfig Hook. MapStyles defines the styles of all the nodes. MapStyles contains
+    multiple StyleNodes, each defining a new style.
+    """
     tag = 'map_styles'
 
 
 class StyleNode(BaseElement):
+    """ StyleNode defines the characteristics of a style. Its LOCALIZED_TEXT attribute is the same name used by a Node's
+    LOCALIZED_STYLE_REF, when choosing what style to use. StyleNodes share their attributes through inheritance. Their
+    children StyleNodes will contain the same attributes as their parents + their unique attributes.
+    """
     tag = 'stylenode'
     specs = {'LOCALIZED_TEXT': str, 'POSITION': ['left', 'right'], 'COLOR': str, 'MAX_WIDTH': int, 'STYLE': str}
 
 
 class Font(BaseElement):
+    """ Font influence the visual style of text. Font should be a child of a StyleNode to change that StyleNode's text
+    appearance
+    """
     tag = 'font'
-    _attribs = {'BOLD': False, 'ITALIC': False, 'NAME': 'SansSerif', 'SIZE': 10}  # set defaults
+    attrib = {'BOLD': False, 'ITALIC': False, 'NAME': 'SansSerif', 'SIZE': 10}  # set defaults
     specs = {'BOLD': bool, 'ITALIC': bool, 'NAME': str, 'SIZE': int}
 
 
 class Icon(BaseElement):
+    """ Add a small icon to the front of a node by adding Icon as a Node's child. Icon['BUILTIN'] = builtinIcon sets the
+    icon. You can choose a built-in icon from the list: Icon.builtinList.
+    """
     tag = 'icon'
-    _strConstructors = ['BUILTIN']
+    _descriptors = ['BUILTIN']
     builtinList = ['help', 'bookmark', 'yes', 'button_ok', 'button_cancel', 'idea', 'messagebox_warning', 'stop-sign',
                    'closed', 'info', 'clanbomber', 'checked', 'unchecked', 'wizard', 'gohome', 'knotify', 'password',
                    'pencil', 'xmag', 'bell', 'launch', 'broken-line', 'stop', 'prepare', 'go', 'very_negative',
@@ -355,9 +233,7 @@ class Icon(BaseElement):
                    'males', 'fema', 'group', 'ksmiletris', 'smiley-neutral', 'smiley-oh', 'smiley-angry', 'smiley_bad',
                    'licq', 'penguin', 'freemind_butterfly', 'bee', 'forward', 'back', 'up', 'down', 'addition',
                    'subtraction', 'multiplication', 'division']
-    # you can add additional icons right here if one is
-    # missing by simply appending to the class builtin list: Icon.builtinList.append(icon-name)
-    _attribs = {'BUILTIN': 'bookmark'}
+    attrib = {'BUILTIN': 'bookmark'}
     specs = {'BUILTIN': builtinList}
 
     def set_icon(self, icon):
@@ -369,34 +245,41 @@ class Icon(BaseElement):
 
 
 class Edge(BaseElement):
+    """ Edge defines the look of the lines (edges) connecting nodes. You can change the color, style, and width.
+    The COLOR attribute must be any string representation, starting with # and having two hexidecimal characters for
+    each color in RGB. The STYLE attribute must be one of the styles in Edge.styleList. The WIDTH attribute must be
+    'thin' or a string representation of any integer. Realistically, any edge width > '8' is visually unappealing. If
+    you delete WIDTH attribute (or set to None), edge width will be inherited from Node's parent.
+    edge['COLOR'] = '#ff0033';     edge['STYLE'] = edge.styleList[0]  (linear)     edge['WIDTH'] = '4'
+    """
     tag = 'edge'
     styleList = ['linear', 'bezier', 'sharp_linear', 'sharp_bezier', 'horizontal', 'hide_edge']
-    widthList = ['thin', '1', '2', '4', '8']
+    widthList = ['thin', int]  # can be 'thin' or a integer representing width. Anything > 4 is huge
     specs = {'COLOR': str, 'STYLE': styleList, 'WIDTH': widthList}
-
-    def set_style(self, style):
-        self['STYLE'] = style
-        if style not in self.styleList:
-            warnings.warn('edge style "' + str(style) + '" not part of freeplanes edge styles list. ' +
-                          'Freeplane may not display edge. Use a style from the styleList instead', SyntaxWarning,
-                          stacklevel=2)
 
 
 class Attribute(BaseElement):
+    """ (Node) Attributes display underneath a Node like a table, with NAME attribute to the left, and VALUE to the
+    right. You can use Node Attributes to specify categories / traits of a specific Node. You can visually hide Node
+    Attributes by setting AttributeRegistry['SHOW_ATTRIBUTES'] = 'hide'. Additionally, you can hide or show an icon
+    indicating the presence of Attributes on a Node through the Properties Element.
+    """
     tag = 'attribute'
-    _attribs = {'NAME': '', 'VALUE': ''}
+    attrib = {'NAME': '', 'VALUE': ''}
     specs = {'NAME': str, 'VALUE': str, 'OBJECT': str}
 
 
 class Properties(BaseElement):
+    """ Control the appearance of notes on Nodes, and icons, note, or attribute presence on a node. Is child of MapStyle
+    """
     tag = 'properties'
-    _attribs = {'show_icon_for_attributes': True, 'show_note_icons': True, 'show_notes_in_map': False}
+    attrib = {'show_icon_for_attributes': True, 'show_note_icons': True, 'show_notes_in_map': False}
     specs = {'show_icon_for_attributes': bool, 'show_note_icons': bool, 'show_notes_in_map': bool}
 
 
 class ArrowLink(BaseElement):
     tag = 'arrowlink'
-    _attribs = {'DESTINATION': ''}
+    attrib = {'DESTINATION': ''}
     specs = {'COLOR': str, 'DESTINATION': str, 'ENDARROW': str, 'ENDINCLINATION': str, 'ID': str, 'STARTARROW': str,
              'STARTINCLINATION': str, 'SOURCE_LABEL': str, 'MIDDLE_LABEL': str, 'TARGET_LABEL': str, 'EDGE_LIKE': bool}
 
@@ -407,7 +290,7 @@ class AttributeLayout(BaseElement):
 
 class AttributeRegistry(BaseElement):
     tag = 'attribute_registry'
-    _attribs = {'SHOW_ATTRIBUTES': 'all'}  # if we select 'all' the element should be omitted from file.
+    attrib = {'SHOW_ATTRIBUTES': 'all'}  # if we select 'all' the element should be omitted from file.
     specs = {'SHOW_ATTRIBUTES': ['selected', 'all', 'hide']}
 
 
@@ -419,7 +302,7 @@ class RichContent(BaseElement):
     #   getplaintext() function to allow the user to quickly downgrade text to something readable. Until that time, html
     #   text is going to be very messy.
     tag = 'richcontent'
-    _strConstructors = ['TYPE']
+    _descriptors = ['TYPE']
     specs = {'TYPE': str}
     html = ''
 
@@ -430,12 +313,12 @@ class RichContent(BaseElement):
 class NodeText(RichContent):
     # developer does not need to create NodeText, ever. This is created by the node itself during reversion if the
     #   nodes html includes html tags
-    _attribs = {'TYPE': 'NODE'}
+    attrib = {'TYPE': 'NODE'}
 
 
 class NodeNote(RichContent):
-    _attribs = {'TYPE': 'NOTE'}
+    attrib = {'TYPE': 'NOTE'}
 
 
 class NodeDetails(RichContent):
-    _attribs = {'TYPE': 'DETAILS'}
+    attrib = {'TYPE': 'DETAILS'}

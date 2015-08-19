@@ -9,13 +9,13 @@ classifiers = [ 'License :: OSI Approved :: MIT License',
                 'Intended Audience :: Developers',
                 'Topic :: Software Development :: Libraries :: Python Modules',
                 'Topic :: Text Processing :: Markup :: XML'  # interprets xml-based mindmaps
-    ]
+                ]
 longDescr = """\
 Module for reading, writing, editting, and creating Mind Maps.
 ----------------------------------------------------------------------------
-This module builds on top of elementTree to intrepret the xml structure of MindMaps, and presents
-the information in a clear and intuitive manner that mimicks how Freeplane and Freemind build their
-own.
+This module builds on top of xml.etree.ElementTree to intrepret the xml structure of MindMaps,
+and presents the information in a clear and intuitive manner that mimicks how Freeplane and
+Freemind build their own.
 Building a mindmap is easy::
     import pymm
     from pymm import mindmapElements as mm
