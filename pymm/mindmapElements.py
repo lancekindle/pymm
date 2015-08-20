@@ -2,7 +2,7 @@ from uuid import uuid4
 import warnings
 import re
 import copy
-import _elementAccess
+from . import _elementAccess
 # see http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format for file specifications
 # terminology: elem, element = MindMap Elements (no etree elements allowed! Use a mmFactory to convert those
 

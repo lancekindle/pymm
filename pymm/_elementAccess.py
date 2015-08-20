@@ -46,27 +46,31 @@ class Children:
                 yield elem
 
     def __getitem__(self, index):
-        elements = iter(self)
-        if index >= 0:
-            i = 0
-            for elem in elements:
-                if i == index:
-                    return elem
-                i += 1
-        allElements = [e for e in elements]
-        return allElements[index]
+        elements = [e for e in iter(self)]
+        return elements[index]
+##        if isinstance(index, int):
+##            if index >= 0:
+##                i = 0
+##                for elem in elements:
+##                    if i == index:
+##                        return elem
+##                    i += 1
+##                    elements_list.append(elem)
+##        else:
+##            elements_list = [e for e in elements]
+##        return elements_list[index]
 
     def __setitem__(self, index, elem):   # removes elements, then re-appends them after modification.
         subchildren = self[:]             # sloppy, but it works. And elements are reordered later anyways.
         for element in subchildren:       # what really matters is that the order of elements of the same tag are not
-            self._container.remove(element)  # altered.
+            self._container.children.remove(element)  # altered.
         subchildren[index] = elem
         for element in subchildren:
-            self._container.append(element)
+            self._container.children.append(element)
 
     def __delitem__(self, key):
         element = self[key]
-        index = self._container.index(element)
+        index = self._container.children.index(element)
         del self._container[index]
 
     def __contains__(self, element):
@@ -103,13 +107,17 @@ class Attrib:
         """
         return self.attrib[key]
 
+    def __iter__(self):
+        ''' raise error. We do not want user iterating over attribs (because implicit iteration here can lead to confusing code) '''
+        raise NotImplemented('DO NOT use implicit iteration of attribute. Can confuse between iteration of children and attributes. Use .items() instead or .children if iterating children')
+
     def __setitem__(self, key, value):
         """ Set Element's attribute
 
         :param key: dictionary key
         :param value: dictionary value.
         """
-        self._setdictitem(key, elements_or_value)  # error-check self.attrib[key] = value
+        self._setdictitem(key, value)  # error-check self.attrib[key] = value
 
     def _setdictitem(self, key, value):
         """  Error check (key: value) pair against Element.specs, warn user if mismatch found but still allow operation.
@@ -124,6 +132,7 @@ class Attrib:
             entries = self.specs[key]
             if not isinstance(entries, list):
                 entries = [entries]
+            entry = None # default value
             for entry in entries:
                 if type(entry) == type:
                     if type(value) == entry:
@@ -134,12 +143,15 @@ class Attrib:
                     if entry == value:
                         break
             else:
-                raise ValueError('attribute value not correct type:' + str(vtype) + ' vs ' + str(type(value)))
+                raise ValueError('attribute value not correct type:' + str(entry) + ' vs ' + str(type(value)))
 
     def update(self, attribs):
         """ Update Element's attributes """
         for k, v in attribs.items():  # add attributes one at a time, which allows element to warn if passed key is
             self[k] = v               # not part of its specs.
+
+    def items(self):
+        return self.attrib.items()  # both update() and items() are functions that I'd like to remove if possible.
 
     def __delitem__(self, key):
         """ Delete attrib key: value pair given a key

@@ -71,8 +71,11 @@ class BaseElementFactory(object):
         etype = self.compute_element_type(etElement)  # choose between self.elementType and otherElementTypes
         mmElem = etype()  # could be anything: Map, Node, etc.
         attribs = self.convert_attribs(mmElem, etElement.attrib)
-        mmElem = etype(attribs)  # yep, we initialize it a second time, but this time with attribs
-        mmElem[:] = etElement[:]  # append all unconverted children to this mmElem!
+##        mmElem = etype(attribs)  # yep, we initialize it a second time, but this time with attribs  (I don't know why this doesn't work)
+        mmElem = etype()
+        mmElem.attribs = attribs  # have to manually set attribs here
+##        mmElem[:] = etElement[:]  # append all unconverted children to this mmElem!
+        mmElem.children = etElement.getchildren()
         if not mmElem.tag == etElement.tag:
             self.noFactoryWarnings.add(etElement.tag)
             mmElem.tag = etElement.tag
@@ -97,7 +100,7 @@ class BaseElementFactory(object):
         attribs = self.revert_attribs(mmElement)
         self.sort_element_children(mmElement)
         etElem = ET.Element(mmElement.tag, attribs)  # fyi: impossible to write attribs in specific order.
-        etElem[:] = mmElement[:]
+        etElem.children = mmElement.children
         etElem.text = mmElement._text
         etElem.tail = mmElement._tail
         return etElem
@@ -144,11 +147,11 @@ class BaseElementFactory(object):
                 convertedAttribs[key] = value
         return convertedAttribs
 
-    def convert_attrib_value_using_spec_entries(value, entries):
+    def convert_attrib_value_using_spec_entries(self, value, entries):
         # first verify that entries is a list
         if not type(entries) == type(list()):
             entries = [entries]
-        for entry in choices:
+        for entry in entries:
             if type(entry) == type:
                 valueType = entry
                 value = valueType(value)  # convert value to new type
@@ -223,7 +226,7 @@ class MapFactory(BaseElementFactory):
         comment = ET.Comment('To view this file, download free mind mapping software Freeplane from ' +
                    'http://freeplane.sourceforge.net')
         comment.tail = '\n'
-        etMap[:] = [comment] + etMap[:]
+        etMap.children = [comment] + etMap.children
         return etMap
 
 class CloudFactory(BaseElementFactory):
@@ -266,10 +269,10 @@ class RichContentFactory(BaseElementFactory):
     def convert_from_etree_element(self, etElement, parent=None):
         mmRichC = super(RichContentFactory, self).convert_from_etree_element(etElement, parent)
         html = ''                        # this makes a critical assumption that there'll be 1 child. If not, upon
-        for htmlElement in mmRichC:  # reversion, ET may complain about "ParseError: junk after document etRichC...
+        for htmlElement in mmRichC.children:  # reversion, ET may complain about "ParseError: junk after document etRichC...
             html += ET.tostring(htmlElement)
         mmRichC.html = html
-        mmRichC[:] = []  # remove html children to prevent their conversion.
+        mmRichC.children = []  # remove html children to prevent their conversion.
         return mmRichC
 
     def revert_to_etree_element(self, mmElement, parent=None):
@@ -319,20 +322,20 @@ class MindMapConverter(object):
         return self._apply_second_pass_fxn_to_full_tree(firstPassRoot, fxn2)
 
     def _apply_first_pass_fxn_to_full_tree(self, element, fxn1):
-        first = action1(element, None)
+        first = fxn1(element, None)
         hasUnchangedChildren = [first]
         while hasUnchangedChildren:
             element = hasUnchangedChildren.pop(0)
-            unchanged = [(child, element) for child in element[:]] # combine child w/ parent into tuple
+            unchanged = [(child, element) for child in element.children] # combine child w/ parent into tuple
             children = []
             while unchanged:
                 unchangedChild, parent = unchanged.pop(0)  # pop from first index to preserve child order
-                child = action1(unchangedChild, parent)
+                child = fxn1(unchangedChild, parent)
                 if child is None:
                     continue  # removes element from tree being built by not adding it to children(s) list
                 children.append(child)
                 hasUnchangedChildren.append(child)
-            element[:] = children
+            element.children = children
         return first
 
     def _apply_second_pass_fxn_to_full_tree(self, element, fxn2):
@@ -344,7 +347,7 @@ class MindMapConverter(object):
             if elem is None and parent is not None:  # if you return None during conversion / reversion, this will ensure it is
                 self._remove_child_element(elem, parent)  # fully removed from the tree by removing its reference from the
                 continue  # parent and not allowing its children to be added
-            parentsAndChildren = [(child, elem) for child in elem[:]]  # child w/ parent
+            parentsAndChildren = [(child, elem) for child in elem.children]  # child w/ parent
             notFullyChanged.extend(parentsAndChildren)
         return first
 

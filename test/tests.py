@@ -1,4 +1,7 @@
+import sys
+sys.path.append('../')  # append parent directory so that import finds pymm
 import unittest
+import pymm
 from pymm import mindmapElements as mme
 from pymm import FreeplaneFile
 
@@ -26,35 +29,37 @@ class TestElementAccessor(unittest.TestCase):
     def setUp(self):
         self.element = mme.BaseElement()
         self.node = mme.Node()
-        self.element.nodes = mme.ElementAccessor(self.element, ['node'])
+        self.element.nodes = mme._elementAccess.Children(self.element, ['node'])
 
     def test_constructor_allows_string(self):
         elem = self.element
-        elem.nodes = mme.ElementAccessor(elem, 'node')
+        elem.nodes = mme._elementAccess.Children(elem, 'node')
 
     def test_constructor_fails_on_nonlist_nonstring(self):
         elem = self.element
         empties = [[], (), {}, '']
         for empty in empties:
-            self.assertRaises(ValueError, mme.ElementAccessor, elem, empty)
+            self.assertRaises(ValueError, mme._elementAccess.Children, elem, empty)
         others = [{5:6}]
         for other in others:
-            self.assertRaises(ValueError, mme.ElementAccessor, elem, empty)
+            self.assertRaises(ValueError, mme._elementAccess.Children, elem, empty)
 
     def test_alternative_constructor(self):
         elem = self.element
-        elem.nodes = mme.ElementAccessor.constructor('node')
+        elem.nodes = mme._elementAccess.Children.preconstructor('node')
         elem.nodes = elem.nodes()  #why doesn't this work?
-        self.assertIsInstance(elem.nodes, mme.ElementAccessor)
+        self.assertIsInstance(elem.nodes, mme._elementAccess.Children)
 
     def test_node_is_added_to_element(self):
         elem = self.element
         node = self.node
         elem.nodes.append(node)
-        self.assertIn(node, elem)
-        self.assertIn(node, elem[:])
-        self.assertIn(node, elem.nodes)
+        self.assertIn(node, elem.children)
+        self.assertIn(node, elem.children[:])
+        self.assertIn(node, elem.children[:])
         self.assertIn(node, elem.nodes[:])
+        self.assertIn(node, elem.nodes[:])
+        self.assertIn(node, elem.nodes)
 
     def test_length_of_nodes_increases_after_adding_node(self):
         before = len(self.element.nodes)

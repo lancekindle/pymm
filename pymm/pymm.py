@@ -3,8 +3,8 @@ from . import mindmapFactories
 from . import mindmapElements
 
 
-class FreeplaneFile(object):
-    """ Interface to Freeplane structure. Allow reading and writing of xml-like mindmap formats (.mm)
+class FreeplaneFile:
+    """ Interface to Freeplane structure. Allow reading and writing of xml mindmap formats (.mm)
 
     readfile - reads file/filename and converts to structural tree with Map as first node
     writefile - writes full structural tree to file/filename
@@ -34,7 +34,9 @@ class FreeplaneFile(object):
         :param file_or_filename: string path to file or file instance of mindmap (.mm)
         :return:
         """
-        etMap = ET.parse(file_or_filename)
+        tree = ET.parse(file_or_filename)
+        self.tree = tree
+        etMap = tree.getroot()
         self.mmMap = self.convert(etMap)
 
     def writefile(self, file_or_filename):
@@ -77,3 +79,23 @@ class FreeplaneFile(object):
         :return:
         """
         return self.mmFactory.revert_mm_element_and_tree(mmElement)
+
+
+def open(file_or_filename):
+    """ converts the file/filename into a pymm tree
+
+    :param file_or_filename: string path to file or file instance of mindmap (.mm)
+    :return: FreeplaneFile instance with file read
+    """
+    freeplane = FreeplaneFile()
+    freeplane.readfile(file_or_filename)
+    return freeplane
+
+def write(freeplane, file_or_filename):
+    """ writes internal map and linked Nodes to file/filename
+
+    :param freeplane: instance of freeplane file interface
+    :param file_or_filename: string path to file or file instance of mindmap (.mm)
+    :return:
+    """
+    fpf.writefile(file_or_filename)
