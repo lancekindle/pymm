@@ -9,12 +9,27 @@ import _elementAccess
 
 class ExampleElement:  # example element showing minimum of things to define to inherit from BaseElement and create one.
     tag = ''  # [REQUIRED]. Only way for a Factory (which you must code) to convert the element of type 'tag'
-    attrib = {}  # [OPTIONAL] pre-define default element attribs
+    attrib = {}  # [OPTIONAL] pre-define default element attributes
     specs = {}  # [OPTIONAL] pre-define attribute types (like bool, str, int, float).
     _descriptors = []  # [OPTIONAL] list of attribs that are used when constructing string representation
+
+class PreventAmbiguousAccess:
+
+    def __iter__(self):
+        raise NotImplementedError('DO NOT ITERATE ELEMENT. Iterate element[:], element.children for child iteration. Or use'
+                                                        + 'element.items(), element.keys() to iterate attributes')
+    def __contains__(self, _):
+        raise NotImplementedError('DO NOT CHECK IF SOMETHING EXISTS IN ELEMENT. It is ambiguous as to whether you are'
+                                        + 'checking for child element or attribute. Be specific. Use element[:] or element.children for checking'
+                                        + 'child element. Use element.keys() for checking attribute')
+
+    def pop(self, _=0):
+        raise NotImplementedError('pop is ambiguous when referring to children or attributes. Please use element.nodes.pop()'
+                                  + 'or element.children.pop() (whichever is appriopriate) when popping children. Use element.attrib.pop()'
+                                  + 'when popping attributes')
     
 
-class BaseElement(_elementAccess.Attrib):
+class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
     """ pymm's Base Element. All other elements inherit from BaseElement, which represents an element in a similar style
     to xml.etree.ElementTree. with enhancements aimed at providing faster mindmap manipulation. Each element has a
     specific identifier, a tag, that specifies what type of element it is. If a specific xml element type does not have
@@ -40,6 +55,7 @@ class BaseElement(_elementAccess.Attrib):
     _text = ''    # equivalent to ElementTree's .text  -- text between start tag and next element   # keep this for
     _tail = ''    # equivalent to ElementTree's .tail  -- text after end tag                        # .mm compatibility
     children = []  # all child elements including nodes
+    _get_native_children = lambda self: self.children  # children to which we allow native access   [:], [1], etc...
     attrib = {}  # pre-define these (outside of init like this) in other classes to define default element attribs
     _descriptors = []  # list of attribs that can be used to better describe instance. Used in str(self) construction
     specs = {}  # list all possible attributes of an element and valid entries / types in a list or standalone:
@@ -52,9 +68,6 @@ class BaseElement(_elementAccess.Attrib):
         self.specs = copy.deepcopy(self.specs)
         for k, v in kwargs.items():  # make this call different than updating attrib directly because it's more likely
             self[k] = v                       # that a developer specifically typed this out. This will error check it
-
-    def getchildren(self):
-        return self.children
 
     def findall(self, tag):
         """ Return all child elements with matching tag. Return all children if '*' passed in.
@@ -70,13 +83,11 @@ class BaseElement(_elementAccess.Attrib):
                 matching.append(element)
         return matching
 
-    def __len__(self):
-        """ Return number of children in node """
-        return len(self.children)
+    def getchildren(self):
+        return self.children
 
-    def index(self, element):
-        """ Return index of child element in Element's children list """
-        return self.children.index(element)
+    def __len__(self):
+        return len(self._get_native_children())
 
     def append(self, element):
         """ Append element to Element's children list """
@@ -84,22 +95,35 @@ class BaseElement(_elementAccess.Attrib):
         if hasattr(element, 'parent'):
             element.parent = self
 
-    def extend(self, elements):
-        """ Extends Element's children """
-        if isinstance(elements, BaseElement):
-            raise TypeError('can only assign an iterable')
-        for element in elements:
-            self.append(element)  # we call here so that we can set parent attribute. Unfortunately means its slowish
-
     def remove(self, element):
         """ Remove element from children """
         self.children.remove(element)
         if hasattr(element, 'parent'):
             element.parent = None
 
-    def pop(self, index=-1):
-        """ Remove and return element in children list """
-        return self.children.pop(index)
+    def _is_attribute_access(self, key):
+        return not (isinstance(key, int) or isinstance(key, slice))
+    
+    def __getitem__(self, key_or_index_or_slice):
+        key = key_or_index_or_slice
+        if self._is_attribute_access(key):
+            return super().__getitem__(key)
+        else:
+            return self._get_native_children().__getitem__(key)
+
+    def __setitem__(self, key_or_index_or_slice, value_or_element):
+        key, val = key_or_index_or_slice, value_or_element
+        if self._is_attribute_access(key):
+            super().__setitem__(key, val)
+        else:
+            self._get_native_children().__setitem__(key, val)
+
+    def __delitem__(self, key_or_index_or_slice):
+        key = key_or_index_or_slice
+        if self._is_attribute_access(key):
+            super().__delitem__(key)
+        else:
+            self._get_native_children().__delitem__(key)
 
 
 class Node(BaseElement):
@@ -109,6 +133,7 @@ class Node(BaseElement):
     """
     tag = 'node'
     nodes = _elementAccess.Children.preconstructor(['node'])
+    _get_native_children = lambda self: self.nodes  # children to which we allow native access   [:], [1], etc...
     attrib = {'ID': 'random#', 'TEXT': ''}
     specs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
             'POSITION': ['left', 'right'], 'STYLE': str, 'TEXT': str, 'LOCALIZED_TEXT': str, 'TYPE': str,
@@ -331,3 +356,7 @@ class NodeNote(RichContent):
 
 class NodeDetails(RichContent):
     attrib = {'TYPE': 'DETAILS'}
+
+
+if __name__ == '__main__':
+    b = BaseElement()

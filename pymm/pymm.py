@@ -24,7 +24,7 @@ class MindMap:
         """
         self.mmFactory = self.mmFactory()  # initialize mindmap factory.
         self.mmMap = Elements.Map()
-        self.mmMap.append(Elements.Node())  # set up map and root node
+        self.mmMap.nodes.append(Elements.Node())  # set up map and root node
         if mapElement is not None:
             self.mmMap = mapElement  # we make the assumption that this is a mindmap Map
 
@@ -63,6 +63,10 @@ class MindMap:
     def getmap(self):
         """ Return Map Element. In pymm, Map Element is not useful as most / all important stuff is inside Root Node """
         return self.mmMap
+
+    def _create_new_mindmap_hierarchy(self):
+        ''' create default hierarchy for mindmap -- including map_styles and Automatic node coloring hook '''
+        raise
     
     def convert(self, etElement):
         """ Convert ElementTree Element to pymm Element

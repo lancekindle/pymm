@@ -20,6 +20,21 @@ class ExampleElementFactory:  # an example factory that shows which methods you'
         mmElem = super().convert_from_etree_element(etElement, parent)
         raise NotImplementedError('DO NOT use ExampleElementFactory. Inherit from BaseElementFactory Instead!')
         return mmElem
+
+
+class SimpleConverter:  # a super-simple converter that you can use in reverting your custom nodes into another file format.
+
+    def write(self, filename, node_tree):
+        with open(filename, 'w') as self.file:
+            self.revert_node_tree_depth_first(node_tree)  # SimpleConverter only works with nodes, since it's expected to be
+                                                                                               # the only usable part of the mindmap.
+    def revert_node_tree_depth_first(self, node):
+        self.revert_node(node)
+        for child in node.nodes:
+            self.revert_node_tree_depth_first(child)
+
+    def revert_node(self, node):  # this is the only method you need to override.
+        self.file.writeline(node['TEXT'])
     
 
 class BaseElementFactory:
