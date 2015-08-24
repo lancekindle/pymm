@@ -1,5 +1,5 @@
 import sys
-##sys.path.append('../')  # append parent directory so that import finds pymm
+sys.path.append('../')  # append parent directory so that import finds pymm
 import unittest
 import warnings
 import pymm
