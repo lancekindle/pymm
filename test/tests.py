@@ -1,9 +1,14 @@
 import sys
-sys.path.append('../')  # append parent directory so that import finds pymm
+##sys.path.append('../')  # append parent directory so that import finds pymm
 import unittest
+import warnings
 import pymm
-from pymm import mindmapElements as mme
-from pymm import FreeplaneFile
+from pymm import Elements as mme
+from pymm import MindMap
+
+# FAILING:
+# 'show_icon_for_attributes': True is set even when the 'properties' element should have set it to false
+
 
 class TestReadWriteExample(unittest.TestCase):
     """ Test full import export functionality
@@ -13,14 +18,16 @@ class TestReadWriteExample(unittest.TestCase):
         pass
 
     def test_read_file(self):
-        fpf = FreeplaneFile()
-        fpf.readfile('../docs/input.mm')
-        self.assertTrue(fpf)
-        self.assertTrue(fpf.getroot())
+        mm = MindMap()
+        mm.readfile('../docs/input.mm')
+        self.assertTrue(mm)
+        self.assertTrue(mm.getroot())
+        mm.writefile('input_2.mm')
 
     def test_write_file(self):
-        pass
-        
+        mm = MindMap()
+        mm.writefile('test_write.mm')
+
 
 class TestElementAccessor(unittest.TestCase):
     '''
@@ -47,7 +54,7 @@ class TestElementAccessor(unittest.TestCase):
     def test_alternative_constructor(self):
         elem = self.element
         elem.nodes = mme._elementAccess.Children.preconstructor('node')
-        elem.nodes = elem.nodes()  #why doesn't this work?
+        elem.nodes = elem.nodes(elem)  #why doesn't this work?
         self.assertIsInstance(elem.nodes, mme._elementAccess.Children)
 
     def test_node_is_added_to_element(self):
@@ -65,7 +72,6 @@ class TestElementAccessor(unittest.TestCase):
         before = len(self.element.nodes)
         self.element.nodes.append(self.node)
         after = len(self.element.nodes)
-        print(after, before)
         self.assertTrue(before + 1 == after)
 
 class TestBaseElement(unittest.TestCase):
@@ -83,9 +89,19 @@ class TestBaseElement(unittest.TestCase):
 
     def test_dictionary_returns_correctly_if_attribute_present_or_not(self):
         elem = self.element
-        self.assertFalse('hogwash' in elem)
-        elem['hogwash'] = 'now it is in dict'
-        self.assertTrue('hogwash' in elem)
+        key, value = 'hogwash', 'hogvalue'
+        self.assertFalse(key in elem)
+        elem.specs[key] = type(value)
+        elem[key] = value
+        self.assertTrue(key in elem)
+
+    def test_set_bad_attribute_warns_user(self):
+        elem = self.element
+        self.assertWarns(UserWarning, elem.__setitem__, 'invalid attribute should raise warning', None)
+
+    def test_iterate_attributes_raises_error(self):
+        elem = self.element  # allowing user to iterate over attributes implicitly has proven to be a trap; user accidentally iterates
+        self.assertRaises(NotImplementedError, elem.__iter__)
 
     def test_dictionary_raises_error_for_offspec_attribute_assignment(self):
         elem = self.element
@@ -93,7 +109,7 @@ class TestBaseElement(unittest.TestCase):
         elem.specs['integer'] = int
         elem.specs['one_or_two'] = [1,2]
         self.assertRaises(ValueError, elem.__setitem__, 'string', 13)
-        self.assertRaises(ValueError, elem.__setitem__, 'integer', 'wrong')
+        self.assertRaises(ValueError, elem.__setitem__, 'integer', 'this is not an integer')
         self.assertRaises(ValueError, elem.__setitem__, 'one_or_two', 4)
 
     def test_dictionary_does_not_raise_error_for_in_spec_attribute_assignment(self):
@@ -112,3 +128,9 @@ class TestBaseElement(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+    mm = pymm.MindMap()
+    m = mm.getmap()
+    converter = pymm.Factories.MindMapConverter()
+    tree = converter.revert_mm_element_and_tree(mm.getmap())
+    tree.getchildren()  # getchildren IS DEPRECIATED. Which means that... I need a new way to traverse children
+    print(len(tree))

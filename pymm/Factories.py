@@ -9,6 +9,19 @@ import copy
                        # conform to a specific element
 
 
+class ExampleElementFactory:  # an example factory that shows which methods you'll need to
+                                                      # override when inheriting from BaseElementFactory
+    def revert_to_etree_element(self, mmElement, parent=None):
+        etElement = super().revert_to_etree_element(mmElement, parent)  # does all the heavy lifting.
+        raise NotImplementedError('DO NOT use ExampleElementFactory. Inherit from BaseElementFactory Instead!')
+        return etElement
+
+    def convert_from_etree_element(self, etElement, parent=None):
+        mmElem = super().convert_from_etree_element(etElement, parent)
+        raise NotImplementedError('DO NOT use ExampleElementFactory. Inherit from BaseElementFactory Instead!')
+        return mmElem
+    
+
 class BaseElementFactory:
     ''' Convert between ElementTree elements and pymm elements.
 
@@ -69,11 +82,8 @@ class BaseElementFactory:
         If you return None, this etElement and all its children will be dropped from tree.
         '''
         elemClass = self.compute_element_type(etElement)  # choose between self.elementType and typeVariants
-##        mmElem = elemClass()  # could be anything: Map, Node, etc.
-        attrib = self.convert_attribs(elemClass, etElement.attrib)
+        attrib = self.convert_attribs(elemClass(), etElement.attrib)
         mmElem = elemClass(**attrib)  # yep, we initialize it a second time, but this time with attribs  (I don't know why this doesn't work)
-##        mmElem = elemClass()
-##        mmElem.attrib = attrib  # have to manually set attrib(utes) here
         mmElem.children = [c for c in etElement[:]]
         if not mmElem.tag == etElement.tag:
             self.noFactoryWarnings.add(etElement.tag)
@@ -126,6 +136,7 @@ class BaseElementFactory:
 
     def convert_attribs(self, mmElement, attribs):
         ''' using mmElement (class or instance) as guide, converts attribs (from etree element) to match the specs in mmElement
+        warn (but still allow it) if attribute key/value pair is not a valid
         '''
         convertedAttribs = {}
         for key, value in attribs.items():  # converting from et element: assume all keys and values are strings
@@ -137,9 +148,9 @@ class BaseElementFactory:
                 value = self.convert_attrib_value_using_spec_entries(value, entries)
             except ValueError:
                 warnings.warn('Attrib ' + key + '=' + value + ' not valid <' + mmElement.tag + '> specs', SyntaxWarning,
-                              stacklevel=2)
+                                          stacklevel=2)
             finally:
-                convertedAttribs[key] = value
+                convertedAttribs[key] = value  # add attribute regardless.
         return convertedAttribs
 
     def convert_attrib_value_using_spec_entries(self, value, entries):

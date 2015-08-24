@@ -7,6 +7,13 @@ import _elementAccess
 # terminology: elem, element = MindMap Elements (no etree elements allowed! Use a mmFactory to convert those
 
 
+class ExampleElement:  # example element showing minimum of things to define to inherit from BaseElement and create one.
+    tag = ''  # [REQUIRED]. Only way for a Factory (which you must code) to convert the element of type 'tag'
+    attrib = {}  # [OPTIONAL] pre-define default element attribs
+    specs = {}  # [OPTIONAL] pre-define attribute types (like bool, str, int, float).
+    _descriptors = []  # [OPTIONAL] list of attribs that are used when constructing string representation
+    
+
 class BaseElement(_elementAccess.Attrib):
     """ pymm's Base Element. All other elements inherit from BaseElement, which represents an element in a similar style
     to xml.etree.ElementTree. with enhancements aimed at providing faster mindmap manipulation. Each element has a
@@ -38,12 +45,11 @@ class BaseElement(_elementAccess.Attrib):
     specs = {}  # list all possible attributes of an element and valid entries / types in a list or standalone:
                     # [str, int, 'thin', etc.], str, int, 'thin', etc.
 
-    def __init__(self, **kwargs):  # used to be: (self, attrib={}, **kwargs)
+    def __init__(self, **kwargs):  # used to be: (self, attrib={}, **kwargs)  ## self.attrib.update(attribs)
         self.children = list(self.children)
         self.attrib = copy.deepcopy(self.attrib)  # copy all class lists/dicts into instance
         self._descriptors = list(self._descriptors) + []
         self.specs = copy.deepcopy(self.specs)
-##        self.attrib.update(attribs)
         for k, v in kwargs.items():  # make this call different than updating attrib directly because it's more likely
             self[k] = v                       # that a developer specifically typed this out. This will error check it
 
@@ -105,9 +111,9 @@ class Node(BaseElement):
     nodes = _elementAccess.Children.preconstructor(['node'])
     attrib = {'ID': 'random#', 'TEXT': ''}
     specs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
-             'POSITION': ['left', 'right'], 'STYLE': str, 'TEXT': str, 'LOCALIZED_TEXT': str, 'TYPE': str,
-             'CREATED': int, 'MODIFIED': int, 'HGAP': int, 'VGAP': int, 'VSHIFT': int,
-             'ENCRYPTED_CONTENT': str, 'OBJECT': str, 'MIN_WIDTH': int, 'MAX_WIDTH': int}
+            'POSITION': ['left', 'right'], 'STYLE': str, 'TEXT': str, 'LOCALIZED_TEXT': str, 'TYPE': str,
+            'CREATED': int, 'MODIFIED': int, 'HGAP': int, 'VGAP': int, 'VSHIFT': int,
+            'ENCRYPTED_CONTENT': str, 'OBJECT': str, 'MIN_WIDTH': int, 'MAX_WIDTH': int}
 
     def __init__(self, **kwargs):
         self['ID'] = 'ID_' + str(uuid4().time).replace('L', '')
