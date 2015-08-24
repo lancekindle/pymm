@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as ET
-from Elements import *
+from .Elements import *
 import warnings
 import copy
 

@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
-import Factories
-import Elements
+from . import Elements
+from . import Factories
+from .Elements import Node
 
 
 class MindMap:
