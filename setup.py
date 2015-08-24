@@ -4,6 +4,8 @@ from distutils.core import setup
 
 classifiers = [ 'License :: OSI Approved :: MIT License',
                 'Programming Language :: Python',
+                'Programming Language :: Python :: 3',
+                'Programming Language :: Python :: 3 :: Only',
                 'Operating System :: OS Independent',
                 'Development Status :: 2 - Pre-Alpha',
                 'Intended Audience :: Developers',
@@ -18,29 +20,27 @@ and presents the information in a clear and intuitive manner that mimicks how Fr
 Freemind build their own.
 Building a mindmap is easy::
     import pymm
-    from pymm import mindmapElements as mm
 
-    fpf = pymm.FreeplaneFile()
-    n = mm.Node()
-    fpf.setroot(n)
+    mm = pymm.MindMap()
+    n = pymm.Node()
+    mm.setroot(n)
     n['TEXT'] = 'Root Node'
     nodeNames = ['thing 1', 'thing 2', '3rd child']
     for ntext in nodeNames:
-        n.append(mm.Node(TEXT=ntext))
-    fpf.writefile('output.mm')
+        n.append(Node(TEXT=ntext))
+    mm.writefile('output.mm')
 Reading, editting, and writing a mindmap is also easy::
     import pymm
     from pymm import mindmapElements as mm
-    fpf = pymm.fpf()
-    fpf.readfile(r'../docs/pymm_documentation.mm')
-    r = fpf.getroot()
-    r.append(mm.Node('TEXT'='another child of root'))
-    fpf.writefile(r'../docs/output.mm')
+    mm= pymm.open('../docs/pymm_documentation.mm')
+    r = mm.getroot()
+    r.append(Node('TEXT'='another child of root'))
+    mm.writefile(r'../docs/output.mm')
 """
 setup(
     name = 'pymm',
     packages = ['pymm'],
-    version = '0.2',
+    version = '0.3',
     author = 'Lance Kindle',
     author_email = 'lance.kindle@gmail.com',
     url = 'http://www.github.com/lancekindle/pymm',
