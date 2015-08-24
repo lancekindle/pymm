@@ -16,8 +16,9 @@ class Children:
             tags = [tags]
         if not len(tags):
             raise ValueError('element accessor requires non-empty tags')
-        self._tags = (t for t in tags)  # use tuple for list of tags to imply that this "list" should not be altered
-        self._container = element
+        self._parent = element
+        self._tags = tuple(t for t in tags)  # use tuple for list of tags to imply that this "list" should not be altered
+                                    # HAVE to use tuple() instead of just (), because () will create a generator expression which fails :(
 
     @classmethod
     def preconstructor(cls, tags):
@@ -26,52 +27,41 @@ class Children:
         return element_access_construction
 
     def append(self, element):
-        self._container.children.append(element)
+        self._parent.children.append(element)
 
     def extend(self, elements):
-        self._container.children.extend(elements)
+        self._parent.children.extend(elements)
 
     def remove(self, element):
-        self._container.chilren.remove(element)
+        self._parent.chilren.remove(element)
 
     def pop(self, index=-1):
         """ Remove and return element in children list """
         elem = self[index]
-        self._container.children.remove(elem)
+        self._parent.children.remove(elem)
         return elem
 
     def __iter__(self):
-        for elem in self._container.children:
+        for elem in self._parent.children:
             if elem.tag in self._tags:
                 yield elem
 
     def __getitem__(self, index):
         elements = [e for e in iter(self)]
         return elements[index]
-##        if isinstance(index, int):
-##            if index >= 0:
-##                i = 0
-##                for elem in elements:
-##                    if i == index:
-##                        return elem
-##                    i += 1
-##                    elements_list.append(elem)
-##        else:
-##            elements_list = [e for e in elements]
-##        return elements_list[index]
 
     def __setitem__(self, index, elem):   # removes elements, then re-appends them after modification.
         subchildren = self[:]             # sloppy, but it works. And elements are reordered later anyways.
         for element in subchildren:       # what really matters is that the order of elements of the same tag are not
-            self._container.children.remove(element)  # altered.
+            self._parent.children.remove(element)  # altered.
         subchildren[index] = elem
         for element in subchildren:
-            self._container.children.append(element)
+            self._parent.children.append(element)
 
     def __delitem__(self, key):
         element = self[key]
-        index = self._container.children.index(element)
-        del self._container[index]
+        index = self._parent.children.index(element)
+        del self._parent[index]
 
     def __contains__(self, element):
         return element in self[:]
@@ -109,7 +99,8 @@ class Attrib:
 
     def __iter__(self):
         ''' raise error. We do not want user iterating over attribs (because implicit iteration here can lead to confusing code) '''
-        raise NotImplemented('DO NOT use implicit iteration of attribute. Can confuse between iteration of children and attributes. Use .items() instead or .children if iterating children')
+        raise NotImplementedError('DO NOT use implicit iteration of attributes. Can confuse between iteration of children' \
+                                         ' and attributes. Instead, use .items() for attribute iteration or access .children if iterating children')
 
     def __setitem__(self, key, value):
         """ Set Element's attribute

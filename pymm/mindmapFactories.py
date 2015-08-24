@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as ET
-from .mindmapElements import *
+from Elements import *
 import warnings
 import copy
 
@@ -7,9 +7,9 @@ import copy
             #.... ete, etElem, etElement == ElementTree element
             # element == could be either one. Sometimes it must conform to either one, other times it doesn't yet
                        # conform to a specific element
-                       
 
-class BaseElementFactory(object):
+
+class BaseElementFactory:
     ''' Convert between ElementTree elements and pymm elements.
 
     Conversion from ElementTree element to pymm elements is done by passing the etElement to convert_from_et_element()
@@ -23,15 +23,15 @@ class BaseElementFactory(object):
     childOrder = [BaseElement.tag, ArrowLink.tag, Cloud.tag, Edge.tag, Properties.tag, MapStyles.tag, Icon.tag,
                   AttributeLayout.tag, Attribute.tag, Hook.tag, Font.tag, StyleNode.tag, RichContent.tag, Node.tag]
                   # order in which children will be written to file
-    lastChildOrder = []  # order of nth to last for children. First node listed will be last child.
-    otherElementTypes = []  # if same tag can be used for different Elements, list them here, in a tuple with a
+    reverseChildOrder = []  # order of nth to last for children. First node listed will be last child.
+    typeVariants = []  # if same tag can be used for different Elements, list them here, in a tuple with a
                          # distinguishing attribute name and its expected value: (element, attribName, attribValue)
     # xml etree appears to correctly convert html-safe to ascii: &lt; = <
 
     def __init__(self):
         self.childOrder = list(self.childOrder) + []  # make list instance so we don't modify class variable
-        self.lastChildOrder = list(self.lastChildOrder) + []
-        self.otherElementTypes = list(self.otherElementTypes) + []
+        self.reverseChildOrder = list(self.reverseChildOrder) + []
+        self.typeVariants = list(self.typeVariants) + []
         self.noFactoryWarnings = set()  # collect tags that didn't have factories and use it to send out ONE warning
 
     def display_any_warnings(self):
@@ -47,16 +47,16 @@ class BaseElementFactory(object):
 
         Used in special cases when user wants to sub-categorize elements with the same tag. For example, RichContent
         has several different types: NODE, NOTE, and DETAILS. Specify which type of element to create by adding
-        attribute distinguishers to factory.otherElementTypes. The same factory will be used, however.
+        attribute distinguishers to factory.typeVariants. The same factory will be used, however.
         '''
         etype = self.elementType  # default
         otherChoices = []
-        for otherType, key, value in self.otherElementTypes:
+        for otherType, key, value in self.typeVariants:
             if key in etElement.attrib and etElement.attrib[key] == value:
                 otherChoices.append(otherType)
         if len(otherChoices) > 1:
             warnings.warn(etElement.tag + ' has 2+ possible elements with which to convert with these attribs: ' +
-                          str(etElement.attrib), RuntimeWarning, stacklevel=2)
+                                       str(etElement.attrib), RuntimeWarning, stacklevel=2)
         for possibleElementType in otherChoices:
             etype = possibleElementType  # choose last of choices, then
         return etype
@@ -68,14 +68,13 @@ class BaseElementFactory(object):
         :returns mmElement or None
         If you return None, this etElement and all its children will be dropped from tree.
         '''
-        etype = self.compute_element_type(etElement)  # choose between self.elementType and otherElementTypes
-        mmElem = etype()  # could be anything: Map, Node, etc.
-        attribs = self.convert_attribs(mmElem, etElement.attrib)
-##        mmElem = etype(attribs)  # yep, we initialize it a second time, but this time with attribs  (I don't know why this doesn't work)
-        mmElem = etype()
-        mmElem.attribs = attribs  # have to manually set attribs here
-##        mmElem[:] = etElement[:]  # append all unconverted children to this mmElem!
-        mmElem.children = etElement.getchildren()
+        elemClass = self.compute_element_type(etElement)  # choose between self.elementType and typeVariants
+##        mmElem = elemClass()  # could be anything: Map, Node, etc.
+        attrib = self.convert_attribs(elemClass, etElement.attrib)
+        mmElem = elemClass(**attrib)  # yep, we initialize it a second time, but this time with attribs  (I don't know why this doesn't work)
+##        mmElem = elemClass()
+##        mmElem.attrib = attrib  # have to manually set attrib(utes) here
+        mmElem.children = [c for c in etElement[:]]
         if not mmElem.tag == etElement.tag:
             self.noFactoryWarnings.add(etElement.tag)
             mmElem.tag = etElement.tag
@@ -100,7 +99,7 @@ class BaseElementFactory(object):
         attribs = self.revert_attribs(mmElement)
         self.sort_element_children(mmElement)
         etElem = ET.Element(mmElement.tag, attribs)  # fyi: impossible to write attribs in specific order.
-        etElem.children = mmElement.children
+        etElem[:] = mmElement.children  # set children on et element
         etElem.text = mmElement._text
         etElem.tail = mmElement._tail
         return etElem
@@ -119,18 +118,14 @@ class BaseElementFactory(object):
             for e in children:
                 element.remove(e)
                 element.append(e)
-        for tag in reversed(self.lastChildOrder):  # nodes you want to show last
+        for tag in reversed(self.reverseChildOrder):  # nodes you want to show last
             children = element.findall(tag)
             for e in children:
                 element.remove(e)
                 element.append(e)
 
     def convert_attribs(self, mmElement, attribs):
-        '''
-        :param element - attribs from which to be converted:
-        :param mmElement - mmElement to which to apply elements:
-        :return mmElement:
-        transfers all attributes from element to mmElement, converting where necessary.
+        ''' using mmElement (class or instance) as guide, converts attribs (from etree element) to match the specs in mmElement
         '''
         convertedAttribs = {}
         for key, value in attribs.items():  # converting from et element: assume all keys and values are strings
@@ -152,8 +147,12 @@ class BaseElementFactory(object):
         if not type(entries) == type(list()):
             entries = [entries]
         for entry in entries:
-            if type(entry) == type:
+            if type(entry) == type:  # bool, str, int, etc...
                 valueType = entry
+                if valueType == bool:  # special handling for bool since bool('false') == True. Therefore we check if value is a false
+                    if value in ['false', 'False', 'FALSE', b'false', b'False', b'FALSE']:
+                        value = False
+                        break
                 value = valueType(value)  # convert value to new type
                 break
             elif type(entry) == type(lambda x: x):  # if the entry is a function
@@ -194,29 +193,30 @@ class NodeFactory(BaseElementFactory):
 
     def finish_conversion(self, mmElement, parent=None):
         super(NodeFactory, self).finish_conversion(mmElement, parent)
-        mmNode = self.convert_node_text(mmElement)
-        return mmNode
+        self.convert_node_text(mmElement)
+        return mmElement
 
     def revert_to_etree_element(self, mmElement, parent=None):
-        mmNode = self.revert_node_text(mmElement)
-        return super(NodeFactory, self).revert_to_etree_element(mmNode, parent)
+        self.revert_node_text(mmElement)
+        return super(NodeFactory, self).revert_to_etree_element(mmElement, parent)
 
     def revert_node_text(self, mmNode):
+        ''' if node text is html, creates html child and appends to node's children '''
         ntext = NodeText()  # developer / user NEVER needs to create his own RichContent for mmNode html
         ntext.html = mmNode['TEXT']
         if ntext.is_html():
-            mmNode.append(ntext)
+            mmNode.children.append(ntext)
             del mmNode['TEXT']  # using richcontent, do not leave attribute 'TEXT' for mmNode
-        return mmNode
 
     def convert_node_text(self, mmNode):
+        ''' If node has html text, set to TEXT attribute to html object '''
         richElements = mmNode.findall('richcontent')
         while richElements:
             richElem = richElements.pop(0)
             if isinstance(richElem, NodeText):
                 mmNode['TEXT'] = richElem.html
                 mmNode.remove(richElem)  # this NodeText is no longer needed
-        return mmNode
+                
 
 class MapFactory(BaseElementFactory):
     elementType = Map
@@ -226,7 +226,7 @@ class MapFactory(BaseElementFactory):
         comment = ET.Comment('To view this file, download free mind mapping software Freeplane from ' +
                    'http://freeplane.sourceforge.net')
         comment.tail = '\n'
-        etMap.children = [comment] + etMap.children
+        etMap[:] = [comment] + etMap[:]
         return etMap
 
 class CloudFactory(BaseElementFactory):
@@ -234,7 +234,7 @@ class CloudFactory(BaseElementFactory):
 
 class HookFactory(BaseElementFactory):
     elementType = Hook
-    otherElementTypes = [(EmbeddedImage, 'NAME', 'ExternalObject'),(MapConfig, 'NAME', 'MapStyle'),
+    typeVariants = [(EmbeddedImage, 'NAME', 'ExternalObject'),(MapConfig, 'NAME', 'MapStyle'),
                          (Equation, 'NAME', 'plugins/latex/LatexNodeHook.properties'),
                          (AutomaticEdgeColor, 'NAME', 'AutomaticEdgeColor')]
 
@@ -264,15 +264,18 @@ class AttributeRegistryFactory(BaseElementFactory):
 
 class RichContentFactory(BaseElementFactory):
     elementType = RichContent
-    otherElementTypes = [(NodeText, 'TYPE', 'NODE'), (NodeNote, 'TYPE', 'NOTE'), (NodeDetails, 'TYPE', 'DETAILS')]
+    typeVariants = [(NodeText, 'TYPE', 'NODE'), (NodeNote, 'TYPE', 'NOTE'), (NodeDetails, 'TYPE', 'DETAILS')]
 
     def convert_from_etree_element(self, etElement, parent=None):
         mmRichC = super(RichContentFactory, self).convert_from_etree_element(etElement, parent)
-        html = ''                        # this makes a critical assumption that there'll be 1 child. If not, upon
+        html = ''                                                       # this makes a critical assumption that there'll be 1 child. If not, upon
         for htmlElement in mmRichC.children:  # reversion, ET may complain about "ParseError: junk after document etRichC...
-            html += ET.tostring(htmlElement)
+            htmlString = ET.tostring(htmlElement)
+            if not type(htmlString) == str:  # I have once got back <class 'bytes'> when the string was a binary string. weird...
+                htmlString = htmlString.decode('ascii')
+            html += htmlString
         mmRichC.html = html
-        mmRichC.children = []  # remove html children to prevent their conversion.
+        mmRichC.children.clear()  # remove html children to prevent their conversion.
         return mmRichC
 
     def revert_to_etree_element(self, mmElement, parent=None):
@@ -286,10 +289,10 @@ class RichContentFactory(BaseElementFactory):
         etElement.text = '\n'
         etRichC = super(RichContentFactory, self).finish_reversion(etElement, parent)  # just sets tail...
         etRichC.append(ET.fromstring(html))  # this etRichC will have additional_reversion() called on it. It Should
-        return etRichC                       # have no effect, however.
+        return etRichC                                          # have no effect, however.
 
 
-class MindMapConverter(object):
+class MindMapConverter:
     # pass this Converter a node to convert
     # and it will convert by choosing which factory to use in converting a given node
     # it is also tasked with non-recursively converting all nodes contained
@@ -297,11 +300,11 @@ class MindMapConverter(object):
     # you can add_factory(factory) if you have created a new node type / new factory to handle different features here
 
     def __init__(self, **kwargs):
-        factories = [BaseElementFactory, NodeFactory, MapFactory, CloudFactory,
+        factorieClasses = [BaseElementFactory, NodeFactory, MapFactory, CloudFactory,
                      HookFactory, MapStylesFactory, StyleNodeFactory, FontFactory, IconFactory,
                      EdgeFactory, AttributeFactory, PropertiesFactory, RichContentFactory,
                      AttributeRegistryFactory]
-        fff = [factory() for factory in factories]  # get an initialized instance of all factories
+        fff = [factory() for factory in factorieClasses]  # get an initialized instance of all factories
         self.tag2factory = {}
         for f in fff:            # get a dictionary that
             self.add_factory(f)  # matches an elements tag to the factory which can handle that element
@@ -326,7 +329,10 @@ class MindMapConverter(object):
         hasUnchangedChildren = [first]
         while hasUnchangedChildren:
             element = hasUnchangedChildren.pop(0)
-            unchanged = [(child, element) for child in element.children] # combine child w/ parent into tuple
+            if isinstance(element, BaseElement):
+                unchanged = [(child, element) for child in element.children]  # combine child w/ parent into tuple
+            else:
+                unchanged = [(child, element) for child in element[:]]  # xml.etree format
             children = []
             while unchanged:
                 unchangedChild, parent = unchanged.pop(0)  # pop from first index to preserve child order
@@ -335,24 +341,31 @@ class MindMapConverter(object):
                     continue  # removes element from tree being built by not adding it to children(s) list
                 children.append(child)
                 hasUnchangedChildren.append(child)
-            element.children = children
+            if isinstance(element, BaseElement):
+                element.children = children  # pymm format
+            else:
+                element[:] = children  # xml.etree format
         return first
+    
 
     def _apply_second_pass_fxn_to_full_tree(self, element, fxn2):
         first = element
         notFullyChanged = [(first, None)]  # child = first. Parent = None
         while notFullyChanged:
             element, parent = notFullyChanged.pop(0)
-            elem = action2(element, parent)
+            elem = fxn2(element, parent)
             if elem is None and parent is not None:  # if you return None during conversion / reversion, this will ensure it is
                 self._remove_child_element(elem, parent)  # fully removed from the tree by removing its reference from the
                 continue  # parent and not allowing its children to be added
-            parentsAndChildren = [(child, elem) for child in elem.children]  # child w/ parent
+            parentsAndChildren = [(child, elem) for child in elem.getchildren()]  # child w/ parent
             notFullyChanged.extend(parentsAndChildren)
         return first
 
     def _remove_child_element(self, child, parent):
-        parent.remove(child)
+        if isinstance(parent, BaseElement):
+            parent.children.remove(child)  # pymm format
+        else:
+            parent.remove(child)  # xml.etree format
 
     def convert_etree_element_and_tree(self, etElement):
         etElement = copy.deepcopy(etElement)

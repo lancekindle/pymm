@@ -2,7 +2,7 @@ from uuid import uuid4
 import warnings
 import re
 import copy
-from . import _elementAccess
+import _elementAccess
 # see http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format for file specifications
 # terminology: elem, element = MindMap Elements (no etree elements allowed! Use a mmFactory to convert those
 
@@ -38,14 +38,17 @@ class BaseElement(_elementAccess.Attrib):
     specs = {}  # list all possible attributes of an element and valid entries / types in a list or standalone:
                     # [str, int, 'thin', etc.], str, int, 'thin', etc.
 
-    def __init__(self, attribs={}, **kwargs):
+    def __init__(self, **kwargs):  # used to be: (self, attrib={}, **kwargs)
         self.children = list(self.children)
         self.attrib = copy.deepcopy(self.attrib)  # copy all class lists/dicts into instance
         self._descriptors = list(self._descriptors) + []
         self.specs = copy.deepcopy(self.specs)
-        self.attrib.update(attribs)
+##        self.attrib.update(attribs)
         for k, v in kwargs.items():  # make this call different than updating attrib directly because it's more likely
-            self[k] = v  # that a developer specifically typed this out. This will error check it
+            self[k] = v                       # that a developer specifically typed this out. This will error check it
+
+    def getchildren(self):
+        return self.children
 
     def findall(self, tag):
         """ Return all child elements with matching tag. Return all children if '*' passed in.
@@ -273,7 +276,7 @@ class Properties(BaseElement):
     """ Control the appearance of notes on Nodes, and icons, note, or attribute presence on a node. Is child of MapStyle
     """
     tag = 'properties'
-    attrib = {'show_icon_for_attributes': True, 'show_note_icons': True, 'show_notes_in_map': False}
+    attrib = {'show_icon_for_attributes': 'true', 'show_note_icons': 'true', 'show_notes_in_map': 'true'}
     specs = {'show_icon_for_attributes': bool, 'show_note_icons': bool, 'show_notes_in_map': bool}
 
 
@@ -296,11 +299,11 @@ class AttributeRegistry(BaseElement):
 
 class RichContent(BaseElement):
     # there is no need to use richcontent in freeplane. all nodes will automatically convert their html to richcontent
-    #   if their html contains html tags (such as <b>). And will auto-downgrade from richcontent if you replace
-    #   a nodes html-like html with plaintext  (all accessed using node.html). Unfortunately, the richcontent that is
-    #   available is fully-fledged html. So trying to set up something to parse it will need to simply have a
-    #   getplaintext() function to allow the user to quickly downgrade text to something readable. Until that time, html
-    #   text is going to be very messy.
+    # if their html contains html tags (such as <b>). And will auto-downgrade from richcontent if you replace
+    # a nodes html-like html with plaintext  (all accessed using node.html). Unfortunately, the richcontent that is
+    # available is fully-fledged html. So trying to set up something to parse it will need to simply have a
+    # getplaintext() function to allow the user to quickly downgrade text to something readable. Until that time, html
+    # text is going to be very messy.
     tag = 'richcontent'
     _descriptors = ['TYPE']
     specs = {'TYPE': str}
@@ -312,7 +315,7 @@ class RichContent(BaseElement):
 
 class NodeText(RichContent):
     # developer does not need to create NodeText, ever. This is created by the node itself during reversion if the
-    #   nodes html includes html tags
+    # nodes' html includes html tags
     attrib = {'TYPE': 'NODE'}
 
 

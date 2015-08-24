@@ -1,9 +1,9 @@
 import xml.etree.ElementTree as ET
-from . import mindmapFactories
-from . import mindmapElements
+import Factories
+import Elements
 
 
-class FreeplaneFile:
+class MindMap:
     """ Interface to Freeplane structure. Allow reading and writing of xml mindmap formats (.mm)
 
     readfile - reads file/filename and converts to structural tree with Map as first node
@@ -14,7 +14,7 @@ class FreeplaneFile:
     convert - generally implemented internally. Will convert an ElementTree Element into a Freeplane-compatible element
     revert - generally implemented internally. Will revert a Freeplane-compatible element to an ElementTree Element
     """
-    mmFactory = mindmapFactories.MindMapConverter
+    mmFactory = Factories.MindMapConverter
 
     def __init__(self, mapElement=None):
         """ FreeplaneFile acts as an interface to intrepret xml-based .mm files into a tree of Nodes.
@@ -23,8 +23,8 @@ class FreeplaneFile:
         :return:
         """
         self.mmFactory = self.mmFactory()  # initialize mindmap factory.
-        self.mmMap = mindmapElements.Map()
-        self.mmMap.append(mindmapElements.Node())  # set up map and root node
+        self.mmMap = Elements.Map()
+        self.mmMap.append(Elements.Node())  # set up map and root node
         if mapElement is not None:
             self.mmMap = mapElement  # we make the assumption that this is a mindmap Map
 
@@ -45,7 +45,7 @@ class FreeplaneFile:
         :param file_or_filename: string path to file or file instance of mindmap (.mm)
         :return:
         """
-        etMap = self.revert(self.mmMap)  # the user passed in .....
+        etMap = self.revert(self.mmMap)
         xmlTree = ET.ElementTree(etMap)
         xmlTree.write(file_or_filename)
 
@@ -87,15 +87,19 @@ def open(file_or_filename):
     :param file_or_filename: string path to file or file instance of mindmap (.mm)
     :return: FreeplaneFile instance with file read
     """
-    freeplane = FreeplaneFile()
-    freeplane.readfile(file_or_filename)
-    return freeplane
+    mm = MindMap()
+    mm.readfile(file_or_filename)
+    return mm
 
-def write(freeplane, file_or_filename):
-    """ writes internal map and linked Nodes to file/filename
-
-    :param freeplane: instance of freeplane file interface
-    :param file_or_filename: string path to file or file instance of mindmap (.mm)
-    :return:
+def write(mindmap, file_or_filename):
+    """ write nodes / anything to file. Need to just write to file (but realize it may not be a mindmap)
+    NOT DONE YET
     """
-    fpf.writefile(file_or_filename)
+    mindmap.writefile(file_or_filename)
+
+
+if __name__ == '__main__':
+    filename = '../docs/input.mm'
+    mm = open(filename)
+    e = ET.parse(filename)
+    m = mm.getmap()
