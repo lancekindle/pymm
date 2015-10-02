@@ -24,11 +24,14 @@ class TestReadWriteExample(unittest.TestCase):
 
     def test_write_file(self):
         mm = MindMap()
-        mm.writefile('test_write.mm')
+        mm.writefile('test_write.mm')  # just test that no errors are thrown
 
 
 class TestNativeChildIndexing(unittest.TestCase):
-    
+    """ native child indexing iterates over a portion of the full children
+    using native indexing style [0], or [1:4], etc.
+    """
+
     def setUp(self):
         self.element = mme.BaseElement()
         self.node = mme.Node()
@@ -41,6 +44,16 @@ class TestNativeChildIndexing(unittest.TestCase):
         self.assertIn(node, elem[:])
         self.assertTrue(node == elem[0])
 
+    def test_slicing(self):
+        self.element.append(self.node)
+        self.element.append(self.node2)
+        nodes = self.element[0:2]
+        self.assertTrue(self.node in nodes)
+        self.assertTrue(self.node2 in nodes)
+        nodes = self.element[0:2:2]  # should only get node, not node2
+        self.assertTrue(self.node in nodes)
+        self.assertTrue(self.node2 not in nodes)
+
     def test_remove_and_index(self):
         elem = self.element
         node = self.node
@@ -51,10 +64,12 @@ class TestNativeChildIndexing(unittest.TestCase):
         elem.remove(node)
         self.assertTrue(node2 == elem[0])
         elem.remove(node2)
-        self.assertFalse(elem[:])
+        self.assertFalse(elem[:])  # verify elem is child-less
 
     def test_remove_error(self):
         self.assertRaises(ValueError, self.element.remove, self.node)
+        self.element.append(self.node)
+        self.assertRaises(ValueError, self.element.remove, self.node2)
 
 
 class TestElementAccessor(unittest.TestCase):
