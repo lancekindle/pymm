@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append('../')  # append parent directory so that import finds pymm
 import unittest
 import warnings
@@ -9,8 +10,7 @@ from pymm import MindMap
 # FAILING: nothing :D
 
 class TestReadWriteExample(unittest.TestCase):
-    """ Test full import export functionality
-    """
+    """ Test full import export functionality """
 
     def setUp(self):
         pass
@@ -73,9 +73,8 @@ class TestNativeChildIndexing(unittest.TestCase):
 
 
 class TestElementAccessor(unittest.TestCase):
-    '''
-        Test Element Accessor
-    '''
+    """ Test Element Accessor """
+
     def setUp(self):
         self.element = mme.BaseElement()
         self.node = mme.Node()
@@ -91,14 +90,15 @@ class TestElementAccessor(unittest.TestCase):
         empties = [[], (), {}, '']
         for empty in empties:
             self.assertRaises(ValueError, mme._elementAccess.Children, elem, empty)
-        others = [{5:6}]
+        others = [{5: 6}]
         for other in others:
             self.assertRaises(ValueError, mme._elementAccess.Children, elem, empty)
 
     def test_alternative_constructor(self):
         elem = self.element
         elem.nodes = mme._elementAccess.Children.preconstructor('node')
-        elem.nodes = elem.nodes(elem)  #why doesn't this work? it should just work w/ elem.nodes(). It works ..inside.. the instance, but not outside?
+        elem.nodes = elem.nodes(
+            elem)  # why doesn't this work? it should just work w/ elem.nodes(). It works ..inside.. the instance, but not outside?
         self.assertIsInstance(elem.nodes, mme._elementAccess.Children)
 
     def test_node_is_added_to_element_nodes(self):
@@ -143,8 +143,8 @@ class TestElementAccessor(unittest.TestCase):
         after = len(self.element.nodes)
         self.assertTrue(before + 1 == after)
 
-class TestBaseElement(unittest.TestCase):
 
+class TestBaseElement(unittest.TestCase):
     def setUp(self):
         self.element = mme.BaseElement()
         self.node = mme.Node()
@@ -169,24 +169,25 @@ class TestBaseElement(unittest.TestCase):
         self.assertWarns(UserWarning, elem.__setitem__, 'invalid attribute should raise warning', None)
 
     def test_ambiguous_iterate_attributes_raises_error(self):
-        ''' allowing user to iterate over attributes implicitly has proven to be a trap; user accidentally iterates '''
+        """ allowing user to iterate over attributes implicitly has proven to be a trap; user accidentally iterates """
         self.assertRaises(NotImplementedError, self.element.__iter__)
 
     def test_ambiguous_implicit_contains_call_raises_error(self):
-        ''' ambiguous __contains__ for either attribute or children. Therefore raise error to
+        """ ambiguous __contains__ for either attribute or children. Therefore raise error to
         force user to specify which membership he is testing for
-        '''
+        """
         self.assertRaises(NotImplementedError, self.element.__contains__, self.node)
 
     def test_ambiguous_pop_call_raises_error(self):
-        ''' ambiguous pop can refer to attribute or children pop(). Therefore raise error to force user to be specific '''
+        """ ambiguous pop can refer to attribute or children pop(). Therefore raise error to force user to be specific
+        """
         self.assertRaises(NotImplementedError, self.element.pop)
 
     def test_dictionary_raises_error_for_offspec_attribute_assignment(self):
         elem = self.element
         elem.specs['string'] = str
         elem.specs['integer'] = int
-        elem.specs['one_or_two'] = [1,2]
+        elem.specs['one_or_two'] = [1, 2]
         self.assertRaises(ValueError, elem.__setitem__, 'string', 13)
         self.assertRaises(ValueError, elem.__setitem__, 'integer', 'this is not an integer')
         self.assertRaises(ValueError, elem.__setitem__, 'one_or_two', 5)
@@ -195,14 +196,13 @@ class TestBaseElement(unittest.TestCase):
         elem = self.element
         elem.specs['string'] = str
         elem.specs['integer'] = int
-        elem.specs['one_or_two'] = [1,2]
+        elem.specs['one_or_two'] = [1, 2]
         try:
             elem['string'] = 'good'
             elem['integer'] = 42
             elem['one_or_two'] = 1
         except ValueError:
             self.fail('setting element attribute raised incorrect error')
-
 
 
 if __name__ == '__main__':

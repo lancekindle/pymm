@@ -10,7 +10,7 @@ import copy
 
 
 class ExampleElementFactory:  # an example factory that shows which methods you'll need to
-                                                      # override when inheriting from BaseElementFactory
+    # override when inheriting from BaseElementFactory
     def revert_to_etree_element(self, mmElement, parent=None):
         etElement = super().revert_to_etree_element(mmElement, parent)  # does all the heavy lifting.
         raise NotImplementedError('DO NOT use ExampleElementFactory. Inherit from BaseElementFactory Instead!')
@@ -57,17 +57,17 @@ class BaseElementFactory:
     # xml etree appears to correctly convert html-safe to ascii: &lt; = <
 
     def __init__(self):
-        self.childOrder = list(self.childOrder) + []  # make list instance so we don't modify class variable
-        self.reverseChildOrder = list(self.reverseChildOrder) + []
-        self.typeVariants = list(self.typeVariants) + []
+        self.childOrder = self.childOrder.copy() # make list instance so we don't modify class variable
+        self.reverseChildOrder = self.reverseChildOrder.copy()
+        self.typeVariants = self.typeVariants.copy()
         self.noFactoryWarnings = set()  # collect tags that didn't have factories and use it to send out ONE warning
 
     def display_any_warnings(self):
         ''' Display warnings for elements found without a specific factory. Call once after full convert / revert '''
         if self.noFactoryWarnings:
             warnings.warn('elements ' + str(self.noFactoryWarnings) + ' do not have conversion factories. ' +
-                           'Elements will import and export correctly, but warnings about specs will follow',
-                           RuntimeWarning, stacklevel=2)
+                          'Elements will import and export correctly, but warnings about specs will follow',
+                          RuntimeWarning, stacklevel=2)
         self.noFactoryWarnings = set()  # reset warnings so we won't display the same ones
 
     def compute_element_type(self, etElement):

@@ -8,7 +8,8 @@ from . import _elementAccess
 
 
 class ExampleElement:  # example element showing minimum of things to define to inherit from BaseElement and create one.
-    tag = ''  # [REQUIRED]. Only way for a Factory (which you must code) to convert the element of type 'tag'
+    tag = ''  # [REQUIRED]. Only way for a Factory (which you must code) to
+        # convert the element of type 'tag'. Examples include 'node' or 'cloud'
     attrib = {}  # [OPTIONAL] pre-define default element attributes
     specs = {}  # [OPTIONAL] pre-define attribute types (like bool, str, int, float).
     _descriptors = []  # [OPTIONAL] list of attribs that are used when constructing string representation
@@ -16,17 +17,23 @@ class ExampleElement:  # example element showing minimum of things to define to 
 class PreventAmbiguousAccess:
 
     def __iter__(self):
-        raise NotImplementedError('DO NOT ITERATE ELEMENT. Iterate element[:], element.children for child iteration. Or use'
-                                                        + 'element.items(), element.keys() to iterate attributes')
+        raise NotImplementedError('DO NOT ITERATE ELEMENT. Iterate element[:],'
+                ' element.children for child iteration. Or use '
+                'element.items(), element.keys() to iterate attributes')
+
     def __contains__(self, _):
-        raise NotImplementedError('DO NOT CHECK IF SOMETHING EXISTS IN ELEMENT. It is ambiguous as to whether you are'
-                                        + 'checking for child element or attribute. Be specific. Use element[:] or element.children for checking'
-                                        + 'child element. Use element.keys() for checking attribute')
+        raise NotImplementedError('DO NOT CHECK IF SOMETHING EXISTS IN ELEMENT'
+                '. It is ambiguous as to whether you are checking for child '
+                'element or attribute. Be specific. Use element[:] or '
+                'element.children for checking child element. Use '
+                'element.keys() for checking attribute')
 
     def pop(self, _=0):
-        raise NotImplementedError('pop is ambiguous when referring to children or attributes. Please use element.nodes.pop()'
-                                  + 'or element.children.pop() (whichever is appriopriate) when popping children. Use element.attrib.pop()'
-                                  + 'when popping attributes')
+        raise NotImplementedError('pop is ambiguous when referring to children'
+                ' or attributes. Please use element.nodes.pop() or '
+                'element.children.pop() (whichever is appriopriate) when '
+                'popping children. Use element.attrib.pop() when popping '
+                'attributes')
     
 
 class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
