@@ -2,4 +2,5 @@
 *.txt
 *.pyc
 .idea
-
+.swp
+dist/
