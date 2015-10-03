@@ -16,15 +16,14 @@ class TestReadWriteExample(unittest.TestCase):
         pass
 
     def test_read_file(self):
-        mm = MindMap()
-        mm.readfile('../docs/input.mm')
+        mm = pymm.read('../docs/input.mm')
         self.assertTrue(mm)
         self.assertTrue(mm.getroot())
-        mm.writefile('input_2.mm')
+        mm.write('input_2.mm')
 
     def test_write_file(self):
         mm = MindMap()
-        mm.writefile('test_write.mm')  # just test that no errors are thrown
+        mm.write('test_write.mm')  # just test that no errors are thrown
 
 
 class TestNativeChildIndexing(unittest.TestCase):
