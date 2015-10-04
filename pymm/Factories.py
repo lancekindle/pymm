@@ -80,8 +80,11 @@ class BaseElementFactory:
         '''
         otherChoices = []
         for otherType, attribs in self.typeVariants:
-            for key, value in attribs.items():
-                if not (key in etElement.attrib and etElement.attrib[key] == value):
+            for key, regex in attribs.items():
+                attrib = etElement.attrib[key]
+                matches = re.findall(regex, attrib)  # we only accept if regex
+                                                    # fully matches attrib
+                if not (key in etElement.attrib and attrib in matches):
                     break
             else:  # if all attribs match, no break will occur and this triggers
                 otherChoices.append(otherType)
@@ -264,10 +267,10 @@ class CloudFactory(BaseElementFactory):
 
 class HookFactory(BaseElementFactory):
     elementType = Hook
-    typeVariants = [(EmbeddedImage, {'NAME': 'ExternalObject'}),
-                (MapConfig, {'NAME': 'MapStyle'}),
-                (Equation, {'NAME': 'plugins/latex/LatexNodeHook.properties'}),
-                (AutomaticEdgeColor, {'NAME': 'AutomaticEdgeColor'})]
+    typeVariants = [(EmbeddedImage, {'NAME': r'ExternalObject'}),
+                (MapConfig, {'NAME': r'MapStyle'}),
+                (Equation, {'NAME': r'plugins/latex/LatexNodeHook\.properties'}),
+                (AutomaticEdgeColor, {'NAME': r'AutomaticEdgeColor'})]
 
 class MapStylesFactory(BaseElementFactory):
     elementType = MapStyles
@@ -295,9 +298,9 @@ class AttributeRegistryFactory(BaseElementFactory):
 
 class RichContentFactory(BaseElementFactory):
     elementType = RichContent
-    typeVariants = [(NodeText, {'TYPE': 'NODE'}),
-                    (NodeNote, {'TYPE': 'NOTE'}),
-                    (NodeDetails, {'TYPE': 'DETAILS'})]
+    typeVariants = [(NodeText, {'TYPE': r'NODE'}),
+                    (NodeNote, {'TYPE': r'NOTE'}),
+                    (NodeDetails, {'TYPE': r'DETAILS'})]
 
     def convert_from_etree_element(self, etElement, parent=None):
         mmRichC = super(RichContentFactory, self).convert_from_etree_element(etElement, parent)
