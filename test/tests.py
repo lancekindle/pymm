@@ -7,7 +7,8 @@ import pymm
 from pymm import Elements as mme
 from pymm import MindMap
 
-# FAILING: nothing :D
+# FAILING: No test written for checking that typevariants are handled correctly
+# AKA: I have no idea if type variants are used at all in any mindmap
 
 class TestReadWriteExample(unittest.TestCase):
     """ Test full import export functionality """
@@ -23,7 +24,7 @@ class TestReadWriteExample(unittest.TestCase):
 
     def test_write_file(self):
         mm = MindMap()
-        mm.write('test_write.mm')  # just test that no errors are thrown
+        mm.write('write_test.mm')  # just test that no errors are thrown
 
 
 class TestNativeChildIndexing(unittest.TestCase):
