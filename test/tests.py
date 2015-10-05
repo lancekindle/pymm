@@ -3,12 +3,44 @@ import sys
 sys.path.append('../')  # append parent directory so that import finds pymm
 import unittest
 import warnings
+import uuid
 import pymm
 from pymm import Elements as mme
 from pymm import MindMap
 
 # FAILING: No test written for checking that typevariants are handled correctly
 # AKA: I have no idea if type variants are used at all in any mindmap
+
+class TestTypeVariants(unittest.TestCase):
+    """ test typeVariant attribute of factory to load different objects given
+    the same tag. (special attrib values are given that differentiate them)
+    """
+    def setUp(self):
+        self.variants = [mme.NodeText, mme.NodeNote, mme.NodeDetails, mme.Hook,
+                mme.EmbeddedImage, mme.MapConfig, mme.Equation,
+                mme.AutomaticEdgeColor]
+        self.mm = MindMap()
+        root = self.mm[0]
+        root[:] = []  # clear out children of root
+        for variant in self.variants:
+            root.append(variant())  # initialize a child variant element type
+#        self.filename = uuid.uuid4().hex + '.mm'
+        with tempfile.TemporaryFile() as f:
+            self.mm.write(f)
+            self.mm2 = pymm.open(f)
+
+    def test_for_variants(self):
+        """ check that each of the variants is a child in root node """
+        root = self.mm2[0]
+        variants = self.variants.copy()
+        for variant in variants:
+            for child in root[:]:
+                if isinstance(child, variant):
+                    break
+            else:  # we only reach else: if no child matched the given variant
+                self.fail('no child of type: ' + str(variant)) 
+            root.remove(child)  # remove child after it matches a variant
+
 
 class TestReadWriteExample(unittest.TestCase):
     """ Test full import export functionality """
@@ -28,7 +60,7 @@ class TestReadWriteExample(unittest.TestCase):
 
 
 class TestNativeChildIndexing(unittest.TestCase):
-    """ native child indexing iterates over a portion of the full children
+    """ native child indexing iterates over all children
     using native indexing style [0], or [1:4], etc.
     """
 
