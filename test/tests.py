@@ -5,6 +5,7 @@ import unittest
 import warnings
 import uuid
 import pymm
+import tempfile
 from pymm import Elements as mme
 from pymm import MindMap
 
@@ -16,18 +17,17 @@ class TestTypeVariants(unittest.TestCase):
     the same tag. (special attrib values are given that differentiate them)
     """
     def setUp(self):
-        self.variants = [mme.NodeText, mme.NodeNote, mme.NodeDetails, mme.Hook,
+        self.variants = [mme.Hook,
                 mme.EmbeddedImage, mme.MapConfig, mme.Equation,
                 mme.AutomaticEdgeColor]
         self.mm = MindMap()
         root = self.mm[0]
         root[:] = []  # clear out children of root
         for variant in self.variants:
-            root.append(variant())  # initialize a child variant element type
-#        self.filename = uuid.uuid4().hex + '.mm'
-        with tempfile.TemporaryFile() as f:
-            self.mm.write(f)
-            self.mm2 = pymm.open(f)
+            root.append(variant())  # add a child variant element type
+        self.filename = uuid.uuid4().hex + '.mm'
+        self.mm.write(self.filename)  # need to remember to erase file later...
+        self.mm2 = pymm.read(self.filename)
 
     def test_for_variants(self):
         """ check that each of the variants is a child in root node """

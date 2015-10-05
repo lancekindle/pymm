@@ -65,8 +65,9 @@ class MindMap(Elements.Map):
         :param mapElement: (optional) a pymm Map Element. Obtained from another FreeplaneFile's getmap() method
         :return:
         """
+        super().__init__()  # init real Map stuff. absolutely necessary
         self._create_new_mindmap_hierarchy()  # initialize a new instance
-        if mapElement is not None:
+        if isinstance(mapElement, Elements.Map):
             self._from_map(mapElement)  # we make the assumption that this is a mindmap Map
 
     def _from_map(self, mapElement): # copy everything from mapElement
