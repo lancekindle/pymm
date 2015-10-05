@@ -68,11 +68,24 @@ class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
     specs = {}  # list all possible attributes of an element and valid entries / types in a list or standalone:
                     # [str, int, 'thin', etc.], str, int, 'thin', etc.
 
-    def __init__(self, **kwargs):  # used to be: (self, attrib={}, **kwargs)  ## self.attrib.update(attribs)
-        self.children = list(self.children)
-        self.attrib = copy.deepcopy(self.attrib)  # copy all class lists/dicts into instance
-        self._descriptors = list(self._descriptors) + []
+    def __new__(cls, *args, **kwargs):
+        """ DO NOT OVERRIDE. override __init__ instead. Copy all the 
+        mutable class attributes such as children, attrib, specs, and 
+        _descriptors into the class instance to prevent user from accidentally 
+        adding to class-wide attributes if he overrides __init__ and forgets to
+        call super().__init__ first. It is still possible for user to change 
+        class-wide variables, but this will make it less likely he will do so 
+        with an instance of the class. We do not use *args or **kwargs in 
+        __new__ because developer may want to override behavior of arguments
+        """
+        self = super().__new__(cls)
+        self.children = copy.deepcopy(self.children)
+        self.attrib = copy.deepcopy(self.attrib)
+        self._descriptors = copy.deepcopy(self._descriptors)
         self.specs = copy.deepcopy(self.specs)
+        return self
+
+    def __init__(self, **kwargs):  # used to be: (self, attrib={}, **kwargs)  ## self.attrib.update(attribs)
         for k, v in kwargs.items():  # make this call different than updating attrib directly because it's more likely
             self[k] = v                       # that a developer specifically typed this out. This will error check it
 
@@ -289,7 +302,7 @@ class Edge(BaseElement):
     """ Edge defines the look of the lines (edges) connecting nodes. You can change the color, style, and width.
     The COLOR attribute must be any string representation, starting with # and having two hexidecimal characters for
     each color in RGB. The STYLE attribute must be one of the styles in Edge.styleList. The WIDTH attribute must be
-    'thin' or a string representation of any integer. Realistically, any edge width > '8' is visually unappealing. If
+    'thin' or a string representation of any integer. Any edge width > '8' is visually unappealing. If
     you delete WIDTH attribute (or set to None), edge width will be inherited from Node's parent.
     edge['COLOR'] = '#ff0033';     edge['STYLE'] = edge.styleList[0]  (linear)     edge['WIDTH'] = '4'
     """
@@ -297,6 +310,10 @@ class Edge(BaseElement):
     styleList = ['linear', 'bezier', 'sharp_linear', 'sharp_bezier', 'horizontal', 'hide_edge']
     widthList = ['thin', int]  # can be 'thin' or a integer representing width. Anything > 4 is huge
     specs = {'COLOR': str, 'STYLE': styleList, 'WIDTH': widthList}
+    # attrib = {... DO NOT DEFINE attrib. User must define attrib because
+    # anything not defined will be inheritted from the parent. If we define any
+    # attribs then it will auto-overwrite the parent style which is not what we
+    # want. Usually we only want to override the attrib that we specify
 
 
 class Attribute(BaseElement):
