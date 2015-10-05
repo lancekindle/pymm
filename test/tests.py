@@ -5,19 +5,46 @@ import unittest
 import warnings
 import uuid
 import pymm
-import tempfile
+import xml
 from pymm import Elements as mme
 from pymm import MindMap
 
-# FAILING: No test written for checking that typevariants are handled correctly
+# FAILING: richcontent does not handle itself correctly if html is not set
+# (usually if somebody just inits a richcontent node)
 # AKA: I have no idea if type variants are used at all in any mindmap
+
+class TestElementChildrenAreDifferentBetweenInstances(unittest.TestCase):
+    """ mindmap inherits from map, but I had forgotten to super().__init__ it
+    so that when I added a child, it added it class-wide. Now I should check
+    all elements to verify that children list is different for 2 instances of
+    the same element
+    """
+
+    def test_mindmap(self):
+        mindmaps = []
+        for i in range(2):
+            mindmaps.append(pymm.MindMap())
+        self.assertFalse(mindmaps[0].children == mindmaps[1].children)
+
+    # I need to test all elements if possible (and I'm not yet...)
+
+
+class TestIfRichContentFixedYet(unittest.TestCase):
+    """ for now I expect this to fail. idk what to do about it """
+    def test_richcontent_converts_and_writes_to_file(self):
+        rc = mme.RichContent()
+        mm = pymm.MindMap()
+        mm[0].append(rc)
+        mm.write('richcontent_test.mm')
+
 
 class TestTypeVariants(unittest.TestCase):
     """ test typeVariant attribute of factory to load different objects given
     the same tag. (special attrib values are given that differentiate them)
     """
     def setUp(self):
-        self.variants = [mme.Hook,
+        self.variants = [mme.Hook,  # I removed richcontent variants because
+# they do not work correctly when their html is not set. it causes ET to crash
                 mme.EmbeddedImage, mme.MapConfig, mme.Equation,
                 mme.AutomaticEdgeColor]
         self.mm = MindMap()
