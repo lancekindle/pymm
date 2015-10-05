@@ -20,7 +20,7 @@ def read(file_or_filename):
     etElem = tree.getroot()
     mmElem = convert(etElem)
     if isinstance(mmElem, Elements.Map):
-        return MindMap._from_map(mmElem)
+        return MindMap(mmElem)
     return mmElem
 
 def write(mmElement, file_or_filename):
@@ -67,14 +67,11 @@ class MindMap(Elements.Map):
         """
         self._create_new_mindmap_hierarchy()  # initialize a new instance
         if mapElement is not None:
-            self.mmMap = mapElement  # we make the assumption that this is a mindmap Map
+            self._from_map(mapElement)  # we make the assumption that this is a mindmap Map
 
-    @classmethod
-    def _from_map(cls, mapElement): # copy everything from mapElement
-        self = cls()
+    def _from_map(self, mapElement): # copy everything from mapElement
         for v in vars(mapElement):
             vars(self)[v] = vars(mapElement)[v]
-        return self
 
     def write(self, file_or_filename):
         """ writes internal map and linked Nodes to file/filename
@@ -82,12 +79,11 @@ class MindMap(Elements.Map):
         :param file_or_filename: string path to file or file instance of mindmap (.mm)
         :return:
         """
-        etMap = revert(self.mmMap)
+        etMap = revert(self)
         xmlTree = ET.ElementTree(etMap)
         xmlTree.write(file_or_filename)
 
     def _create_new_mindmap_hierarchy(self):
         ''' create default hierarchy for mindmap -- including map_styles and Automatic node coloring hook '''
-        self.mmMap = Elements.Map()
-        self.mmMap.nodes.append(Elements.Node())  # set up map and root node
+        self.append(Elements.Node())  # add root node to self (self is map)
 
