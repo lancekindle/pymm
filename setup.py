@@ -27,7 +27,7 @@ Building a mindmap is easy::
     n['TEXT'] = 'Root Node'
     nodeNames = ['thing 1', 'thing 2', '3rd child']
     for ntext in nodeNames:
-        n.append(Node(TEXT=ntext))
+        n.append(pymm.Node(TEXT=ntext))
     mm.writefile('output.mm')
 Reading, editting, and writing a mindmap is also easy::
     import pymm
