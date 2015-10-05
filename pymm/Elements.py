@@ -140,7 +140,7 @@ class Node(BaseElement):
     """
     tag = 'node'
     nodes = _elementAccess.Children.preconstructor(['node'])
-    _get_native_children = lambda self: self.nodes  # children to which we allow native access   [:], [1], etc...
+    _get_native_children = lambda self: self.children  # children to which we allow native access   [:], [1], etc...
     attrib = {'ID': 'random#', 'TEXT': ''}
     specs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
             'POSITION': ['left', 'right'], 'STYLE': str, 'TEXT': str, 'LOCALIZED_TEXT': str, 'TYPE': str,
