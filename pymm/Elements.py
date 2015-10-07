@@ -62,15 +62,15 @@ class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
     _text = ''    # equivalent to ElementTree's .text  -- text between start tag and next element   # keep this for
     _tail = ''    # equivalent to ElementTree's .tail  -- text after end tag                        # .mm compatibility
     children = []  # all child elements including nodes
-    _get_native_children = lambda self: self.children  # children to which we allow native access   [:], [1], etc...
+    _get_implicit_children = lambda self: self.children  # children to which we allow native access   [:], [1], etc...
     attrib = {}  # pre-define these (outside of init like this) in other classes to define default element attribs
     _descriptors = []  # list of attribs that can be used to better describe instance. Used in str(self) construction
     specs = {}  # list all possible attributes of an element and valid entries / types in a list or standalone:
                     # [str, int, 'thin', etc.], str, int, 'thin', etc.
 
     def __new__(cls, *args, **kwargs):
-        """ DO NOT OVERRIDE. override __init__ instead. Copy all the 
-        mutable class attributes such as children, attrib, specs, and 
+        """ DO NOT OVERRIDE W/O super. override __init__ for most stuff. Copy
+        all the mutable class attributes such as children, attrib, specs, and 
         _descriptors into the class instance to prevent user from accidentally 
         adding to class-wide attributes if he overrides __init__ and forgets to
         call super().__init__ first. It is still possible for user to change 
@@ -107,7 +107,7 @@ class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
         return self.children
 
     def __len__(self):
-        return len(self._get_native_children())
+        return len(self._get_implicit_children())
 
     def append(self, element):
         """ Append element to Element's children list """
@@ -129,21 +129,21 @@ class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
         if self._is_attribute_access(key):
             return super().__getitem__(key)
         else:
-            return self._get_native_children().__getitem__(key)
+            return self._get_implicit_children().__getitem__(key)
 
     def __setitem__(self, key_or_index_or_slice, value_or_element):
         key, val = key_or_index_or_slice, value_or_element
         if self._is_attribute_access(key):
             super().__setitem__(key, val)
         else:
-            self._get_native_children().__setitem__(key, val)
+            self._get_implicit_children().__setitem__(key, val)
 
     def __delitem__(self, key_or_index_or_slice):
         key = key_or_index_or_slice
         if self._is_attribute_access(key):
             super().__delitem__(key)
         else:
-            self._get_native_children().__delitem__(key)
+            self._get_implicit_children().__delitem__(key)
 
 
 class Node(BaseElement):
@@ -153,7 +153,7 @@ class Node(BaseElement):
     """
     tag = 'node'
     nodes = _elementAccess.Children.preconstructor(['node'])
-    _get_native_children = lambda self: self.children  # children to which we allow native access   [:], [1], etc...
+    _get_implicit_children = lambda self: self.children  # children to which we allow native access   [:], [1], etc...
     attrib = {'ID': 'random#', 'TEXT': ''}
     specs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
             'POSITION': ['left', 'right'], 'STYLE': str, 'TEXT': str, 'LOCALIZED_TEXT': str, 'TYPE': str,
@@ -200,6 +200,11 @@ class Cloud(BaseElement):
     attrib = {'COLOR': '#f0f0f0', 'SHAPE': 'ARC'}  # set defaults
     specs = {'COLOR': str, 'SHAPE': shapeList, 'WIDTH': str}
     _descriptors = ['COLOR', 'SHAPE']  # extra information to send during call to __str__
+
+    def __new__(cls, *args, **kwargs):
+        self = super().__new__(cls)
+        self.shapeList = copy.deepcopy(self.shapeList)
+        return self
 
 
 class Hook(BaseElement):
@@ -297,6 +302,11 @@ class Icon(BaseElement):
                           'Freeplane may not display icon. Use an icon from the builtinList instead', SyntaxWarning,
                           stacklevel=2)
 
+    def __new__(cls, *args, **kwargs):
+        self = super().__new__(cls)
+        self.builtinList = copy.deepcopy(self.builtinList)
+        return self
+
 
 class Edge(BaseElement):
     """ Edge defines the look of the lines (edges) connecting nodes. You can change the color, style, and width.
@@ -315,6 +325,11 @@ class Edge(BaseElement):
     # attribs then it will auto-overwrite the parent style which is not what we
     # want. Usually we only want to override the attrib that we specify
 
+    def __new__(cls, *args, **kwargs):
+        self = super().__new__(cls)  # always call super() in __new__
+        self.styleList = copy.deepcopy(self.styleList)
+        self.widthList = copy.deepcopy(self.widthList)
+        return self
 
 class Attribute(BaseElement):
     """ (Node) Attributes display underneath a Node like a table, with NAME attribute to the left, and VALUE to the
