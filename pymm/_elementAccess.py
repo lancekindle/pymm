@@ -23,9 +23,9 @@ class ChildrenSimplified:
     @classmethod
     def preconstructor(cls, tags):
         tags = copy.copy(tags)  # to make sure it can't be changed later
-        def run_this_function_to_construct_elements_child_accessor(elementInstance):  # just call self.nodes() or self.clouds(), self.etc... to initialize
+        def this_function_gets_automatically_run_inside_elements__new__(elementInstance):  # just call self.nodes() or self.clouds(), self.etc... to initialize
             return cls(elementInstance, tags)
-        return run_this_function_to_construct_elements_child_accessor  # long
+        return this_function_gets_automatically_run_inside_elements__new__ #  long
     # name because this function name NEEDS to be unique. It is automatically
     # instantiated in the __new__ method of base element
 

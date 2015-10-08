@@ -88,13 +88,16 @@ class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
         return self
 
     def _init_all_preconstructed_element_accessors(self):
-        function = lambda x: x
+        """ locate all preconstructed child access functions and run them.
+        get back child access object, and set using same attribute name.
+        things like self.nodes. Makes sure that this is a new, separate
+        instance from the class itself. This feels computationally heavy tho...
+        """
         for varName in dir(self):  # looking for a .nodes or .clouds function
-            func = getattr(self, varName)
-            if type(func) == type(function) and func.__name__ == \
-                    'run_this_function_to_construct_elements_child_accessor':
-                print('found a preconstructed', varName)
-                childAccessor = func(self)  # run function, get back child
+            func = getattr(self, varName)  # idk why it's <class 'method'>
+                                           # instead of <class 'function'>
+            if str(type(func)) == "<class 'method'>" and func.__name__ == 'this_function_gets_automatically_run_inside_elements__new__':
+                childAccessor = func()  # run function, get back child
                 setattr(self, varName, childAccessor)      # access object
 
     def __init__(self, **kwargs):  # used to be: (self, attrib={}, **kwargs)  ## self.attrib.update(attribs)
