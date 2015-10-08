@@ -1,7 +1,7 @@
 import warnings
 import copy
 
-class ChildrenSimplified:
+class ChildSubsetSimplified:
     ''' Provide simplified access to specific child elements through matching of tags. Most useful for allowing access
     to child nodes. Provide access to slicing, removal, appending
 
@@ -10,24 +10,30 @@ class ChildrenSimplified:
     '''
     def __init__(self, elementInstance, tags):
         # would be awesome to allow tags to be a regex instead of a normal string
-        if isinstance(tags, str):  # allow user to pass in single string for searchable element tag
-            if not tags:
-                raise ValueError('element accessor requires non-empty string for tag')
-            tags = [tags]
-        if not len(tags):
-            raise ValueError('element accessor requires non-empty tags')
+        tags = self.verify_tags(tags)
         self._parent = elementInstance
         self._tags = tuple(tags)  # use tuple for list of tags to imply that this "list" should not be altered
                                     # HAVE to use tuple() instead of just (), because () will create a generator expression which fails :(
 
     @classmethod
+    def verify_tags(cls, tags):
+        if not isinstance(tags, list):  # allow user to pass in single string for searchable element tag
+            if not tags:  # if tags is an empty descriptor
+                raise ValueError('element accessor requires non-empty string for tag')
+            tags = [tags]  # always puts tags in a list
+        if not len(tags):
+            raise ValueError('element accessor requires non-empty tags')
+        return tags
+
+    @classmethod
     def class_preconstructor(cls, tags):
-        tags = copy.copy(tags)  # to make sure it can't be changed later
+        tags = copy.deepcopy(tags)  # to make sure it can't be changed later
+        tags = cls.verify_tags(tags)  # verify tags now, even tho it gets verified a second time
         def this_function_gets_automatically_run_inside_elements__new__(elementInstance):  # just call self.nodes() or self.clouds(), self.etc... to initialize
             return cls(elementInstance, tags)
         return this_function_gets_automatically_run_inside_elements__new__ #  long
-    # name because this function name NEEDS to be unique. It is automatically
-    # instantiated in the __new__ method of base element
+        # name because this function name NEEDS to be unique. It is automatically
+        # instantiated in the __new__ method of base element
 
     def append(self, element):
         self._parent.children.append(element)
@@ -57,7 +63,7 @@ class ChildrenSimplified:
         del self._parent[index]
 
 
-class Children(ChildrenSimplified):
+class ChildSubset(ChildSubsetSimplified):
     ''' Provide access to specific elements within an element through matching of tags. Most useful for allowing access
     to child nodes. Provide access with indexing, slicing, removal, appending, etc.
 

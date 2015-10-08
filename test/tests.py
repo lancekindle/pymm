@@ -168,26 +168,26 @@ class TestElementAccessor(unittest.TestCase):
         self.element = mme.BaseElement()
         self.node = mme.Node()
         self.node2 = mme.Node()
-        self.element.nodes = mme._elementAccess.Children(self.element, ['node'])
+        self.element.nodes = mme._elementAccess.ChildSubset(self.element, ['node'])
 
     def test_constructor_allows_string(self):
         elem = self.element
-        elem.nodes = mme._elementAccess.Children(elem, 'node')
+        elem.nodes = mme._elementAccess.ChildSubset(elem, 'node')
 
     def test_constructor_fails_on_nonlist_nonstring(self):
         elem = self.element
         empties = [[], (), {}, '']
         for empty in empties:
-            self.assertRaises(ValueError, mme._elementAccess.Children, elem, empty)
+            self.assertRaises(ValueError, mme._elementAccess.ChildSubset, elem, empty)
         others = [{5: 6}]
         for other in others:
-            self.assertRaises(ValueError, mme._elementAccess.Children, elem, empty)
+            self.assertRaises(ValueError, mme._elementAccess.ChildSubset, elem, empty)
 
     def test_alternative_constructor(self):
         elem = self.element
-        elem.nodes = mme._elementAccess.Children.class_preconstructor('node')
+        elem.nodes = mme._elementAccess.ChildSubset.class_preconstructor('node')
         elem.nodes = elem.nodes(elem)  # why doesn't this work? it should just work w/ elem.nodes(). It works ..inside.. the instance, but not outside?
-        self.assertIsInstance(elem.nodes, mme._elementAccess.Children)
+        self.assertIsInstance(elem.nodes, mme._elementAccess.ChildSubset)
 
     def test_node_is_added_to_element_nodes(self):
         elem = self.element
