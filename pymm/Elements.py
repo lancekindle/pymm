@@ -14,6 +14,7 @@ class ExampleElement:  # example element showing minimum of things to define to 
     specs = {}  # [OPTIONAL] pre-define attribute types (like bool, str, int, float).
     _descriptors = []  # [OPTIONAL] list of attribs that are used when constructing string representation
 
+
 class PreventAmbiguousAccess:
 
     def __iter__(self):
@@ -21,14 +22,14 @@ class PreventAmbiguousAccess:
                 ' element.children for child iteration. Or use '
                 'element.items(), element.keys() to iterate attributes')
 
-    def __contains__(self, _):
+    def __contains__(self, *_):
         raise NotImplementedError('DO NOT CHECK IF SOMETHING EXISTS IN ELEMENT'
                 '. It is ambiguous as to whether you are checking for child '
                 'element or attribute. Be specific. Use element[:] or '
                 'element.children for checking child element. Use '
                 'element.keys() for checking attribute')
 
-    def pop(self, _=0):
+    def pop(self, *_):
         raise NotImplementedError('pop is ambiguous when referring to children'
                 ' or attributes. Please use element.nodes.pop() or '
                 'element.children.pop() (whichever is appriopriate) when '
@@ -83,7 +84,18 @@ class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
         self.attrib = copy.deepcopy(self.attrib)
         self._descriptors = copy.deepcopy(self._descriptors)
         self.specs = copy.deepcopy(self.specs)
+        self._init_all_preconstructed_element_accessors()
         return self
+
+    def _init_all_preconstructed_element_accessors(self):
+        function = lambda x: x
+        for varName in dir(self):  # looking for a .nodes or .clouds function
+            func = getattr(self, varName)
+            if type(func) == type(function) and func.__name__ == \
+                    'run_this_function_to_construct_elements_child_accessor':
+                print('found a preconstructed', varName)
+                childAccessor = func(self)  # run function, get back child
+                setattr(self, varName, childAccessor)      # access object
 
     def __init__(self, **kwargs):  # used to be: (self, attrib={}, **kwargs)  ## self.attrib.update(attribs)
         for k, v in kwargs.items():  # make this call different than updating attrib directly because it's more likely
@@ -163,7 +175,7 @@ class Node(BaseElement):
     def __init__(self, **kwargs):
         self['ID'] = 'ID_' + str(uuid4().time).replace('L', '')
         super(Node, self).__init__(**kwargs)
-        self.nodes = self.nodes()
+        #self.nodes = self.nodes()
 
     def __str__(self):
         return self.tag + ': ' + self['TEXT'].replace('\n', '')
@@ -180,7 +192,7 @@ class Map(BaseElement):
 
     def __init__(self, **kwargs):
         super(Map, self).__init__(**kwargs)
-        self.nodes = self.nodes()
+        #self.nodes = self.nodes()
 
     def setroot(self, root):
         self.nodes[:] = [root]
