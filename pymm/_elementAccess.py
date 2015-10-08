@@ -21,7 +21,7 @@ class ChildrenSimplified:
                                     # HAVE to use tuple() instead of just (), because () will create a generator expression which fails :(
 
     @classmethod
-    def preconstructor(cls, tags):
+    def class_preconstructor(cls, tags):
         tags = copy.copy(tags)  # to make sure it can't be changed later
         def this_function_gets_automatically_run_inside_elements__new__(elementInstance):  # just call self.nodes() or self.clouds(), self.etc... to initialize
             return cls(elementInstance, tags)

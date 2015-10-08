@@ -185,9 +185,8 @@ class TestElementAccessor(unittest.TestCase):
 
     def test_alternative_constructor(self):
         elem = self.element
-        elem.nodes = mme._elementAccess.Children.preconstructor('node')
-        elem.nodes = elem.nodes(
-            elem)  # why doesn't this work? it should just work w/ elem.nodes(). It works ..inside.. the instance, but not outside?
+        elem.nodes = mme._elementAccess.Children.class_preconstructor('node')
+        elem.nodes = elem.nodes(elem)  # why doesn't this work? it should just work w/ elem.nodes(). It works ..inside.. the instance, but not outside?
         self.assertIsInstance(elem.nodes, mme._elementAccess.Children)
 
     def test_node_is_added_to_element_nodes(self):

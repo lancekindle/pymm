@@ -167,7 +167,7 @@ class Node(BaseElement):
     unique through clouds, edge-line colors, or rich-text formatting. A Node contains an ID and text by default
     """
     tag = 'node'
-    nodes = _elementAccess.Children.preconstructor(['node'])
+    nodes = _elementAccess.Children.class_preconstructor(['node'])
     _get_implicit_children = lambda self: self.children  # children to which we allow native access   [:], [1], etc...
     attrib = {'ID': 'random#', 'TEXT': ''}
     specs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
@@ -178,7 +178,6 @@ class Node(BaseElement):
     def __init__(self, **kwargs):
         self['ID'] = 'ID_' + str(uuid4().time).replace('L', '')
         super(Node, self).__init__(**kwargs)
-        #self.nodes = self.nodes()
 
     def __str__(self):
         return self.tag + ': ' + self['TEXT'].replace('\n', '')
@@ -191,11 +190,10 @@ class Map(BaseElement):
     tag = 'map'
     attrib = {'version': 'freeplane 1.3.0'}
     specs = {'version': str}
-    nodes = _elementAccess.Children.preconstructor(['node'])
+    nodes = _elementAccess.Children.class_preconstructor(['node'])
 
     def __init__(self, **kwargs):
         super(Map, self).__init__(**kwargs)
-        #self.nodes = self.nodes()
 
     def setroot(self, root):
         self.nodes[:] = [root]
