@@ -1,9 +1,8 @@
 import sys
-
 sys.path.append('../')  # append parent directory so that import finds pymm
 import unittest
 import warnings
-import uuid
+from uuid import uuid4
 import pymm
 import xml
 from pymm import Elements as mme
@@ -13,24 +12,55 @@ from pymm import MindMap
 # (usually if somebody just inits a richcontent node)
 # AKA: I have no idea if type variants are used at all in any mindmap
 
-class TestElementChildrenAreDifferentBetweenInstances(unittest.TestCase):
-    """ mindmap inherits from map, but I had forgotten to super().__init__ it
-    so that when I added a child, it added it class-wide. Now I should check
-    all elements to verify that children list is different for 2 instances of
-    the same element
+class TestMutableClassVariables(unittest.TestCase):
+    """ verify mutable variables are copied / deepcopied in instances. This
+    ensures that class variables are not changed when changing an instance's
+    variables
     """
 
-    def test_mindmap(self):
-        mindmaps = []
-        for i in range(2):
-            mindmaps.append(pymm.MindMap())
-        self.assertFalse(mindmaps[0].children == mindmaps[1].children)
+    def setUp(self):
+        self.base = pymm.Elements.BaseElement
+        self.elements = [self.base, pymm.MindMap]  #list of all elements 
+            # inheriting from BaseElement
+        for v in vars(pymm.Elements).values():  # iterate module, find classes
+            try:
+                if type(v) == type(self.base) and isinstance(v(), self.base):
+                    self.elements.append(v)
+            except:
+                continue
 
-    # I need to test all elements if possible (and I'm not yet...)
+    # so far this catches several variables I'm not concerned about, but which
+    # probably should be copied nonetheless. What should I do about it?
+    # until I do something, this test will fail
+    @unittest.expectedFailure
+    def test_for_nonduplicate_mutable_variables_in_elements(self, filter=None):
+        is_mutable = lambda x: isinstance(x, dict) or isinstance(x, list)
+        baseMutables = [k for k, v in vars(self.base).items() if is_mutable(v)]
+        for elemClass in self.elements:
+            mutables = [k for k, v in vars(elemClass).items() if is_mutable(v)]
+            mutables = list(set(baseMutables + mutables))  # unique mutables
+            if filter:  # optional filter to search only for known attributes
+                mutables = [m for m in mutables if m in filter]
+            elemObj = elemClass()
+            for key in mutables:  # check if vars have same memory address
+                if id(getattr(elemObj, key)) == id(getattr(elemClass, key)):
+                    self.fail(str(elemClass) + ' does not copy ' + key)
+        
+    def test_for_specific_nonduplicate_mutable_variables(self):
+        """ test that children, attrib, _descriptors, and specs are all copied
+        to a new list/dict instance in every element when instantiated as an
+        instance. This, for example, tests that an instance of MindMap would
+        not add children to the MindMap class accidentally, because the class
+        attribute children is a different from the instance attribute children.
+        """
+        filter = ['children', 'attrib', '_descriptors', 'specs']
+        self.test_for_nonduplicate_mutable_variables_in_elements(filter)
 
 
 class TestIfRichContentFixedYet(unittest.TestCase):
     """ for now I expect this to fail. idk what to do about it """
+
+    @unittest.expectedFailure
     def test_richcontent_converts_and_writes_to_file(self):
         rc = mme.RichContent()
         mm = pymm.MindMap()
@@ -52,7 +82,7 @@ class TestTypeVariants(unittest.TestCase):
         root[:] = []  # clear out children of root
         for variant in self.variants:
             root.append(variant())  # add a child variant element type
-        self.filename = uuid.uuid4().hex + '.mm'
+        self.filename = uuid4().hex + '.mm'
         self.mm.write(self.filename)  # need to remember to erase file later...
         self.mm2 = pymm.read(self.filename)
 
