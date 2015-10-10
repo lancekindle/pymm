@@ -2,35 +2,75 @@ import warnings
 import copy
 
 class ChildSubsetSimplified:
-    ''' Provide simplified access to specific child elements through matching of tags. Most useful for allowing access
+    ''' Provide simplified access to specific child elements through regex 
+    matching of descriptors such as tag, attributes, or a combination thereof.
+    For example, if you want to simply match a tag (or tags), pass in a regular
+    expression string that will fully match the desired tag(s).
+    e.g. 'node|cloud'  # matches any 
+    If you want to match a set of attributes, pass in a dictionary containing 
+    regexes to fully match the key(s) and value(s) of the element's attributes
+    e.g. {'TEXT':'.*'}  # matches any element with a 'TEXT' attribute
+    e.g. {'.*': '.*flag.*'}  # matches any element with a 'flag' in its value
+    e.g. {'COLOR': '.*'}  # matches anything with a 'COLOR' attribute
+    You can include any number of tag and attribute regexes, each separated by
+    a comma. All descriptors will have to fully match in order for an element
+    to qualify as part of this subset.
+    Most useful for allowing access
     to child nodes. Provide access to slicing, removal, appending
 
     :param element: the linked element whose children will be available through ElementAccessor
-    :param tags: the list of specific tags of elements to group and provide access to.
+    :param descriptor: the list of specific descriptor of elements to group and provide access to.
     '''
-    def __init__(self, elementInstance, tags):
-        # would be awesome to allow tags to be a regex instead of a normal string
-        tags = self.verify_tags(tags)
+    def __init__(self, elementInstance, tag_regex=None, attrib_regex=None):
+        tag, attrib = self._verify_and_compile_descriptors(tag_regex, attrib_regex)
         self._parent = elementInstance
-        self._tags = tuple(tags)  # use tuple for list of tags to imply that this "list" should not be altered
-                                    # HAVE to use tuple() instead of just (), because () will create a generator expression which fails :(
+        self._TAG_REGEX = tag
+        self._ATTRIB_REGEX = attrib
 
     @classmethod
-    def verify_tags(cls, tags):
-        if not isinstance(tags, list):  # allow user to pass in single string for searchable element tag
-            if not tags:  # if tags is an empty descriptor
-                raise ValueError('element accessor requires non-empty string for tag')
-            tags = [tags]  # always puts tags in a list
-        if not len(tags):
-            raise ValueError('element accessor requires non-empty tags')
-        return tags
+    def _verify_and_compile_descriptors(cls, tag_regex, attrib_regex):
+        if tag_regex is None and not attrib_regex:
+            raise ValueError('must define tag or attrib regex. Neither was.')
+        if not isinstance(attrib_regex, dict):
+            raise ValueError('attrib_regex must be a dictionary. got ' +
+                             str(attrib_regex) + 'instead')
+        if tag_regex:
+            tag_regex = self._compile_descriptor(tag_regex)
+        if attrib_regex:
+            attrib_regex = self._compile_descriptor(attrib_regex)
+        else:
+            attrib_regex = {}
+        return tag_regex, attrib_regex
 
     @classmethod
-    def class_preconstructor(cls, tags):
-        tags = copy.deepcopy(tags)  # to make sure it can't be changed later
-        tags = cls.verify_tags(tags)  # verify tags now, even tho it gets verified a second time
-        def this_function_gets_automatically_run_inside_elements__new__(elementInstance):  # just call self.nodes() or self.clouds(), self.etc... to initialize
-            return cls(elementInstance, tags)
+    def _compile_descriptor(cls, descriptor):
+        """ recursively dive into descriptor until arriving at string, and
+        compile string using regex library. Return descriptor in exactly the
+        same structure, but with all strings compiled with regex library.
+        Because this compiles all strings, it essentially generates a deepcopy
+        of the descriptor object
+        """
+        if isinstance(descriptor, str):
+            return re.compile(descriptor)
+        if isinstance(descriptor, dict):
+            return dict(cls._compile_descriptor(key):
+                        cls._compile_descriptor(value) 
+                        for key, value in descriptor.items())
+        if isinstance(descriptor, tuple):
+            return tuple(cls._compile_descriptor(d) for d in descriptor)
+        if isinstance(descriptor, list):
+            return list(cls._compile_descriptor(d) for d in descriptor)
+        raise ValueError('descriptor unit not valid: ' + str(descriptor))
+            
+
+    @classmethod
+    def class_preconstructor(cls, tag_regex=None, attrib_regex=None):
+        if tag_regex is not None:
+            tag_regex = cls.verify_and_compile_descriptors(tag_regex)
+        if attrib_regex is not None:
+            attrib_regex = cls.verify_and_compile_descriptors(attrib_regex)
+        def this_function_gets_automatically_run_inside_elements__new__(elementInstance):
+            return cls(elementInstance, tag_regex, attrib_regex, precompiled=True)
         return this_function_gets_automatically_run_inside_elements__new__ #  long
         # name because this function name NEEDS to be unique. It is automatically
         # instantiated in the __new__ method of base element
@@ -49,6 +89,19 @@ class ChildSubsetSimplified:
         elements = [e for e in iter(self)]
         return elements[index]
 
+    def __iter__(self):
+        for elem in self._parent.children:
+            if self._TAG_REGEX:
+                if not [elem.tag] == self._TAG_REGEX.findall(elem.tag):
+                    continue  # skip this element, it doesn't match tag_regex
+            for regK, regV in self._ATTRIB_REGEX.items():
+                match = [k for k, v in elem.items() if [k] == regK.findall(k)
+                                                   and [v] == regV.findall(v)]
+                if not match:
+                    continue  # skip element that can't match one of our attribs
+            yield elem  # yield element only if it matches tag and attrib regex
+
+
     def __setitem__(self, index, elem):   # removes elements, then re-appends them after modification.
         subchildren = self[:]             # sloppy, but it works. And elements are reordered later anyways.
         for element in subchildren:       # what really matters is that the order of elements of the same tag are not
@@ -57,18 +110,18 @@ class ChildSubsetSimplified:
         for element in subchildren:
             self._parent.children.append(element)
 
-    def __delitem__(self, key):
-        element = self[key]
-        index = self._parent.children.index(element)
-        del self._parent[index]
+    def __delitem__(self, index):
+        element = self[index]
+        i = self._parent.children.index(element)
+        del self._parent[i]
 
 
 class ChildSubset(ChildSubsetSimplified):
-    ''' Provide access to specific elements within an element through matching of tags. Most useful for allowing access
+    ''' Provide access to specific elements within an element through matching of descriptor. Most useful for allowing access
     to child nodes. Provide access with indexing, slicing, removal, appending, etc.
 
     :param element: the linked element whose children will be available through ElementAccessor
-    :param tags: the list of specific tags of elements to group and provide access to.
+    :param descriptor: the list of specific descriptor of elements to group and provide access to.
     '''
     
     def pop(self, index=-1):
@@ -80,16 +133,11 @@ class ChildSubset(ChildSubsetSimplified):
     def extend(self, elements):
         self._parent.children.extend(elements)
 
-    def __iter__(self):
-        for elem in self._parent.children:
-            if elem.tag in self._tags:
-                yield elem
-
     def __contains__(self, element):
         return element in self[:]
 
     def __str__(self):
-        return 'Accessor for: ' + str(self._tags)
+        return 'Accessor for: ' + str(self._DESCRIPTORS)
 
     def __repr__(self):
         return '<' + str(self)[:15] + '...'*(len(str(self)) > 15) + ' @' + hex(id(self)) + '>'
