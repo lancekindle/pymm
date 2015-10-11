@@ -39,12 +39,13 @@ class TestMutableClassVariables(unittest.TestCase):
         """ searches for mutable variables within an Element, and verifies it
         gets copied to a new memory address in each element instance.
         """
-        is_mutable = lambda x: isinstance(x, dict) or isinstance(x, list)
+        is_mutable_var = lambda k, v: (isinstance(v, dict) or 
+                                isinstance(v, list)) and not k.endswith('__')
         baseMutables = [k for k, v in vars(self.base).items() 
-                        if is_mutable(v) and not k.endswith('__')]
+                        if is_mutable_var(k, v)]
         for elemClass in self.elements:
-            mutables = [k for k, v in vars(elemClass).items() 
-                        if is_mutable(v) and not k.endswith('__')]
+            mutables = [k for k, v in vars(elemClass).items()
+                        if is_mutable_var(k, v)]
             mutables = list(set(baseMutables + mutables))  # unique mutables
             if filter:  # optional filter to search only for known attributes
                 mutables = [m for m in mutables if m in filter]
