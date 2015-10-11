@@ -205,6 +205,18 @@ class TestElementAccessor(unittest.TestCase):
             self.assertRaises(ValueError, mme._elementAccess.ChildSubset, elem, attrib_regex=empty)
         self.assertRaises(ValueError, mme._elementAccess.ChildSubset, elem, tag_regex='', attrib_regex={})
 
+    def test_constructor_fails_on_wrong_attrib_format(self):
+        self.assertRaises(ValueError, ChildSubset, self.element,
+                attrib_regex=[2,3])
+        self.assertRaises(ValueError, ChildSubset, self.element,
+                tag_regex=r'node', attrib_regex=('sf', 'as'))
+
+    def test_constructor_fails_on_wrong_tag_format(self):
+        self.assertRaises(ValueError, ChildSubset, self.element,
+                tag_regex=['node'])
+        self.assertRaises(ValueError, ChildSubset, self.element, tag_regex=5,
+                attrib_regex={'TEXT': '.*'})
+
     def test_alternative_constructor(self):
         elem = self.element
         elem.nodes = mme._elementAccess.ChildSubset.class_preconstructor(tag_regex=r'node')
