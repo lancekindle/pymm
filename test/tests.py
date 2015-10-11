@@ -176,11 +176,11 @@ class TestElementAccessor(unittest.TestCase):
         self.node = mme.Node()
         self.node2 = mme.Node()
         self.cloud = mme.Cloud()
-        self.element.nodes = mme._elementAccess.ChildSubset(self.element, tag_regex=r'node')
-        self.element.clouds = mme._elementAccess.ChildSubset(self.element, tag_regex=r'cloud')
+        self.element.nodes = ChildSubset(self.element, tag_regex=r'node')
+        self.element.clouds =ChildSubset(self.element, tag_regex=r'cloud')
 
     def test_add_preconstructed_subset_to_element_class(self):
-        mme.BaseElement.nodes = mme._elementAccess.ChildSubset.class_preconstructor(tag_regex=r'node')
+        mme.BaseElement.nodes = ChildSubset.class_preconstructor(tag_regex=r'node')
         e = mme.BaseElement()
         self.assertTrue(hasattr(e, 'nodes'))
         del mme.BaseElement.nodes  # be sure to remove this class variable
@@ -201,9 +201,9 @@ class TestElementAccessor(unittest.TestCase):
         elem = self.element
         empties = [[], (), {}, '']
         for empty in empties:
-            self.assertRaises(ValueError, mme._elementAccess.ChildSubset, elem, tag_regex=empty)
-            self.assertRaises(ValueError, mme._elementAccess.ChildSubset, elem, attrib_regex=empty)
-        self.assertRaises(ValueError, mme._elementAccess.ChildSubset, elem, tag_regex='', attrib_regex={})
+            self.assertRaises(ValueError, ChildSubset, elem, tag_regex=empty)
+            self.assertRaises(ValueError, ChildSubset, elem, attrib_regex=empty)
+        self.assertRaises(ValueError, ChildSubset, elem, tag_regex='', attrib_regex={})
 
     def test_constructor_fails_on_wrong_attrib_format(self):
         self.assertRaises(ValueError, ChildSubset, self.element,
@@ -219,9 +219,9 @@ class TestElementAccessor(unittest.TestCase):
 
     def test_alternative_constructor(self):
         elem = self.element
-        elem.nodes = mme._elementAccess.ChildSubset.class_preconstructor(tag_regex=r'node')
+        elem.nodes = ChildSubset.class_preconstructor(tag_regex=r'node')
         elem.nodes = elem.nodes(elem)  # why doesn't this work? it should just work w/ elem.nodes(). It works ..inside.. the instance, but not outside?
-        self.assertIsInstance(elem.nodes, mme._elementAccess.ChildSubset)
+        self.assertIsInstance(elem.nodes, ChildSubset)
 
     def test_node_is_added_to_element_nodes(self):
         elem = self.element
