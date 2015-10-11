@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 from .Elements import *
 import warnings
 import copy
+import re
 
 #terminology  ... mme, mmElem, mmElement == MindMap element
 #.... ete, etElem, etElement == ElementTree element
@@ -81,11 +82,11 @@ class BaseElementFactory:
         otherChoices = []
         for otherType, attribs in self.typeVariants:
             for key, regex in attribs.items():
-                attrib = etElement.attrib[key]
-                matches = re.findall(regex, attrib)  # we only accept if regex
-                                                    # fully matches attrib
-                if not (key in etElement.attrib and attrib in matches):
+                if key not in etElement.attrib:
                     break
+                attrib = etElement.attrib[key]
+                if not re.fullmatch(regex, attrib):
+                    break  # we only accept if regex fully matches attrib
             else:  # if all attribs match, no break will occur and this triggers
                 otherChoices.append(otherType)
         if len(otherChoices) > 1:

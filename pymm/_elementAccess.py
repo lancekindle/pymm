@@ -76,15 +76,15 @@ class ChildSubsetSimplified:
     def __iter__(self):
         for elem in self._parent.children:
             if self._TAG_REGEX:
-                if not [elem.tag] == re.findall(self._TAG_REGEX, elem.tag):
+                if not re.fullmatch(self._TAG_REGEX, elem.tag):
                     continue  # skip this element, it doesn't match tag_regex
+            matches = lambda x, y, rx, ry: re.fullmatch(rx, x) and re.fullmatch(ry, y)
             for regK, regV in self._ATTRIB_REGEX.items():
-                match = [k for k, v in elem.items() 
-                        if [k] == re.findall(regK, k)
-                        and [v] == re.findall(regV, v)]
+                match = [k for k, v in elem.items() if matches(k, v, regK, regV)]
                 if not match:
-                    continue  # skip element that can't match one of our attribs
-            yield elem  # yield element only if it matches tag and attrib regex
+                    break  # skip element that can't match one of our attribs
+            else:  # only get here if we didn't break attrib matching (always works if no attrib_regex)
+                yield elem  # yield element only if it matches tag and attrib regex
 
 
     def __setitem__(self, index, elem):   # removes elements, then re-appends them after modification.
