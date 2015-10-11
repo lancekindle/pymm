@@ -45,6 +45,9 @@ class ChildSubsetSimplified:
             raise ValueError('tag_regex should be string. Got ' + str(tag))
         if attrib and not isinstance(attrib, dict):
             raise ValueError('attrib_regex should be dict. Got ' + str(attrib))
+        if not tag and not attrib:
+            raise ValueError('Must define either tag or attrior regex. Got ' +
+                    str(tag) + str(attrib))
 
     @classmethod
     def class_preconstructor(cls, **kwargs):
@@ -73,11 +76,12 @@ class ChildSubsetSimplified:
     def __iter__(self):
         for elem in self._parent.children:
             if self._TAG_REGEX:
-                if not [elem.tag] == self._TAG_REGEX.findall(elem.tag):
+                if not [elem.tag] == re.findall(self._TAG_REGEX, elem.tag):
                     continue  # skip this element, it doesn't match tag_regex
             for regK, regV in self._ATTRIB_REGEX.items():
-                match = [k for k, v in elem.items() if [k] == regK.findall(k)
-                                                   and [v] == regV.findall(v)]
+                match = [k for k, v in elem.items() 
+                        if [k] == re.findall(regK, k)
+                        and [v] == re.findall(regV, v)]
                 if not match:
                     continue  # skip element that can't match one of our attribs
             yield elem  # yield element only if it matches tag and attrib regex

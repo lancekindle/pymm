@@ -3,10 +3,15 @@ sys.path.append('../')  # append parent directory so that import finds pymm
 import unittest
 import warnings
 from uuid import uuid4
-import pymm
 import xml
-from pymm import Elements as mme
-from pymm import MindMap
+try:
+    import pymm
+    from pymm import Elements as mme
+    from pymm import MindMap
+except ImportError:
+    print('Error: I think you are editting file NOT from the test directory')
+    print('please cd to test/ and rerun tests.py')
+    raise
 
 # FAILING: richcontent does not handle itself correctly if html is not set
 # (usually if somebody just inits a richcontent node)
@@ -168,24 +173,19 @@ class TestElementAccessor(unittest.TestCase):
         self.element = mme.BaseElement()
         self.node = mme.Node()
         self.node2 = mme.Node()
-        self.element.nodes = mme._elementAccess.ChildSubset(self.element, ['node'])
+        self.element.nodes = mme._elementAccess.ChildSubset(self.element, tag_regex=r'node')
 
-    def test_constructor_allows_string(self):
-        elem = self.element
-        elem.nodes = mme._elementAccess.ChildSubset(elem, 'node')
-
-    def test_constructor_fails_on_nonlist_nonstring(self):
+    def test_constructor_fails_on_empty_regex(self):
         elem = self.element
         empties = [[], (), {}, '']
         for empty in empties:
-            self.assertRaises(ValueError, mme._elementAccess.ChildSubset, elem, empty)
-        others = [{5: 6}]
-        for other in others:
-            self.assertRaises(ValueError, mme._elementAccess.ChildSubset, elem, empty)
+            self.assertRaises(ValueError, mme._elementAccess.ChildSubset, elem, tag_regex=empty)
+            self.assertRaises(ValueError, mme._elementAccess.ChildSubset, elem, attrib_regex=empty)
+        self.assertRaises(ValueError, mme._elementAccess.ChildSubset, elem, tag_regex='', attrib_regex={})
 
     def test_alternative_constructor(self):
         elem = self.element
-        elem.nodes = mme._elementAccess.ChildSubset.class_preconstructor('node')
+        elem.nodes = mme._elementAccess.ChildSubset.class_preconstructor(tag_regex=r'node')
         elem.nodes = elem.nodes(elem)  # why doesn't this work? it should just work w/ elem.nodes(). It works ..inside.. the instance, but not outside?
         self.assertIsInstance(elem.nodes, mme._elementAccess.ChildSubset)
 
