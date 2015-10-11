@@ -8,6 +8,7 @@ try:
     import pymm
     from pymm import Elements as mme
     from pymm import MindMap
+    from pymm._elementAccess import ChildSubset
 except ImportError:
     print('Error: I think you are editting file NOT from the test directory')
     print('please cd to test/ and rerun tests.py')
@@ -174,7 +175,27 @@ class TestElementAccessor(unittest.TestCase):
         self.element = mme.BaseElement()
         self.node = mme.Node()
         self.node2 = mme.Node()
+        self.cloud = mme.Cloud()
         self.element.nodes = mme._elementAccess.ChildSubset(self.element, tag_regex=r'node')
+        self.element.clouds = mme._elementAccess.ChildSubset(self.element, tag_regex=r'cloud')
+
+    def test_add_preconstructed_subset_to_element_class(self):
+        mme.BaseElement.nodes = mme._elementAccess.ChildSubset.class_preconstructor(tag_regex=r'node')
+        e = mme.BaseElement()
+        self.assertTrue(hasattr(e, 'nodes'))
+        del mme.BaseElement.nodes  # be sure to remove this class variable
+
+    def test_attrib_regex(self):
+        self.element.colored = ChildSubset(self.element, attrib_regex={r'COLOR': '.*'})
+        colored = self.element.colored
+        node = self.node
+        colored.append(node)
+        self.assertFalse('COLOR' in node.keys())
+        self.assertTrue(len(colored) == 0)
+        node['COLOR'] = 'f0f0ff'
+        self.assertTrue(len(colored) == 1)
+        del node['COLOR']
+        self.assertTrue(len(colored) == 0)
 
     def test_constructor_fails_on_empty_regex(self):
         elem = self.element
@@ -232,6 +253,9 @@ class TestElementAccessor(unittest.TestCase):
         after = len(self.element.nodes)
         self.assertTrue(before + 1 == after)
 
+    def test_nonmatching_cloud_is_not_in_nodes(self):
+        self.element.children.append(self.cloud)
+        self.assertTrue(self.cloud not in self.element.nodes)
 
 class TestBaseElement(unittest.TestCase):
     def setUp(self):
