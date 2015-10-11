@@ -34,15 +34,16 @@ class TestMutableClassVariables(unittest.TestCase):
             except:
                 continue
 
-    # so far this catches several variables I'm not concerned about, but which
-    # probably should be copied nonetheless. What should I do about it?
-    # until I do something, this test will fail
-    @unittest.expectedFailure
     def test_for_nonduplicate_mutable_variables_in_elements(self, filter=None):
+        """ searches for mutable variables within an Element, and verifies it
+        gets copied to a new memory address in each element instance.
+        """
         is_mutable = lambda x: isinstance(x, dict) or isinstance(x, list)
-        baseMutables = [k for k, v in vars(self.base).items() if is_mutable(v)]
+        baseMutables = [k for k, v in vars(self.base).items() 
+                        if is_mutable(v) and not k.endswith('__')]
         for elemClass in self.elements:
-            mutables = [k for k, v in vars(elemClass).items() if is_mutable(v)]
+            mutables = [k for k, v in vars(elemClass).items() 
+                        if is_mutable(v) and not k.endswith('__')]
             mutables = list(set(baseMutables + mutables))  # unique mutables
             if filter:  # optional filter to search only for known attributes
                 mutables = [m for m in mutables if m in filter]
