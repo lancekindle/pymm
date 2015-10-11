@@ -22,53 +22,36 @@ class ChildSubsetSimplified:
     :param element: the linked element whose children will be available through ElementAccessor
     :param descriptor: the list of specific descriptor of elements to group and provide access to.
     '''
-    def __init__(self, elementInstance, tag_regex=None, attrib_regex=None):
-        tag, attrib = self._verify_and_compile_descriptors(tag_regex, attrib_regex)
+    def __init__(self, elementInstance, **kwargs):
+        self._verify_arguments(kwargs)
+        self._TAG_REGEX = kwargs.get('tag_regex', None)
+        self._ATTRIB_REGEX = kwargs.get('attrib_regex', {})
         self._parent = elementInstance
-        self._TAG_REGEX = tag
-        self._ATTRIB_REGEX = attrib
 
     @classmethod
-    def _verify_and_compile_descriptors(cls, tag_regex, attrib_regex):
-        if tag_regex is None and not attrib_regex:
-            raise ValueError('must define tag or attrib regex. Neither was.')
-        if tag_regex:
-            tag_regex = cls._compile_descriptor(tag_regex)
-        if attrib_regex:
-            attrib_regex = cls._compile_descriptor(attrib_regex)
-        else:
-            attrib_regex = {}
-        return tag_regex, attrib_regex
+    def _verify_arguments(cls, kwargs):
+        keysExpected = set(('tag_regex', 'attrib_regex'))
+        keysGot = set(kwargs.keys())
+        unexpectedKeys = keysGot.difference(keysExpected)
+        if not keysGot:
+            raise ValueError('Must pass in either/both tag_regex and ' + 
+                            'attrib_regex')
+        if unexpectedKeys:
+            raise KeyError('Unexpected keys found in subset init: ' +
+                            str(unexpectedKeys))
+        tag = kwargs.get('tag_regex', None)
+        attrib = kwargs.get('attrib_regex', {})
+        if tag and not isinstance(tag, str):
+            raise ValueError('tag_regex should be string. Got ' + str(tag))
+        if attrib and not isinstance(attrib, dict):
+            raise ValueError('attrib_regex should be dict. Got ' + str(attrib))
 
     @classmethod
-    def _compile_descriptor(cls, descriptor):
-        """ recursively dive into descriptor until arriving at string, and
-        compile string using regex library. Return descriptor in exactly the
-        same structure, but with all strings compiled with regex library.
-        Because this compiles all strings, it essentially generates a deepcopy
-        of the descriptor object
-        """
-        if isinstance(descriptor, re._pattern_type):  # it's already compiled
-            return descriptor
-        if isinstance(descriptor, str):
-            return re.compile(descriptor)
-        if isinstance(descriptor, dict):
-            return {cls._compile_descriptor(key):
-                    cls._compile_descriptor(value) 
-                    for key, value in descriptor.items()}
-        if isinstance(descriptor, tuple):
-            return tuple(cls._compile_descriptor(d) for d in descriptor)
-        if isinstance(descriptor, list):
-            return list(cls._compile_descriptor(d) for d in descriptor)
-        raise ValueError('descriptor unit not valid: ' + str(descriptor))
-            
-
-    @classmethod
-    def class_preconstructor(cls, tag_regex=None, attrib_regex=None):
-        tag_regex, attrib_regex = cls._verify_and_compile_descriptors(tag_regex, attrib_regex)
+    def class_preconstructor(cls, **kwargs):
+        cls._verify_arguments(kwargs)
+        kwargs = copy.deepcopy(kwargs)
         def this_function_gets_automatically_run_inside_elements__new__(elementInstance):
-            return cls(elementInstance, tag_regex=tag_regex,
-                       attrib_regex=attrib_regex)
+            return cls(elementInstance, **kwargs) 
         return this_function_gets_automatically_run_inside_elements__new__ #  long
         # name because this function name NEEDS to be unique. It is automatically
         # instantiated in the __new__ method of base element
