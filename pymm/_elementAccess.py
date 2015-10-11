@@ -1,5 +1,6 @@
 import warnings
 import copy
+import re
 
 class ChildSubsetSimplified:
     ''' Provide simplified access to specific child elements through regex 
@@ -31,13 +32,10 @@ class ChildSubsetSimplified:
     def _verify_and_compile_descriptors(cls, tag_regex, attrib_regex):
         if tag_regex is None and not attrib_regex:
             raise ValueError('must define tag or attrib regex. Neither was.')
-        if not isinstance(attrib_regex, dict):
-            raise ValueError('attrib_regex must be a dictionary. got ' +
-                             str(attrib_regex) + 'instead')
         if tag_regex:
-            tag_regex = self._compile_descriptor(tag_regex)
+            tag_regex = cls._compile_descriptor(tag_regex)
         if attrib_regex:
-            attrib_regex = self._compile_descriptor(attrib_regex)
+            attrib_regex = cls._compile_descriptor(attrib_regex)
         else:
             attrib_regex = {}
         return tag_regex, attrib_regex
@@ -50,12 +48,14 @@ class ChildSubsetSimplified:
         Because this compiles all strings, it essentially generates a deepcopy
         of the descriptor object
         """
+        if isinstance(descriptor, re._pattern_type):  # it's already compiled
+            return descriptor
         if isinstance(descriptor, str):
             return re.compile(descriptor)
         if isinstance(descriptor, dict):
-            return dict(cls._compile_descriptor(key):
-                        cls._compile_descriptor(value) 
-                        for key, value in descriptor.items())
+            return {cls._compile_descriptor(key):
+                    cls._compile_descriptor(value) 
+                    for key, value in descriptor.items()}
         if isinstance(descriptor, tuple):
             return tuple(cls._compile_descriptor(d) for d in descriptor)
         if isinstance(descriptor, list):
@@ -65,12 +65,10 @@ class ChildSubsetSimplified:
 
     @classmethod
     def class_preconstructor(cls, tag_regex=None, attrib_regex=None):
-        if tag_regex is not None:
-            tag_regex = cls.verify_and_compile_descriptors(tag_regex)
-        if attrib_regex is not None:
-            attrib_regex = cls.verify_and_compile_descriptors(attrib_regex)
+        tag_regex, attrib_regex = cls._verify_and_compile_descriptors(tag_regex, attrib_regex)
         def this_function_gets_automatically_run_inside_elements__new__(elementInstance):
-            return cls(elementInstance, tag_regex, attrib_regex, precompiled=True)
+            return cls(elementInstance, tag_regex=tag_regex,
+                       attrib_regex=attrib_regex)
         return this_function_gets_automatically_run_inside_elements__new__ #  long
         # name because this function name NEEDS to be unique. It is automatically
         # instantiated in the __new__ method of base element
@@ -137,7 +135,13 @@ class ChildSubset(ChildSubsetSimplified):
         return element in self[:]
 
     def __str__(self):
-        return 'Accessor for: ' + str(self._DESCRIPTORS)
+        s = 'subset: '
+        if self._TAG_REGEX:
+            s += str(self._TAG_REGEX)  # looks aweful because string
+            # representation of compiled regex is.... re.compiled('asdf')
+        if self._ATTRIB_REGEX:
+            s += str(self._ATTRIB_REGEX)
+        return s
 
     def __repr__(self):
         return '<' + str(self)[:15] + '...'*(len(str(self)) > 15) + ' @' + hex(id(self)) + '>'
