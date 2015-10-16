@@ -121,6 +121,12 @@ class Node(BaseElement):
     def __str__(self):
         return self.tag + ': ' + self.attrib['TEXT'].replace('\n', '')
 
+    def set_text(self, text):
+        self['TEXT'] = text
+
+    def get_text(self):
+        return self['TEXT']
+
 
 class Map(BaseElement):
     """ Map is the first element of any mindmap. It is the highest-level element and all other elements are sub-children
