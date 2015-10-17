@@ -1,29 +1,63 @@
 import warnings
+import copy
+import re
 
-class ChildrenSimplified:
-    ''' Provide simplified access to specific child elements through matching of tags. Most useful for allowing access
+class ChildSubsetSimplified:
+    ''' Provide simplified access to specific child elements through regex 
+    matching of descriptors such as tag, attributes, or a combination thereof.
+    For example, if you want to simply match a tag (or tags), pass in a regular
+    expression string that will fully match the desired tag(s).
+    e.g. 'node|cloud'  # matches any 
+    If you want to match a set of attributes, pass in a dictionary containing 
+    regexes to fully match the key(s) and value(s) of the element's attributes
+    e.g. {'TEXT':'.*'}  # matches any element with a 'TEXT' attribute
+    e.g. {'.*': '.*flag.*'}  # matches any element with a 'flag' in its value
+    e.g. {'COLOR': '.*'}  # matches anything with a 'COLOR' attribute
+    You can include any number of tag and attribute regexes, each separated by
+    a comma. All descriptors will have to fully match in order for an element
+    to qualify as part of this subset.
+    Most useful for allowing access
     to child nodes. Provide access to slicing, removal, appending
 
     :param element: the linked element whose children will be available through ElementAccessor
-    :param tags: the list of specific tags of elements to group and provide access to.
+    :param descriptor: the list of specific descriptor of elements to group and provide access to.
     '''
-    def __init__(self, element, tags):
-        # would be awesome to allow tags to be a regex instead of a normal string
-        if isinstance(tags, str):  # allow user to pass in single string for searchable element tag
-            if not tags:
-                raise ValueError('element accessor requires non-empty string for tag')
-            tags = [tags]
-        if not len(tags):
-            raise ValueError('element accessor requires non-empty tags')
-        self._parent = element
-        self._tags = tuple(t for t in tags)  # use tuple for list of tags to imply that this "list" should not be altered
-                                    # HAVE to use tuple() instead of just (), because () will create a generator expression which fails :(
+    def __init__(self, elementInstance, **kwargs):
+        self._verify_arguments(kwargs)
+        self._TAG_REGEX = kwargs.get('tag_regex', None)
+        self._ATTRIB_REGEX = kwargs.get('attrib_regex', {})
+        self._parent = elementInstance
 
     @classmethod
-    def preconstructor(cls, tags):
-        def element_access_construction(element):  # just call self.nodes() or self.clouds(), self.etc... to initialize
-            return cls(element, tags)
-        return element_access_construction
+    def _verify_arguments(cls, kwargs):
+        keysExpected = set(('tag_regex', 'attrib_regex'))
+        keysGot = set(kwargs.keys())
+        unexpectedKeys = keysGot.difference(keysExpected)
+        if not keysGot:
+            raise ValueError('Must pass in either/both tag_regex and ' + 
+                            'attrib_regex')
+        if unexpectedKeys:
+            raise KeyError('Unexpected keys found in subset init: ' +
+                            str(unexpectedKeys))
+        tag = kwargs.get('tag_regex', None)
+        attrib = kwargs.get('attrib_regex', {})
+        if tag and not isinstance(tag, str):
+            raise ValueError('tag_regex should be string. Got ' + str(tag))
+        if attrib and not isinstance(attrib, dict):
+            raise ValueError('attrib_regex should be dict. Got ' + str(attrib))
+        if not tag and not attrib:
+            raise ValueError('Must define either tag or attrior regex. Got ' +
+                    str(tag) + str(attrib))
+
+    @classmethod
+    def class_preconstructor(cls, **kwargs):
+        cls._verify_arguments(kwargs)
+        kwargs = copy.deepcopy(kwargs)
+        def this_function_gets_automatically_run_inside_elements__new__(elementInstance):
+            return cls(elementInstance, **kwargs) 
+        return this_function_gets_automatically_run_inside_elements__new__ #  long
+        # name because this function name NEEDS to be unique. It is automatically
+        # instantiated in the __new__ method of base element
 
     def append(self, element):
         self._parent.children.append(element)
@@ -39,6 +73,20 @@ class ChildrenSimplified:
         elements = [e for e in iter(self)]
         return elements[index]
 
+    def __iter__(self):
+        for elem in self._parent.children:
+            if self._TAG_REGEX:
+                if not re.fullmatch(self._TAG_REGEX, elem.tag):
+                    continue  # skip this element, it doesn't match tag_regex
+            matches = lambda x, y, rx, ry: re.fullmatch(rx, x) and re.fullmatch(ry, y)
+            for regK, regV in self._ATTRIB_REGEX.items():
+                match = [k for k, v in elem.items() if matches(k, v, regK, regV)]
+                if not match:
+                    break  # skip element that can't match one of our attribs
+            else:  # only get here if we didn't break attrib matching (always works if no attrib_regex)
+                yield elem  # yield element only if it matches tag and attrib regex
+
+
     def __setitem__(self, index, elem):   # removes elements, then re-appends them after modification.
         subchildren = self[:]             # sloppy, but it works. And elements are reordered later anyways.
         for element in subchildren:       # what really matters is that the order of elements of the same tag are not
@@ -47,18 +95,18 @@ class ChildrenSimplified:
         for element in subchildren:
             self._parent.children.append(element)
 
-    def __delitem__(self, key):
-        element = self[key]
-        index = self._parent.children.index(element)
-        del self._parent[index]
+    def __delitem__(self, index):
+        element = self[index]
+        i = self._parent.children.index(element)
+        del self._parent[i]
 
 
-class Children(ChildrenSimplified):
-    ''' Provide access to specific elements within an element through matching of tags. Most useful for allowing access
+class ChildSubset(ChildSubsetSimplified):
+    ''' Provide access to specific elements within an element through matching of descriptor. Most useful for allowing access
     to child nodes. Provide access with indexing, slicing, removal, appending, etc.
 
     :param element: the linked element whose children will be available through ElementAccessor
-    :param tags: the list of specific tags of elements to group and provide access to.
+    :param descriptor: the list of specific descriptor of elements to group and provide access to.
     '''
     
     def pop(self, index=-1):
@@ -70,16 +118,17 @@ class Children(ChildrenSimplified):
     def extend(self, elements):
         self._parent.children.extend(elements)
 
-    def __iter__(self):
-        for elem in self._parent.children:
-            if elem.tag in self._tags:
-                yield elem
-
     def __contains__(self, element):
         return element in self[:]
 
     def __str__(self):
-        return 'Accessor for: ' + str(self._tags)
+        s = 'subset: '
+        if self._TAG_REGEX:
+            s += str(self._TAG_REGEX)  # looks aweful because string
+            # representation of compiled regex is.... re.compiled('asdf')
+        if self._ATTRIB_REGEX:
+            s += str(self._ATTRIB_REGEX)
+        return s
 
     def __repr__(self):
         return '<' + str(self)[:15] + '...'*(len(str(self)) > 15) + ' @' + hex(id(self)) + '>'

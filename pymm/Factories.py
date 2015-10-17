@@ -2,15 +2,16 @@ import xml.etree.ElementTree as ET
 from .Elements import *
 import warnings
 import copy
+import re
 
 #terminology  ... mme, mmElem, mmElement == MindMap element
-            #.... ete, etElem, etElement == ElementTree element
-            # element == could be either one. Sometimes it must conform to either one, other times it doesn't yet
-                       # conform to a specific element
+#.... ete, etElem, etElement == ElementTree element
+# element == could be either one. Sometimes it must conform to either one, other times it doesn't yet
+# conform to a specific element
 
 
 class ExampleElementFactory:  # an example factory that shows which methods you'll need to
-                                                      # override when inheriting from BaseElementFactory
+    # override when inheriting from BaseElementFactory
     def revert_to_etree_element(self, mmElement, parent=None):
         etElement = super().revert_to_etree_element(mmElement, parent)  # does all the heavy lifting.
         raise NotImplementedError('DO NOT use ExampleElementFactory. Inherit from BaseElementFactory Instead!')
@@ -53,21 +54,22 @@ class BaseElementFactory:
                   # order in which children will be written to file
     reverseChildOrder = []  # order of nth to last for children. First node listed will be last child.
     typeVariants = []  # if same tag can be used for different Elements, list them here, in a tuple with a
-                         # distinguishing attribute name and its expected value: (element, attribName, attribValue)
+                         # dictionary of distinguishing attribute name and its
+                         # expected value: (element, {attribName: attribValue})
     # xml etree appears to correctly convert html-safe to ascii: &lt; = <
 
     def __init__(self):
-        self.childOrder = list(self.childOrder) + []  # make list instance so we don't modify class variable
-        self.reverseChildOrder = list(self.reverseChildOrder) + []
-        self.typeVariants = list(self.typeVariants) + []
+        self.childOrder = self.childOrder.copy() # make list instance so we don't modify class variable
+        self.reverseChildOrder = self.reverseChildOrder.copy()
+        self.typeVariants = self.typeVariants.copy()
         self.noFactoryWarnings = set()  # collect tags that didn't have factories and use it to send out ONE warning
 
     def display_any_warnings(self):
         ''' Display warnings for elements found without a specific factory. Call once after full convert / revert '''
         if self.noFactoryWarnings:
             warnings.warn('elements ' + str(self.noFactoryWarnings) + ' do not have conversion factories. ' +
-                           'Elements will import and export correctly, but warnings about specs will follow',
-                           RuntimeWarning, stacklevel=2)
+                          'Elements will import and export correctly, but warnings about specs will follow',
+                          RuntimeWarning, stacklevel=2)
         self.noFactoryWarnings = set()  # reset warnings so we won't display the same ones
 
     def compute_element_type(self, etElement):
@@ -77,17 +79,22 @@ class BaseElementFactory:
         has several different types: NODE, NOTE, and DETAILS. Specify which type of element to create by adding
         attribute distinguishers to factory.typeVariants. The same factory will be used, however.
         '''
-        etype = self.elementType  # default
         otherChoices = []
-        for otherType, key, value in self.typeVariants:
-            if key in etElement.attrib and etElement.attrib[key] == value:
+        for otherType, attribs in self.typeVariants:
+            for key, regex in attribs.items():
+                if key not in etElement.attrib:
+                    break
+                attrib = etElement.attrib[key]
+                if not re.fullmatch(regex, attrib):
+                    break  # we only accept if regex fully matches attrib
+            else:  # if all attribs match, no break will occur and this triggers
                 otherChoices.append(otherType)
         if len(otherChoices) > 1:
             warnings.warn(etElement.tag + ' has 2+ possible elements with which to convert with these attribs: ' +
                                        str(etElement.attrib), RuntimeWarning, stacklevel=2)
-        for possibleElementType in otherChoices:
-            etype = possibleElementType  # choose last of choices, then
-        return etype
+        if otherChoices:
+            return otherChoices[-1]  # choose last of choices
+        return self.elementType  # default if no other choices found
 
     def convert_from_etree_element(self, etElement, parent=None):
         '''converts an etree etElement to a pymm element
@@ -98,7 +105,8 @@ class BaseElementFactory:
         '''
         elemClass = self.compute_element_type(etElement)  # choose between self.elementType and typeVariants
         attrib = self.convert_attribs(elemClass(), etElement.attrib)
-        mmElem = elemClass(**attrib)  # yep, we initialize it a second time, but this time with attribs  (I don't know why this doesn't work)
+        mmElem = elemClass(**attrib)  # yep, we initialize it a second time,
+# but this time with attribs  (I don't know why this doesn't work) ??
         mmElem.children = [c for c in etElement[:]]
         if not mmElem.tag == etElement.tag:
             self.noFactoryWarnings.add(etElement.tag)
@@ -260,9 +268,10 @@ class CloudFactory(BaseElementFactory):
 
 class HookFactory(BaseElementFactory):
     elementType = Hook
-    typeVariants = [(EmbeddedImage, 'NAME', 'ExternalObject'),(MapConfig, 'NAME', 'MapStyle'),
-                         (Equation, 'NAME', 'plugins/latex/LatexNodeHook.properties'),
-                         (AutomaticEdgeColor, 'NAME', 'AutomaticEdgeColor')]
+    typeVariants = [(EmbeddedImage, {'NAME': r'ExternalObject'}),
+                (MapConfig, {'NAME': r'MapStyle'}),
+                (Equation, {'NAME': r'plugins/latex/LatexNodeHook\.properties'}),
+                (AutomaticEdgeColor, {'NAME': r'AutomaticEdgeColor'})]
 
 class MapStylesFactory(BaseElementFactory):
     elementType = MapStyles
@@ -290,7 +299,9 @@ class AttributeRegistryFactory(BaseElementFactory):
 
 class RichContentFactory(BaseElementFactory):
     elementType = RichContent
-    typeVariants = [(NodeText, 'TYPE', 'NODE'), (NodeNote, 'TYPE', 'NOTE'), (NodeDetails, 'TYPE', 'DETAILS')]
+    typeVariants = [(NodeText, {'TYPE': r'NODE'}),
+                    (NodeNote, {'TYPE': r'NOTE'}),
+                    (NodeDetails, {'TYPE': r'DETAILS'})]
 
     def convert_from_etree_element(self, etElement, parent=None):
         mmRichC = super(RichContentFactory, self).convert_from_etree_element(etElement, parent)
@@ -326,11 +337,11 @@ class MindMapConverter:
     # you can add_factory(factory) if you have created a new node type / new factory to handle different features here
 
     def __init__(self, **kwargs):
-        factorieClasses = [BaseElementFactory, NodeFactory, MapFactory, CloudFactory,
+        factoryClasses = [BaseElementFactory, NodeFactory, MapFactory, CloudFactory,
                      HookFactory, MapStylesFactory, StyleNodeFactory, FontFactory, IconFactory,
                      EdgeFactory, AttributeFactory, PropertiesFactory, RichContentFactory,
                      AttributeRegistryFactory]
-        fff = [factory() for factory in factorieClasses]  # get an initialized instance of all factories
+        fff = [factory() for factory in factoryClasses]  # get an initialized instance of all factories
         self.tag2factory = {}
         for f in fff:            # get a dictionary that
             self.add_factory(f)  # matches an elements tag to the factory which can handle that element

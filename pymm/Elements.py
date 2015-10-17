@@ -8,25 +8,33 @@ from . import _elementAccess
 
 
 class ExampleElement:  # example element showing minimum of things to define to inherit from BaseElement and create one.
-    tag = ''  # [REQUIRED]. Only way for a Factory (which you must code) to convert the element of type 'tag'
+    tag = ''  # [REQUIRED]. Only way for a Factory (which you must code) to
+        # convert the element of type 'tag'. Examples include 'node' or 'cloud'
     attrib = {}  # [OPTIONAL] pre-define default element attributes
     specs = {}  # [OPTIONAL] pre-define attribute types (like bool, str, int, float).
     _descriptors = []  # [OPTIONAL] list of attribs that are used when constructing string representation
 
+
 class PreventAmbiguousAccess:
 
     def __iter__(self):
-        raise NotImplementedError('DO NOT ITERATE ELEMENT. Iterate element[:], element.children for child iteration. Or use'
-                                                        + 'element.items(), element.keys() to iterate attributes')
-    def __contains__(self, _):
-        raise NotImplementedError('DO NOT CHECK IF SOMETHING EXISTS IN ELEMENT. It is ambiguous as to whether you are'
-                                        + 'checking for child element or attribute. Be specific. Use element[:] or element.children for checking'
-                                        + 'child element. Use element.keys() for checking attribute')
+        raise NotImplementedError('DO NOT ITERATE ELEMENT. Iterate element[:],'
+                ' element.children for child iteration. Or use '
+                'element.items(), element.keys() to iterate attributes')
 
-    def pop(self, _=0):
-        raise NotImplementedError('pop is ambiguous when referring to children or attributes. Please use element.nodes.pop()'
-                                  + 'or element.children.pop() (whichever is appriopriate) when popping children. Use element.attrib.pop()'
-                                  + 'when popping attributes')
+    def __contains__(self, *_):
+        raise NotImplementedError('DO NOT CHECK IF SOMETHING EXISTS IN ELEMENT'
+                '. It is ambiguous as to whether you are checking for child '
+                'element or attribute. Be specific. Use element[:] or '
+                'element.children for checking child element. Use '
+                'element.keys() for checking attribute')
+
+    def pop(self, *_):
+        raise NotImplementedError('pop is ambiguous when referring to children'
+                ' or attributes. Please use element.nodes.pop() or '
+                'element.children.pop() (whichever is appriopriate) when '
+                'popping children. Use element.attrib.pop() when popping '
+                'attributes')
     
 
 class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
@@ -55,17 +63,44 @@ class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
     _text = ''    # equivalent to ElementTree's .text  -- text between start tag and next element   # keep this for
     _tail = ''    # equivalent to ElementTree's .tail  -- text after end tag                        # .mm compatibility
     children = []  # all child elements including nodes
-    _get_native_children = lambda self: self.children  # children to which we allow native access   [:], [1], etc...
+    _get_implicit_children = lambda self: self.children  # children to which we allow native access   [:], [1], etc...
     attrib = {}  # pre-define these (outside of init like this) in other classes to define default element attribs
     _descriptors = []  # list of attribs that can be used to better describe instance. Used in str(self) construction
     specs = {}  # list all possible attributes of an element and valid entries / types in a list or standalone:
                     # [str, int, 'thin', etc.], str, int, 'thin', etc.
 
-    def __init__(self, **kwargs):  # used to be: (self, attrib={}, **kwargs)  ## self.attrib.update(attribs)
-        self.children = list(self.children)
-        self.attrib = copy.deepcopy(self.attrib)  # copy all class lists/dicts into instance
-        self._descriptors = list(self._descriptors) + []
+    def __new__(cls, *args, **kwargs):
+        """ DO NOT OVERRIDE W/O super. override __init__ for most stuff. Copy
+        all the mutable class attributes such as children, attrib, specs, and 
+        _descriptors into the class instance to prevent user from accidentally 
+        adding to class-wide attributes if he overrides __init__ and forgets to
+        call super().__init__ first. It is still possible for user to change 
+        class-wide variables, but this will make it less likely he will do so 
+        with an instance of the class. We do not use *args or **kwargs in 
+        __new__ because developer may want to override behavior of arguments
+        """
+        self = super().__new__(cls)
+        self.children = copy.deepcopy(self.children)
+        self.attrib = copy.deepcopy(self.attrib)
+        self._descriptors = copy.deepcopy(self._descriptors)
         self.specs = copy.deepcopy(self.specs)
+        self._init_all_preconstructed_element_accessors()
+        return self
+
+    def _init_all_preconstructed_element_accessors(self):
+        """ locate all preconstructed child access functions and run them.
+        get back child access object, and set using same attribute name.
+        things like self.nodes. Makes sure that this is a new, separate
+        instance from the class itself. This feels computationally heavy tho...
+        """
+        for varName in dir(self):  # looking for a .nodes or .clouds function
+            func = getattr(self, varName)  # idk why it's <class 'method'>
+                                           # instead of <class 'function'>
+            if str(type(func)) == "<class 'method'>" and func.__name__ == 'this_function_gets_automatically_run_inside_elements__new__':
+                childAccessor = func()  # run function, get back child
+                setattr(self, varName, childAccessor)      # access object
+
+    def __init__(self, **kwargs):  # used to be: (self, attrib={}, **kwargs)  ## self.attrib.update(attribs)
         for k, v in kwargs.items():  # make this call different than updating attrib directly because it's more likely
             self[k] = v                       # that a developer specifically typed this out. This will error check it
 
@@ -87,7 +122,7 @@ class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
         return self.children
 
     def __len__(self):
-        return len(self._get_native_children())
+        return len(self._get_implicit_children())
 
     def append(self, element):
         """ Append element to Element's children list """
@@ -109,21 +144,21 @@ class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
         if self._is_attribute_access(key):
             return super().__getitem__(key)
         else:
-            return self._get_native_children().__getitem__(key)
+            return self._get_implicit_children().__getitem__(key)
 
     def __setitem__(self, key_or_index_or_slice, value_or_element):
         key, val = key_or_index_or_slice, value_or_element
         if self._is_attribute_access(key):
             super().__setitem__(key, val)
         else:
-            self._get_native_children().__setitem__(key, val)
+            self._get_implicit_children().__setitem__(key, val)
 
     def __delitem__(self, key_or_index_or_slice):
         key = key_or_index_or_slice
         if self._is_attribute_access(key):
             super().__delitem__(key)
         else:
-            self._get_native_children().__delitem__(key)
+            self._get_implicit_children().__delitem__(key)
 
 
 class Node(BaseElement):
@@ -132,8 +167,8 @@ class Node(BaseElement):
     unique through clouds, edge-line colors, or rich-text formatting. A Node contains an ID and text by default
     """
     tag = 'node'
-    nodes = _elementAccess.Children.preconstructor(['node'])
-    _get_native_children = lambda self: self.nodes  # children to which we allow native access   [:], [1], etc...
+    nodes = _elementAccess.ChildSubset.class_preconstructor(tag_regex=r'node')
+    _get_implicit_children = lambda self: self.children  # children to which we allow native access   [:], [1], etc...
     attrib = {'ID': 'random#', 'TEXT': ''}
     specs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
             'POSITION': ['left', 'right'], 'STYLE': str, 'TEXT': str, 'LOCALIZED_TEXT': str, 'TYPE': str,
@@ -143,7 +178,6 @@ class Node(BaseElement):
     def __init__(self, **kwargs):
         self['ID'] = 'ID_' + str(uuid4().time).replace('L', '')
         super(Node, self).__init__(**kwargs)
-        self.nodes = self.nodes()
 
     def __str__(self):
         return self.tag + ': ' + self['TEXT'].replace('\n', '')
@@ -156,11 +190,10 @@ class Map(BaseElement):
     tag = 'map'
     attrib = {'version': 'freeplane 1.3.0'}
     specs = {'version': str}
-    nodes = _elementAccess.Children.preconstructor(['node'])
+    nodes = _elementAccess.ChildSubset.class_preconstructor(tag_regex=r'node')
 
     def __init__(self, **kwargs):
         super(Map, self).__init__(**kwargs)
-        self.nodes = self.nodes()
 
     def setroot(self, root):
         self.nodes[:] = [root]
@@ -180,6 +213,11 @@ class Cloud(BaseElement):
     attrib = {'COLOR': '#f0f0f0', 'SHAPE': 'ARC'}  # set defaults
     specs = {'COLOR': str, 'SHAPE': shapeList, 'WIDTH': str}
     _descriptors = ['COLOR', 'SHAPE']  # extra information to send during call to __str__
+
+    def __new__(cls, *args, **kwargs):
+        self = super().__new__(cls)
+        self.shapeList = copy.deepcopy(self.shapeList)
+        return self
 
 
 class Hook(BaseElement):
@@ -277,12 +315,17 @@ class Icon(BaseElement):
                           'Freeplane may not display icon. Use an icon from the builtinList instead', SyntaxWarning,
                           stacklevel=2)
 
+    def __new__(cls, *args, **kwargs):
+        self = super().__new__(cls)
+        self.builtinList = copy.deepcopy(self.builtinList)
+        return self
+
 
 class Edge(BaseElement):
     """ Edge defines the look of the lines (edges) connecting nodes. You can change the color, style, and width.
     The COLOR attribute must be any string representation, starting with # and having two hexidecimal characters for
     each color in RGB. The STYLE attribute must be one of the styles in Edge.styleList. The WIDTH attribute must be
-    'thin' or a string representation of any integer. Realistically, any edge width > '8' is visually unappealing. If
+    'thin' or a string representation of any integer. Any edge width > '8' is visually unappealing. If
     you delete WIDTH attribute (or set to None), edge width will be inherited from Node's parent.
     edge['COLOR'] = '#ff0033';     edge['STYLE'] = edge.styleList[0]  (linear)     edge['WIDTH'] = '4'
     """
@@ -290,7 +333,16 @@ class Edge(BaseElement):
     styleList = ['linear', 'bezier', 'sharp_linear', 'sharp_bezier', 'horizontal', 'hide_edge']
     widthList = ['thin', int]  # can be 'thin' or a integer representing width. Anything > 4 is huge
     specs = {'COLOR': str, 'STYLE': styleList, 'WIDTH': widthList}
+    # attrib = {... DO NOT DEFINE attrib. User must define attrib because
+    # anything not defined will be inheritted from the parent. If we define any
+    # attribs then it will auto-overwrite the parent style which is not what we
+    # want. Usually we only want to override the attrib that we specify
 
+    def __new__(cls, *args, **kwargs):
+        self = super().__new__(cls)  # always call super() in __new__
+        self.styleList = copy.deepcopy(self.styleList)
+        self.widthList = copy.deepcopy(self.widthList)
+        return self
 
 class Attribute(BaseElement):
     """ (Node) Attributes display underneath a Node like a table, with NAME attribute to the left, and VALUE to the
