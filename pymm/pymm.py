@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 from . import Elements
 from . import Factories  # python3 relative imports (doesn't work in python2)
+from . import when
 from .Elements import Node
 
 # reorganizing so that MindMap is a fancy version of Map

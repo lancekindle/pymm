@@ -7,8 +7,10 @@ from collections import OrderedDict
 
 
 class Hooks:
+    """ hold all hooked classes here and allow quick access to the hook dictionaries
+    """
     add_child_hook = {}
-    has_added_child_hook = OrderedDict()
+    has_added_child = OrderedDict()
     unclaimed = []  # can't use set because it requires ALL objects to be hashable when
                           # searching to see if an object is inside unclaimed
 
@@ -26,7 +28,7 @@ class Remove_WhenDecorated_Functions(type):
             raise ValueError("got more than 1 decorated fxn. ... that's ok but you need work here")
         for func in decorated_fxns:
             Hooks.unclaimed.remove(func)
-            Hooks.has_added_child_hook[cls] = func  # associate class with function
+            Hooks.has_added_child[cls] = func  # associate class with function
         return cls
 
 
