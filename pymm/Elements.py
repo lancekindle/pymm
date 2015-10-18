@@ -3,6 +3,8 @@ import warnings
 import re
 import copy
 from . import _elementAccess
+from . import when
+from .when import Remove_WhenDecorated_Functions
 # see http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format for file specifications
 # terminology: elem, element = MindMap Elements (no etree elements allowed! Use a mmFactory to convert those
 
@@ -37,7 +39,7 @@ class PreventAmbiguousAccess:
                 'attributes')
     
 
-class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
+class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib, metaclass=Remove_WhenDecorated_Functions):
     """ pymm's Base Element. All other elements inherit from BaseElement, which represents an element in a similar style
     to xml.etree.ElementTree. with enhancements aimed at providing faster mindmap manipulation. Each element has a
     specific identifier, a tag, that specifies what type of element it is. If a specific xml element type does not have
@@ -68,7 +70,11 @@ class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
     _descriptors = []  # list of attribs that can be used to better describe instance. Used in str(self) construction
     specs = {}  # list all possible attributes of an element and valid entries / types in a list or standalone:
                     # [str, int, 'thin', etc.], str, int, 'thin', etc.
-
+    
+    @when.has_added_child
+    def test(self, other):
+        pass
+    
     def __new__(cls, *args, **kwargs):
         """ DO NOT OVERRIDE W/O super. override __init__ for most stuff. Copy
         all the mutable class attributes such as children, attrib, specs, and 
