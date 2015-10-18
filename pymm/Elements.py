@@ -3,6 +3,7 @@ import warnings
 import re
 import copy
 from . import _elementAccess
+import types
 # see http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format for file specifications
 # terminology: elem, element = MindMap Elements (no etree elements allowed! Use a mmFactory to convert those
 
@@ -96,7 +97,7 @@ class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
         for varName in dir(self):  # looking for a .nodes or .clouds function
             func = getattr(self, varName)  # idk why it's <class 'method'>
                                            # instead of <class 'function'>
-            if str(type(func)) == "<class 'method'>" and func.__name__ == 'this_function_gets_automatically_run_inside_elements__new__':
+            if type(func) == types.MethodType and func.__name__ == 'this_function_gets_automatically_run_inside_elements__new__':
                 childAccessor = func()  # run function, get back child
                 setattr(self, varName, childAccessor)      # access object
 
