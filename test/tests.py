@@ -18,6 +18,46 @@ except ImportError:
 # (usually if somebody just inits a richcontent node)
 # AKA: I have no idea if type variants are used at all in any mindmap
 
+class TestChildAddHook(unittest.TestCase):
+
+    def setUp(self):
+        self.cls = pymm.Elements.BaseElement
+        self.hooks = pymm.when.Hooks
+
+    def test_hooks_unclaimed_dict_is_empty(self):
+        self.assertFalse(self.hooks.unclaimed)
+
+    def test_adding_hook_to_base_element_adds_it_too_hooks_dict(self):
+        @pymm.when.has_added_child(Class=self.cls)
+        def test_fxn(self, other):
+            return other
+        self.assertTrue(self.cls in self.hooks.has_added_child)
+        self.assertTrue(self.hooks.has_added_child[self.cls] == test_fxn)
+
+    def test_adding_non_argumented_decorator_adds_fxn_to_unclaimed(self):
+        @pymm.when.has_added_child
+        def test_fxn(self, other):
+            return other
+        self.assertTrue(self.hooks.unclaimed)
+        self.assertFalse(self.hooks.has_added_child)
+
+    def test_non_argumented_decorator_in_metaclassed_class_is_found_and_removed(self):
+        class test_class(metaclass=pymm.when.Remove_WhenDecorated_Functions):
+            @pymm.when.has_added_child
+            def test_fxn(self, other):  # this function is removed from class
+                return other
+        self.assertTrue(test_class in self.hooks.has_added_child)
+        self.assertRaises(AttributeError, getattr, test_class, 'test_fxn')
+        # self-tear down
+        del self.hooks.has_added_child[test_class]
+        
+    def tearDown(self):
+        """ remove hooks hooks from BaseElement, clear unclaimed hooks """
+        if self.cls in self.hooks.has_added_child:
+            del self.hooks.has_added_child[self.cls]
+        self.hooks.unclaimed.clear()
+
+
 class TestMutableClassVariables(unittest.TestCase):
     """ verify mutable variables are copied / deepcopied in instances. This
     ensures that class variables are not changed when changing an instance's
