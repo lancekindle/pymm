@@ -39,7 +39,7 @@ class PreventAmbiguousAccess:
                 'attributes')
     
 
-class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib, metaclass=Remove_WhenDecorated_Functions):
+class BaseElement(when.PreventOverwritingChildren, PreventAmbiguousAccess, _elementAccess.Attrib, metaclass=Remove_WhenDecorated_Functions):
     """ pymm's Base Element. All other elements inherit from BaseElement, which represents an element in a similar style
     to xml.etree.ElementTree. with enhancements aimed at providing faster mindmap manipulation. Each element has a
     specific identifier, a tag, that specifies what type of element it is. If a specific xml element type does not have
@@ -64,7 +64,7 @@ class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib, metaclass=Remov
     parent = None
     _text = ''    # equivalent to ElementTree's .text  -- text between start tag and next element   # keep this for
     _tail = ''    # equivalent to ElementTree's .tail  -- text after end tag                        # .mm compatibility
-    children = []  # all child elements including nodes
+    children = when.ChildrenMonitor  # all child elements including nodes
     _get_implicit_children = lambda self: self.children  # children to which we allow native access   [:], [1], etc...
     attrib = {}  # pre-define these (outside of init like this) in other classes to define default element attribs
     _descriptors = []  # list of attribs that can be used to better describe instance. Used in str(self) construction
@@ -73,7 +73,12 @@ class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib, metaclass=Remov
     
     @when.has_added_child
     def test(self, other):
-        pass
+        print('children list:', self.children)
+        print('id of children container:', id(self.children))
+        print('class of children container:', type(self.children))
+        print('id of self:', id(self))
+        print('via Hook_Key:\nid of self:', id(self.children._Hook_Key))
+        print('child is in list of children:', other in self.children)
     
     def __new__(cls, *args, **kwargs):
         """ DO NOT OVERRIDE W/O super. override __init__ for most stuff. Copy
@@ -86,7 +91,7 @@ class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib, metaclass=Remov
         __new__ because developer may want to override behavior of arguments
         """
         self = super().__new__(cls)
-        self.children = copy.deepcopy(self.children)
+        self.children = self.children(Hook_Key=self)
         self.attrib = copy.deepcopy(self.attrib)
         self._descriptors = copy.deepcopy(self._descriptors)
         self.specs = copy.deepcopy(self.specs)
