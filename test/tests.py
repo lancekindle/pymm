@@ -27,10 +27,14 @@ class TestChildAddHook(unittest.TestCase):
     def test_hooks_unclaimed_dict_is_empty(self):
         self.assertFalse(self.hooks.unclaimed)
 
-    def test_adding_hook_to_base_element_adds_it_too_hooks_dict(self):
-        @pymm.when.has_added_child(Class=self.cls)
+    def add_class_wrapped_function(self, cls):
+        @pymm.when.has_added_child(Class=cls)
         def test_fxn(self, other):
-            return other
+            pass
+        return test_fxn
+
+    def test_adding_hook_to_base_element_adds_it_too_hooks_dict(self):
+        test_fxn = self.add_class_wrapped_function(self.cls)
         self.assertTrue(self.cls in self.hooks.has_added_child)
         self.assertTrue(self.hooks.has_added_child[self.cls] == test_fxn)
 
@@ -50,9 +54,17 @@ class TestChildAddHook(unittest.TestCase):
         self.assertRaises(AttributeError, getattr, test_class, 'test_fxn')
         # self-tear down
         del self.hooks.has_added_child[test_class]
+
+    def test_children_is_new_instance_with_each_new_element(self):
+        self.add_class_wrapped_function(pymm.Elements.BaseElement)
+        n = pymm.Node()
+        n2 = pymm.Node()
+        self.assertTrue(id(n) != id(n2))
+        self.assertTrue(id(n.children) != id(n2.children))
         
     def tearDown(self):
         """ remove hooks hooks from BaseElement, clear unclaimed hooks """
+# we do not want to have a hook in BaseElement. Therefore we test that it doesn't have a hook
         if self.cls in self.hooks.has_added_child:
             del self.hooks.has_added_child[self.cls]
         self.hooks.unclaimed.clear()
