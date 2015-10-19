@@ -19,10 +19,13 @@ class Hooks:
         reversed_keys = lambda keys: reversed([k for k in keys])
         for elementClass in reversed_keys(cls.has_added_child.keys()):  # start with newest classes. First match
             if isinstance(obj, elementClass):  # is the newest hook to call
-                hook_fxn = has_added_child[elementClass]
+                hook_fxn = cls.has_added_child[elementClass]
                 hook_fxn(obj, *args)
                 break
 
+# currently works ONLY when adding an element directly to BaseElement.
+# I think the isinstance searching has failed here. It looks like it correctly holds onto the
+# instance in _Hook_Key but it cannot find the class fxn hook to call
 class ChildrenMonitor(list):
     """ mimicks a list, but listens to any calls that might change the list. If any part is
     changed in any way, it calls the appropriate hook.
