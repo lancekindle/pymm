@@ -62,6 +62,14 @@ class TestChildAddHook(unittest.TestCase):
         self.assertTrue(id(n) != id(n2))
         self.assertTrue(id(n.children) != id(n2.children))
         
+    def test_setting_children_as_new_list_retains_childmonitor_class(self):
+        obj = self.cls()
+        self.assertTrue(type(obj.children) == pymm.when.ChildrenMonitor)
+        self.assertTrue(isinstance(obj, pymm.when.PreventOverwritingChildren))
+        obj.children = []
+        self.assertTrue(type(obj.children) == pymm.when.ChildrenMonitor)
+        self.assertRaises(AttributeError, setattr, obj, 'children', 5)  # try to set children = 5
+
     def tearDown(self):
         """ remove hooks hooks from BaseElement, clear unclaimed hooks """
 # we do not want to have a hook in BaseElement. Therefore we test that it doesn't have a hook

@@ -53,6 +53,8 @@ class PreventOverwritingChildren:
     def __setattr__(self, attr_name, attr):
         if attr_name == 'children':
             if not isinstance(attr, ChildrenMonitor):
+                if not isinstance(attr, list):
+                    raise AttributeError('must set children to a list')
                 Hook_Key = self.children._Hook_Key  # get other child's Hook Key
                 attr = ChildrenMonitor(attr, Hook_Key=Hook_Key)
         super().__setattr__(attr_name, attr)
