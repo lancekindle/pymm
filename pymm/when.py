@@ -13,6 +13,47 @@ class Hooks:
     has_added_child = OrderedDict()
     unclaimed = []  # can't use set because it requires ALL objects to be hashable when
                           # searching to see if an object is inside unclaimed
+    @classmethod
+    def trigger_child_add(cls, obj, *args):
+        """ obj is the object whose class we must find """
+        reversed_keys = lambda keys: reversed([k for k in keys])
+        for elementClass in reversed_keys(cls.has_added_child.keys()):  # start with newest classes. First match
+            if isinstance(obj, elementClass):  # is the newest hook to call
+                hook_fxn = has_added_child[elementClass]
+                hook_fxn(obj, *args)
+                break
+
+class ChildrenMonitor(list):
+    """ mimicks a list, but listens to any calls that might change the list. If any part is
+    changed in any way, it calls the appropriate hook.
+    Currently only support an has_added_child hook
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args)
+        self._Hook_Key = kwargs['Hook_Key']
+
+    def __setitem__(self, index, item):
+    # call hook after adding item (so that errors are thrown first, if any)
+        super().__setitem__(index, item)
+        Hooks.trigger_child_add(self._Hook_Key, item)
+
+    def append(self, item):
+        super().append(item)
+        Hooks.trigger_child_add(self._Hook_Key, item)
+
+
+class PreventOverwritingChildren:
+    """ BaseElement should inherit from this. It will help prevent user from setting child to a
+    simple list, since that would ruin the hooked list part
+    """
+    def __setattr__(self, attr_name, attr):
+        if attr_name == 'children':
+            if not isinstance(attr, ChildrenMonitor):
+                Hook_Key = self.children._Hook_Key  # get other child's Hook Key
+                attr = ChildrenMonitor(attr, Hook_Key=Hook_Key)
+        super().__setattr__(attr_name, attr)
+
 
 class Remove_WhenDecorated_Functions(type):
     """ this is a Metaclass. BaseElement will use this to identify and remove REST-ful style
