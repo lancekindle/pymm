@@ -116,7 +116,7 @@ class Node(BaseElement):
 
     def __init__(self, **kwargs):
         self.attrib['ID'] = 'ID_' + str(uuid4().time).replace('L', '')
-        super(Node, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def __str__(self):
         return self.tag + ': ' + self.attrib['TEXT'].replace('\n', '')
@@ -132,7 +132,7 @@ class Map(BaseElement):
     nodes = _elementAccess.ChildSubset.class_preconstructor(tag_regex=r'node')
 
     def __init__(self, **kwargs):
-        super(Map, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def setroot(self, root):
         self.nodes[:] = [root]
