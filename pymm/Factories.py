@@ -35,7 +35,7 @@ class SimpleConverter:  # a super-simple converter that you can use in reverting
             self.revert_node_tree_depth_first(child)
 
     def revert_node(self, node):  # this is the only method you need to override.
-        self.file.writeline(node['TEXT'])
+        self.file.writeline(node.attrib['TEXT'])
     
 
 class BaseElementFactory:
@@ -149,13 +149,13 @@ class BaseElementFactory:
         for tag in self.childOrder:
             children = element.findall(tag)
             for e in children:
-                element.remove(e)
-                element.append(e)
+                element.children.remove(e)
+                element.children.append(e)
         for tag in reversed(self.reverseChildOrder):  # nodes you want to show last
             children = element.findall(tag)
             for e in children:
-                element.remove(e)
-                element.append(e)
+                element.children.remove(e)
+                element.childern.append(e)
 
     def convert_attribs(self, mmElement, attribs):
         ''' using mmElement (class or instance) as guide, converts attribs (from etree element) to match the specs in mmElement
@@ -208,7 +208,7 @@ class BaseElementFactory:
         specific attribs' value is None, attrib will not be included
         if attrib is not in specs, attrib will not be included
         '''
-        attribs = {key: value for key, value in mmElement.items() if value is not None}  # drop all None-valued attribs
+        attribs = {key: value for key, value in mmElement.attrib.items() if value is not None}  # drop all None-valued attribs
         revertedAttribs = {}
         for key, value in attribs.items():
             if key not in mmElement.specs:
@@ -237,10 +237,10 @@ class NodeFactory(BaseElementFactory):
     def revert_node_text(self, mmNode):
         ''' if node text is html, creates html child and appends to node's children '''
         ntext = NodeText()  # developer / user NEVER needs to create his own RichContent for mmNode html
-        ntext.html = mmNode['TEXT']
+        ntext.html = mmNode.attrib['TEXT']
         if ntext.is_html():
             mmNode.children.append(ntext)
-            del mmNode['TEXT']  # using richcontent, do not leave attribute 'TEXT' for mmNode
+            del mmNode.attrib['TEXT']  # using richcontent, do not leave attribute 'TEXT' for mmNode
 
     def convert_node_text(self, mmNode):
         ''' If node has html text, set to TEXT attribute to html object '''
@@ -248,8 +248,8 @@ class NodeFactory(BaseElementFactory):
         while richElements:
             richElem = richElements.pop(0)
             if isinstance(richElem, NodeText):
-                mmNode['TEXT'] = richElem.html
-                mmNode.remove(richElem)  # this NodeText is no longer needed
+                mmNode.attrib['TEXT'] = richElem.html
+                mmNode.children.remove(richElem)  # this NodeText is no longer needed
                 
 
 class MapFactory(BaseElementFactory):

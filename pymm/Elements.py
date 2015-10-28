@@ -3,6 +3,7 @@ import warnings
 import re
 import copy
 from . import _elementAccess
+import types
 # see http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format for file specifications
 # terminology: elem, element = MindMap Elements (no etree elements allowed! Use a mmFactory to convert those
 
@@ -14,30 +15,9 @@ class ExampleElement:  # example element showing minimum of things to define to 
     specs = {}  # [OPTIONAL] pre-define attribute types (like bool, str, int, float).
     _descriptors = []  # [OPTIONAL] list of attribs that are used when constructing string representation
 
+   
 
-class PreventAmbiguousAccess:
-
-    def __iter__(self):
-        raise NotImplementedError('DO NOT ITERATE ELEMENT. Iterate element[:],'
-                ' element.children for child iteration. Or use '
-                'element.items(), element.keys() to iterate attributes')
-
-    def __contains__(self, *_):
-        raise NotImplementedError('DO NOT CHECK IF SOMETHING EXISTS IN ELEMENT'
-                '. It is ambiguous as to whether you are checking for child '
-                'element or attribute. Be specific. Use element[:] or '
-                'element.children for checking child element. Use '
-                'element.keys() for checking attribute')
-
-    def pop(self, *_):
-        raise NotImplementedError('pop is ambiguous when referring to children'
-                ' or attributes. Please use element.nodes.pop() or '
-                'element.children.pop() (whichever is appriopriate) when '
-                'popping children. Use element.attrib.pop() when popping '
-                'attributes')
-    
-
-class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
+class BaseElement:
     """ pymm's Base Element. All other elements inherit from BaseElement, which represents an element in a similar style
     to xml.etree.ElementTree. with enhancements aimed at providing faster mindmap manipulation. Each element has a
     specific identifier, a tag, that specifies what type of element it is. If a specific xml element type does not have
@@ -63,7 +43,6 @@ class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
     _text = ''    # equivalent to ElementTree's .text  -- text between start tag and next element   # keep this for
     _tail = ''    # equivalent to ElementTree's .tail  -- text after end tag                        # .mm compatibility
     children = []  # all child elements including nodes
-    _get_implicit_children = lambda self: self.children  # children to which we allow native access   [:], [1], etc...
     attrib = {}  # pre-define these (outside of init like this) in other classes to define default element attribs
     _descriptors = []  # list of attribs that can be used to better describe instance. Used in str(self) construction
     specs = {}  # list all possible attributes of an element and valid entries / types in a list or standalone:
@@ -96,13 +75,13 @@ class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
         for varName in dir(self):  # looking for a .nodes or .clouds function
             func = getattr(self, varName)  # idk why it's <class 'method'>
                                            # instead of <class 'function'>
-            if str(type(func)) == "<class 'method'>" and func.__name__ == 'this_function_gets_automatically_run_inside_elements__new__':
+            if type(func) == types.MethodType and func.__name__ == 'this_function_gets_automatically_run_inside_elements__new__':
                 childAccessor = func()  # run function, get back child
                 setattr(self, varName, childAccessor)      # access object
 
     def __init__(self, **kwargs):  # used to be: (self, attrib={}, **kwargs)  ## self.attrib.update(attribs)
         for k, v in kwargs.items():  # make this call different than updating attrib directly because it's more likely
-            self[k] = v                       # that a developer specifically typed this out. This will error check it
+            self.attrib[k] = v                       # that a developer specifically typed this out. This will error check it
 
     def findall(self, tag):
         """ Return all child elements with matching tag. Return all children if '*' passed in.
@@ -121,45 +100,6 @@ class BaseElement(PreventAmbiguousAccess, _elementAccess.Attrib):
     def getchildren(self):
         return self.children
 
-    def __len__(self):
-        return len(self._get_implicit_children())
-
-    def append(self, element):
-        """ Append element to Element's children list """
-        self.children.append(element)
-        if hasattr(element, 'parent'):
-            element.parent = self
-
-    def remove(self, element):
-        """ Remove element from children """
-        self.children.remove(element)
-        if hasattr(element, 'parent'):
-            element.parent = None
-
-    def _is_attribute_access(self, key):
-        return not (isinstance(key, int) or isinstance(key, slice))
-    
-    def __getitem__(self, key_or_index_or_slice):
-        key = key_or_index_or_slice
-        if self._is_attribute_access(key):
-            return super().__getitem__(key)
-        else:
-            return self._get_implicit_children().__getitem__(key)
-
-    def __setitem__(self, key_or_index_or_slice, value_or_element):
-        key, val = key_or_index_or_slice, value_or_element
-        if self._is_attribute_access(key):
-            super().__setitem__(key, val)
-        else:
-            self._get_implicit_children().__setitem__(key, val)
-
-    def __delitem__(self, key_or_index_or_slice):
-        key = key_or_index_or_slice
-        if self._is_attribute_access(key):
-            super().__delitem__(key)
-        else:
-            self._get_implicit_children().__delitem__(key)
-
 
 class Node(BaseElement):
     """ The most common element in a mindmap. The Node is the visual group, with an expandable branch of children.
@@ -168,7 +108,6 @@ class Node(BaseElement):
     """
     tag = 'node'
     nodes = _elementAccess.ChildSubset.class_preconstructor(tag_regex=r'node')
-    _get_implicit_children = lambda self: self.children  # children to which we allow native access   [:], [1], etc...
     attrib = {'ID': 'random#', 'TEXT': ''}
     specs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
             'POSITION': ['left', 'right'], 'STYLE': str, 'TEXT': str, 'LOCALIZED_TEXT': str, 'TYPE': str,
@@ -176,11 +115,11 @@ class Node(BaseElement):
             'ENCRYPTED_CONTENT': str, 'OBJECT': str, 'MIN_WIDTH': int, 'MAX_WIDTH': int}
 
     def __init__(self, **kwargs):
-        self['ID'] = 'ID_' + str(uuid4().time).replace('L', '')
-        super(Node, self).__init__(**kwargs)
+        self.attrib['ID'] = 'ID_' + str(uuid4().time).replace('L', '')
+        super().__init__(**kwargs)
 
     def __str__(self):
-        return self.tag + ': ' + self['TEXT'].replace('\n', '')
+        return self.tag + ': ' + self.attrib['TEXT'].replace('\n', '')
 
 
 class Map(BaseElement):
@@ -193,7 +132,7 @@ class Map(BaseElement):
     nodes = _elementAccess.ChildSubset.class_preconstructor(tag_regex=r'node')
 
     def __init__(self, **kwargs):
-        super(Map, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def setroot(self, root):
         self.nodes[:] = [root]
@@ -309,7 +248,7 @@ class Icon(BaseElement):
     specs = {'BUILTIN': builtinList}
 
     def set_icon(self, icon):
-        self['BUILTIN'] = icon
+        self.attrib['BUILTIN'] = icon
         if icon not in self.builtinList:
             warnings.warn('icon "' + str(icon) + '" not part of freeplanes builtin icon list. ' +
                           'Freeplane may not display icon. Use an icon from the builtinList instead', SyntaxWarning,
