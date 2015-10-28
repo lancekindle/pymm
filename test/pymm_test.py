@@ -1,3 +1,4 @@
+from __future__ import print_function
 import sys
 # append parent directory so that import finds pymm
 sys.path.append('../')
@@ -31,34 +32,32 @@ class TestMutableClassVariables(unittest.TestCase):
         #list of all elements
         self.elements = [self.base, pymm.MindMap]
         # iterate module, find classes
-        for v in vars(pymm.Elements).values():
-            try:
-                if type(v) == type(self.base) and isinstance(v(), self.base):
-                    self.elements.append(v)
-            except:
-                continue
+        for val in vars(pymm.Elements).values():
+            if type(val) == type(self.base) and isinstance(val(), self.base):
+                self.elements.append(val)
 
-    def test_for_nonduplicate_mutable_variables_in_elements(self, filter=None):
+    def test_for_unique_mut_vars(self, filt=None):
         """ searches for mutable variables within an Element, and verifies it
         gets copied to a new memory address in each element instance.
         """
         is_mutable_var = lambda k, v: (isinstance(v, dict) or
-                                isinstance(v, list)) and not k.endswith('__')
-        baseMutables = [k for k, v in vars(self.base).items()
-                        if is_mutable_var(k, v)]
-        for elemClass in self.elements:
-            mutables = [k for k, v in vars(elemClass).items()
+                                       isinstance(v, list))\
+                                      and not k.endswith('__')
+        base_mutables = [k for k, v in vars(self.base).items()
+                         if is_mutable_var(k, v)]
+        for elem_class in self.elements:
+            mutables = [k for k, v in vars(elem_class).items()
                         if is_mutable_var(k, v)]
             # unique mutables
-            mutables = list(set(baseMutables + mutables))
+            mutables = list(set(base_mutables + mutables))
             # optional filter to search only for known attributes
-            if filter:
-                mutables = [m for m in mutables if m in filter]
-            elemObj = elemClass()
+            if filt:
+                mutables = [m for m in mutables if m in filt]
+            elemObj = elem_class()
             # check if vars have same memory address
             for key in mutables:
-                if id(getattr(elemObj, key)) == id(getattr(elemClass, key)):
-                    self.fail(str(elemClass) + ' does not copy ' + key)
+                if id(getattr(elemObj, key)) == id(getattr(elem_class, key)):
+                    self.fail(str(elem_class) + ' does not copy ' + key)
 
     def test_for_specific_nonduplicate_mutable_variables(self):
         """ test that children, attrib, _descriptors, and specs are all copied
@@ -67,8 +66,8 @@ class TestMutableClassVariables(unittest.TestCase):
         not add children to the MindMap class accidentally, because the class
         attribute children is a different from the instance attribute children.
         """
-        filter = ['children', 'attrib', '_descriptors', 'specs']
-        self.test_for_nonduplicate_mutable_variables_in_elements(filter)
+        filt = ['children', 'attrib', '_descriptors', 'specs']
+        self.test_for_unique_mut_vars(filt)
 
 
 class TestIfRichContentFixedYet(unittest.TestCase):
@@ -90,8 +89,8 @@ class TestTypeVariants(unittest.TestCase):
         # I removed richcontent variants because they do not work correctly
         # when their html is not set. it causes ET to crash
         self.variants = [mme.Hook,
-                mme.EmbeddedImage, mme.MapConfig, mme.Equation,
-                mme.AutomaticEdgeColor]
+                         mme.EmbeddedImage, mme.MapConfig, mme.Equation,
+                         mme.AutomaticEdgeColor]
         self.mm = MindMap()
         root = self.mm[0]
         # clear out children of root
@@ -130,7 +129,11 @@ class TestReadWriteExample(unittest.TestCase):
         pass
 
     def test_read_file(self):
-        mm = pymm.read('../docs/input.mm')
+        # Since this test could be run outside of it's directory, derive the
+        # path to the doc file in a more portable way.
+        this_path = os.path.dirname(os.path.realpath(__file__))
+        mm_path = os.path.join(this_path, '../docs/input.mm')
+        mm = pymm.read(mm_path)
         self.assertTrue(mm)
         self.assertTrue(mm.getroot())
         mm.write('input_2.mm')
@@ -199,17 +202,19 @@ class TestElementAccessor(unittest.TestCase):
         self.node2 = mme.Node()
         self.cloud = mme.Cloud()
         self.element.nodes = ChildSubset(self.element, tag_regex=r'node')
-        self.element.clouds =ChildSubset(self.element, tag_regex=r'cloud')
+        self.element.clouds = ChildSubset(self.element, tag_regex=r'cloud')
 
     def test_add_preconstructed_subset_to_element_class(self):
-        mme.BaseElement.nodes = ChildSubset.class_preconstructor(tag_regex=r'node')
+        mme.BaseElement.nodes = ChildSubset\
+                .class_preconstructor(tag_regex=r'node')
         e = mme.BaseElement()
         self.assertTrue(hasattr(e, 'nodes'))
         # be sure to remove this class variable
-        del mme.BaseElement.node
+        del mme.BaseElement.nodes
 
     def test_attrib_regex(self):
-        self.element.colored = ChildSubset(self.element, attrib_regex={r'COLOR': '.*'})
+        self.element.colored = ChildSubset(self.element,
+                                           attrib_regex={r'COLOR': '.*'})
         colored = self.element.colored
         node = self.node
         colored.append(node)
@@ -226,24 +231,26 @@ class TestElementAccessor(unittest.TestCase):
         for empty in empties:
             self.assertRaises(ValueError, ChildSubset, elem, tag_regex=empty)
             self.assertRaises(ValueError, ChildSubset, elem, attrib_regex=empty)
-        self.assertRaises(ValueError, ChildSubset, elem, tag_regex='', attrib_regex={})
+        self.assertRaises(ValueError, ChildSubset,
+                          elem, tag_regex='', attrib_regex={})
 
     def test_constructor_fails_on_wrong_attrib_format(self):
         self.assertRaises(ValueError, ChildSubset, self.element,
-                attrib_regex=[2,3])
+                          attrib_regex=[2, 3])
         self.assertRaises(ValueError, ChildSubset, self.element,
-                tag_regex=r'node', attrib_regex=('sf', 'as'))
+                          tag_regex=r'node', attrib_regex=('sf', 'as'))
 
     def test_constructor_fails_on_wrong_tag_format(self):
         self.assertRaises(ValueError, ChildSubset, self.element,
-                tag_regex=['node'])
+                          tag_regex=['node'])
         self.assertRaises(ValueError, ChildSubset, self.element, tag_regex=5,
-                attrib_regex={'TEXT': '.*'})
+                          attrib_regex={'TEXT': '.*'})
 
     def test_alternative_constructor(self):
         elem = self.element
         elem.nodes = ChildSubset.class_preconstructor(tag_regex=r'node')
-        # why doesn't this work? it should just work w/ elem.nodes(). It works ..inside.. the instance, but not outside?
+        # why doesn't this work? it should just work w/ elem.nodes(). It works
+        # ..inside.. the instance, but not outside?
         elem.nodes = elem.nodes(elem)
         self.assertIsInstance(elem.nodes, ChildSubset)
 
@@ -315,21 +322,24 @@ class TestBaseElement(unittest.TestCase):
 
     def test_set_bad_attribute_warns_user(self):
         elem = self.element
-        self.assertWarns(UserWarning, elem.__setitem__, 'invalid attribute should raise warning', None)
+        self.assertWarns(UserWarning, elem.__setitem__,
+                         'invalid attribute should raise warning', None)
 
     def test_ambiguous_iterate_attributes_raises_error(self):
-        """ allowing user to iterate over attributes implicitly has proven to be a trap; user accidentally iterates """
+        """ allowing user to iterate over attributes implicitly has proven to
+        be a trap; user accidentally iterates """
         self.assertRaises(NotImplementedError, self.element.__iter__)
 
     def test_ambiguous_implicit_contains_call_raises_error(self):
-        """ ambiguous __contains__ for either attribute or children. Therefore raise error to
-        force user to specify which membership he is testing for
+        """ ambiguous __contains__ for either attribute or children. Therefore
+        raise error to force user to specify which membership he is testing for
         """
-        self.assertRaises(NotImplementedError, self.element.__contains__, self.node)
+        self.assertRaises(NotImplementedError,
+                          self.element.__contains__, self.node)
 
     def test_ambiguous_pop_call_raises_error(self):
-        """ ambiguous pop can refer to attribute or children pop(). Therefore raise error to force user to be specific
-        """
+        """ ambiguous pop can refer to attribute or children pop(). Therefore
+        raise error to force user to be specific """
         self.assertRaises(NotImplementedError, self.element.pop)
 
     def test_dictionary_raises_error_for_offspec_attribute_assignment(self):
@@ -338,10 +348,11 @@ class TestBaseElement(unittest.TestCase):
         elem.specs['integer'] = int
         elem.specs['one_or_two'] = [1, 2]
         self.assertRaises(ValueError, elem.__setitem__, 'string', 13)
-        self.assertRaises(ValueError, elem.__setitem__, 'integer', 'this is not an integer')
+        self.assertRaises(ValueError, elem.__setitem__,
+                          'integer', 'this is not an integer')
         self.assertRaises(ValueError, elem.__setitem__, 'one_or_two', 5)
 
-    def test_dictionary_does_not_raise_error_for_in_spec_attribute_assignment(self):
+    def test_dictionary_doesnt_error_for_in_spec_attribute_assignment(self):
         elem = self.element
         elem.specs['string'] = str
         elem.specs['integer'] = int
@@ -358,9 +369,9 @@ if __name__ == '__main__':
     # comment this out to run the code below
     unittest.main()
     mm = pymm.MindMap()
-    m = mm.getmap()
     converter = pymm.Factories.MindMapConverter()
     tree = converter.revert_mm_element_and_tree(mm.getmap())
-    # getchildren IS DEPRECIATED. Which means that... I need a new way to traverse children
+    # getchildren IS DEPRECIATED. Which means that... I need a new way to
+    # traverse children
     tree.getchildren()
     print(len(tree))
