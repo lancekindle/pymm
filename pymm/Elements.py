@@ -101,7 +101,33 @@ class BaseElement:
         return self.children
 
 
-class Node(BaseElement):
+class ImplicitNodeAttributes:
+    """ attributes are excel like tables (2-cells wide each) that define a key-value pair
+    they are attached (visually) beneath a Node in Freeplane. This class allows the user to define
+    attributes on a node with implicit indexing like a dictionary BUT iteration is not allowed.
+    Instead you should use the keys() or values() method to iterate over current attributes.
+    """
+
+    def __setitem__(self, key, val):
+        self._attribute[key] = val
+
+    def __getitem__(self, key, val):
+        return self._attribute[key]
+
+    def __iter__(self):
+        raise NotImplemented('Cannot iterate node attributes. Use .values() or .keys()')
+
+    def __delitem__(self, key):
+        del self._attribute[key]
+
+    def keys(self):
+        return self._attribute.keys()
+
+    def values(self):
+        return self._attribute.values()
+
+
+class Node(ImplicitNodeAttributes, BaseElement):
     """ The most common element in a mindmap. The Node is the visual group, with an expandable branch of children.
     Nodes contain the text you type, contains links to other nodes or urls, contains pictures, and can be made visually
     unique through clouds, edge-line colors, or rich-text formatting. A Node contains an ID and text by default
@@ -109,6 +135,8 @@ class Node(BaseElement):
     tag = 'node'
     nodes = _elementAccess.ChildSubset.class_preconstructor(tag_regex=r'node')
     attrib = {'ID': 'random#', 'TEXT': ''}
+    # _attribute is node-specific, excel-like tables underneath a node that have key/value pairs
+    _attribute = {}
     specs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
             'POSITION': ['left', 'right'], 'STYLE': str, 'TEXT': str, 'LOCALIZED_TEXT': str, 'TYPE': str,
             'CREATED': int, 'MODIFIED': int, 'HGAP': int, 'VGAP': int, 'VSHIFT': int,
