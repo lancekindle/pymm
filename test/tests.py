@@ -18,6 +18,60 @@ except ImportError:
 # (usually if somebody just inits a richcontent node)
 # AKA: I have no idea if type variants are used at all in any mindmap
 
+class TestNodeImplicitAttributes(unittest.TestCase):
+
+    def setUp(self):
+        self.attributes = {'requires': 'maintenance', 'serial#': 'XJ3V2'}
+        self.n = mme.Node()
+        for k, v in self.attributes.items():
+            self.n[k] = v
+
+    def test_iter_raises_exception(self):
+        self.assertRaises(NotImplementedError, iter, self.n)
+
+    def test_items(self):
+        self.assertTrue(self.n.items() == self.attributes.items())
+
+    def test_setitem(self):
+        val = 'a new value'
+        for key, _ in self.n.items():
+            break
+        self.n[key] = val
+        self.assertTrue((key, val) in self.n.items())
+
+    def test_getitem(self):
+        for key, value in self.n.items():
+            self.assertTrue(self.n[key] == value)
+
+    def test_delitem(self):
+        for key, value in self.n.items():
+            break
+        del self.n[key]
+        self.assertFalse((key, value) in self.n.items())
+
+
+class TestInitArgumentForCertainElements(unittest.TestCase):
+    """ test that Node, Icon, Equation can accept a single argument that sets
+    their default attrib value. And test that they override any passed in key,
+    value pair passed as keyword arguments.
+    """
+
+    def test_node_text(self):
+        text = 'overwrite attrib text'
+        n = mme.Node(text, TEXT='needs overwriting')
+        self.assertTrue(n.attrib['TEXT'] == text)
+
+    def test_icon_builtin(self):
+        builtin = 'star'
+        icon = mme.Icon(builtin, BUILTIN='flag')
+        self.assertTrue(icon.attrib['BUILTIN'] == builtin)
+
+    def test_equation_equation(self):
+        eqn = 'x+2**5'
+        e = mme.Equation(eqn, EQUATION='z^4')
+        self.assertTrue(e.attrib['EQUATION'] == eqn)
+
+
 class TestMutableClassVariables(unittest.TestCase):
     """ verify mutable variables are copied / deepcopied in instances. This
     ensures that class variables are not changed when changing an instance's
