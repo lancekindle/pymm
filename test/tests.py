@@ -31,7 +31,7 @@ class TestMutableClassVariables(unittest.TestCase):
         for v in vars(pymm.Elements).values():  # iterate module, find classes
             try:
                 if type(v) == type(self.base) and isinstance(v(), self.base):
-                    self.elements.append(v)
+                    self.elements.children.append(v)
             except:
                 continue
 
@@ -72,7 +72,7 @@ class TestIfRichContentFixedYet(unittest.TestCase):
     def test_richcontent_converts_and_writes_to_file(self):
         rc = mme.RichContent()
         mm = pymm.MindMap()
-        mm[0].append(rc)
+        mm.getroot().children.append(rc)
         mm.write('richcontent_test.mm')
 
 
@@ -86,25 +86,25 @@ class TestTypeVariants(unittest.TestCase):
                 mme.EmbeddedImage, mme.MapConfig, mme.Equation,
                 mme.AutomaticEdgeColor]
         self.mm = MindMap()
-        root = self.mm[0]
-        root[:] = []  # clear out children of root
+        root = self.mm.getroot()
+        root.children.clear()
         for variant in self.variants:
-            root.append(variant())  # add a child variant element type
+            root.children.append(variant())  # add a child variant element type
         self.filename = uuid4().hex + '.mm'
         self.mm.write(self.filename)  # need to remember to erase file later...
         self.mm2 = pymm.read(self.filename)
 
     def test_for_variants(self):
         """ check that each of the variants is a child in root node """
-        root = self.mm2[0]
+        root = self.mm2.getroot()
         variants = self.variants.copy()
         for variant in variants:
-            for child in root[:]:
+            for child in root.children:
                 if isinstance(child, variant):
                     break
             else:  # we only reach else: if no child matched the given variant
                 self.fail('no child of type: ' + str(variant)) 
-            root.remove(child)  # remove child after it matches a variant
+            root.children.remove(child)  # remove child after it matches a variant
 
 
 class TestReadWriteExample(unittest.TestCase):
@@ -124,10 +124,7 @@ class TestReadWriteExample(unittest.TestCase):
         mm.write('write_test.mm')  # just test that no errors are thrown
 
 
-class TestNativeChildIndexing(unittest.TestCase):
-    """ native child indexing iterates over all children
-    using native indexing style [0], or [1:4], etc.
-    """
+class TestChildIndexing(unittest.TestCase):
 
     def setUp(self):
         self.element = mme.BaseElement()
@@ -137,17 +134,17 @@ class TestNativeChildIndexing(unittest.TestCase):
     def test_append_and_index(self):
         elem = self.element
         node = self.node
-        elem.append(node)
-        self.assertIn(node, elem[:])
-        self.assertTrue(node == elem[0])
+        elem.children.append(node)
+        self.assertIn(node, elem.children)
+        self.assertTrue(node == elem.children[0])
 
     def test_slicing(self):
-        self.element.append(self.node)
-        self.element.append(self.node2)
-        nodes = self.element[0:2]
+        self.element.children.append(self.node)
+        self.element.children.append(self.node2)
+        nodes = self.element.children[0:2]
         self.assertTrue(self.node in nodes)
         self.assertTrue(self.node2 in nodes)
-        nodes = self.element[0:2:2]  # should only get node, not node2
+        nodes = self.element.children[0:2:2]  # should only get node, not node2
         self.assertTrue(self.node in nodes)
         self.assertTrue(self.node2 not in nodes)
 
@@ -155,18 +152,18 @@ class TestNativeChildIndexing(unittest.TestCase):
         elem = self.element
         node = self.node
         node2 = self.node2
-        elem.append(node)
-        elem.append(node2)
-        self.assertFalse(node2 == elem[0])
-        elem.remove(node)
-        self.assertTrue(node2 == elem[0])
-        elem.remove(node2)
-        self.assertFalse(elem[:])  # verify elem is child-less
+        elem.children.append(node)
+        elem.children.append(node2)
+        self.assertFalse(node2 == elem.children[0])
+        elem.children.remove(node)
+        self.assertTrue(node2 == elem.children[0])
+        elem.children.remove(node2)
+        self.assertFalse(elem.children)  # verify elem is child-less
 
     def test_remove_error(self):
-        self.assertRaises(ValueError, self.element.remove, self.node)
-        self.element.append(self.node)
-        self.assertRaises(ValueError, self.element.remove, self.node2)
+        self.assertRaises(ValueError, self.element.children.remove, self.node)
+        self.element.children.append(self.node)
+        self.assertRaises(ValueError, self.element.children.remove, self.node2)
 
 
 class TestElementAccessor(unittest.TestCase):
@@ -191,11 +188,11 @@ class TestElementAccessor(unittest.TestCase):
         colored = self.element.colored
         node = self.node
         colored.append(node)
-        self.assertFalse('COLOR' in node.keys())
+        self.assertFalse('COLOR' in node.attrib.keys())
         self.assertTrue(len(colored) == 0)
-        node['COLOR'] = 'f0f0ff'
+        node.attrib['COLOR'] = 'f0f0ff'
         self.assertTrue(len(colored) == 1)
-        del node['COLOR']
+        del node.attrib['COLOR']
         self.assertTrue(len(colored) == 0)
 
     def test_constructor_fails_on_empty_regex(self):
@@ -236,7 +233,7 @@ class TestElementAccessor(unittest.TestCase):
     def test_node_is_added_using_append(self):
         elem = self.element
         node = self.node
-        elem.append(node)
+        elem.children.append(node)
         self.assertIn(node, elem.children)
         self.assertIn(node, elem.children[:])
         self.assertIn(node, elem.nodes[:])
@@ -254,7 +251,7 @@ class TestElementAccessor(unittest.TestCase):
     def test_element_is_not_in_list_of_nodes(self):
         elem = self.element
         node = self.node
-        node.append(elem)
+        node.children.append(elem)
         self.assertIn(elem, node.children)
         self.assertIn(elem, node.children[:])
         self.assertFalse(elem in node.nodes[:])
@@ -277,56 +274,46 @@ class TestBaseElement(unittest.TestCase):
 
     def test_length_of_element_changes_after_adding_node(self):
         elem = self.element
-        before = len(elem)
+        before = len(elem.children)
         elem.children.append(self.node)
-        after = len(elem)
+        after = len(elem.children)
         self.assertTrue(before + 1 == after)
 
     def test_dictionary_returns_correctly_if_attribute_present_or_not(self):
         elem = self.element
         key, value = 'hogwash', 'hogvalue'
-        self.assertFalse(key in elem.keys())
+        self.assertFalse(key in elem.attrib.keys())
         elem.specs[key] = type(value)
-        elem[key] = value
-        self.assertTrue(key in elem.keys())
+        elem.attrib[key] = value
+        self.assertTrue(key in elem.attrib.keys())
 
+    # need to rewrite to test that warnings are raised only during sanity_check()
+    @unittest.expectedFailure
     def test_set_bad_attribute_warns_user(self):
         elem = self.element
-        self.assertWarns(UserWarning, elem.__setitem__, 'invalid attribute should raise warning', None)
+        self.assertWarns(UserWarning, elem.attrib.__setitem__, 'invalid attribute should raise warning', None)
 
-    def test_ambiguous_iterate_attributes_raises_error(self):
-        """ allowing user to iterate over attributes implicitly has proven to be a trap; user accidentally iterates """
-        self.assertRaises(NotImplementedError, self.element.__iter__)
-
-    def test_ambiguous_implicit_contains_call_raises_error(self):
-        """ ambiguous __contains__ for either attribute or children. Therefore raise error to
-        force user to specify which membership he is testing for
-        """
-        self.assertRaises(NotImplementedError, self.element.__contains__, self.node)
-
-    def test_ambiguous_pop_call_raises_error(self):
-        """ ambiguous pop can refer to attribute or children pop(). Therefore raise error to force user to be specific
-        """
-        self.assertRaises(NotImplementedError, self.element.pop)
-
+    # need to rewrite to test that warnings are raised only during sanity_check()
+    @unittest.expectedFailure
     def test_dictionary_raises_error_for_offspec_attribute_assignment(self):
         elem = self.element
         elem.specs['string'] = str
         elem.specs['integer'] = int
         elem.specs['one_or_two'] = [1, 2]
-        self.assertRaises(ValueError, elem.__setitem__, 'string', 13)
-        self.assertRaises(ValueError, elem.__setitem__, 'integer', 'this is not an integer')
-        self.assertRaises(ValueError, elem.__setitem__, 'one_or_two', 5)
+        self.assertRaises(ValueError, elem.attrib.__setitem__, 'string', 13)
+        self.assertRaises(ValueError, elem.attrib.__setitem__, 'integer', 'this is not an integer')
+        self.assertRaises(ValueError, elem.attrib.__setitem__, 'one_or_two', 5)
 
+    # need to rewrite to test that warnings are raised only during sanity_check()
     def test_dictionary_does_not_raise_error_for_in_spec_attribute_assignment(self):
         elem = self.element
         elem.specs['string'] = str
         elem.specs['integer'] = int
         elem.specs['one_or_two'] = [1, 2]
         try:
-            elem['string'] = 'good'
-            elem['integer'] = 42
-            elem['one_or_two'] = 1
+            elem.attrib['string'] = 'good'
+            elem.attrib['integer'] = 42
+            elem.attrib['one_or_two'] = 1
         except ValueError:
             self.fail('setting element attribute raised incorrect error')
 
@@ -338,4 +325,3 @@ if __name__ == '__main__':
     converter = pymm.Factories.MindMapConverter()
     tree = converter.revert_mm_element_and_tree(mm.getmap())
     tree.getchildren()  # getchildren IS DEPRECIATED. Which means that... I need a new way to traverse children
-    print(len(tree))

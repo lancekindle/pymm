@@ -86,5 +86,5 @@ class MindMap(Elements.Map):
 
     def _create_new_mindmap_hierarchy(self):
         ''' create default hierarchy for mindmap -- including map_styles and Automatic node coloring hook '''
-        self.append(Elements.Node())  # add root node to self (self is map)
+        self.children.append(Elements.Node())  # add root node to self (self is map)
 
