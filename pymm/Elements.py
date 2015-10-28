@@ -111,20 +111,20 @@ class ImplicitNodeAttributes:
     def __setitem__(self, key, val):
         self._attribute[key] = val
 
-    def __getitem__(self, key, val):
+    def __getitem__(self, key):
         return self._attribute[key]
 
     def __iter__(self):
-        raise NotImplemented('Cannot iterate node attributes. Use .values() or .keys()')
+        raise NotImplementedError('Cannot iterate node. Use .items() to' +
+                                  'iterate node attributes')
 
     def __delitem__(self, key):
         del self._attribute[key]
 
-    def keys(self):
-        return self._attribute.keys()
-
-    def values(self):
-        return self._attribute.values()
+    # I have chosen to only implement items because that most closely resembles
+    # (in name) attributes.
+    def items(self):
+        return self._attribute.items()
 
 
 class Node(ImplicitNodeAttributes, BaseElement):
