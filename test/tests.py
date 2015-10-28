@@ -4,6 +4,7 @@ import unittest
 import warnings
 from uuid import uuid4
 import xml
+import os
 try:
     import pymm
     from pymm import Elements as mme
@@ -81,8 +82,9 @@ class TestTypeVariants(unittest.TestCase):
     the same tag. (special attrib values are given that differentiate them)
     """
     def setUp(self):
-        self.variants = [mme.Hook,  # I removed richcontent variants because
-# they do not work correctly when their html is not set. it causes ET to crash
+        # I removed richcontent variants because they do not work correctly
+        # when their html is not set. it causes ET to crash
+        self.variants = [mme.Hook,
                 mme.EmbeddedImage, mme.MapConfig, mme.Equation,
                 mme.AutomaticEdgeColor]
         self.mm = MindMap()
@@ -93,6 +95,10 @@ class TestTypeVariants(unittest.TestCase):
         self.filename = uuid4().hex + '.mm'
         self.mm.write(self.filename)  # need to remember to erase file later...
         self.mm2 = pymm.read(self.filename)
+
+    def tearDown(self):
+        '''Clean up the previously created temp files.'''
+        os.remove(self.filename)
 
     def test_for_variants(self):
         """ check that each of the variants is a child in root node """
@@ -118,10 +124,12 @@ class TestReadWriteExample(unittest.TestCase):
         self.assertTrue(mm)
         self.assertTrue(mm.getroot())
         mm.write('input_2.mm')
+        os.remove('input_2.mm')
 
     def test_write_file(self):
         mm = MindMap()
         mm.write('write_test.mm')  # just test that no errors are thrown
+        os.remove('write_test.mm')
 
 
 class TestNativeChildIndexing(unittest.TestCase):
