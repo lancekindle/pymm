@@ -1,5 +1,6 @@
 import sys
-sys.path.append('../')  # append parent directory so that import finds pymm
+# append parent directory so that import finds pymm
+sys.path.append('../')
 import unittest
 import warnings
 from uuid import uuid4
@@ -27,9 +28,10 @@ class TestMutableClassVariables(unittest.TestCase):
 
     def setUp(self):
         self.base = pymm.Elements.BaseElement
-        self.elements = [self.base, pymm.MindMap]  #list of all elements 
-            # inheriting from BaseElement
-        for v in vars(pymm.Elements).values():  # iterate module, find classes
+        #list of all elements
+        self.elements = [self.base, pymm.MindMap]
+        # iterate module, find classes
+        for v in vars(pymm.Elements).values():
             try:
                 if type(v) == type(self.base) and isinstance(v(), self.base):
                     self.elements.append(v)
@@ -40,21 +42,24 @@ class TestMutableClassVariables(unittest.TestCase):
         """ searches for mutable variables within an Element, and verifies it
         gets copied to a new memory address in each element instance.
         """
-        is_mutable_var = lambda k, v: (isinstance(v, dict) or 
+        is_mutable_var = lambda k, v: (isinstance(v, dict) or
                                 isinstance(v, list)) and not k.endswith('__')
-        baseMutables = [k for k, v in vars(self.base).items() 
+        baseMutables = [k for k, v in vars(self.base).items()
                         if is_mutable_var(k, v)]
         for elemClass in self.elements:
             mutables = [k for k, v in vars(elemClass).items()
                         if is_mutable_var(k, v)]
-            mutables = list(set(baseMutables + mutables))  # unique mutables
-            if filter:  # optional filter to search only for known attributes
+            # unique mutables
+            mutables = list(set(baseMutables + mutables))
+            # optional filter to search only for known attributes
+            if filter:
                 mutables = [m for m in mutables if m in filter]
             elemObj = elemClass()
-            for key in mutables:  # check if vars have same memory address
+            # check if vars have same memory address
+            for key in mutables:
                 if id(getattr(elemObj, key)) == id(getattr(elemClass, key)):
                     self.fail(str(elemClass) + ' does not copy ' + key)
-        
+
     def test_for_specific_nonduplicate_mutable_variables(self):
         """ test that children, attrib, _descriptors, and specs are all copied
         to a new list/dict instance in every element when instantiated as an
@@ -89,11 +94,14 @@ class TestTypeVariants(unittest.TestCase):
                 mme.AutomaticEdgeColor]
         self.mm = MindMap()
         root = self.mm[0]
-        root[:] = []  # clear out children of root
+        # clear out children of root
+        root[:] = []
         for variant in self.variants:
-            root.append(variant())  # add a child variant element type
+            # add a child variant element type
+            root.append(variant())
         self.filename = uuid4().hex + '.mm'
-        self.mm.write(self.filename)  # need to remember to erase file later...
+        # need to remember to erase file later...
+        self.mm.write(self.filename)
         self.mm2 = pymm.read(self.filename)
 
     def tearDown(self):
@@ -108,9 +116,11 @@ class TestTypeVariants(unittest.TestCase):
             for child in root[:]:
                 if isinstance(child, variant):
                     break
-            else:  # we only reach else: if no child matched the given variant
-                self.fail('no child of type: ' + str(variant)) 
-            root.remove(child)  # remove child after it matches a variant
+            # we only reach else: if no child matched the given variant
+            else:
+                self.fail('no child of type: ' + str(variant))
+            # remove child after it matches a variant
+            root.remove(child)
 
 
 class TestReadWriteExample(unittest.TestCase):
@@ -128,7 +138,8 @@ class TestReadWriteExample(unittest.TestCase):
 
     def test_write_file(self):
         mm = MindMap()
-        mm.write('write_test.mm')  # just test that no errors are thrown
+        # just test that no errors are thrown
+        mm.write('write_test.mm')
         os.remove('write_test.mm')
 
 
@@ -155,7 +166,8 @@ class TestNativeChildIndexing(unittest.TestCase):
         nodes = self.element[0:2]
         self.assertTrue(self.node in nodes)
         self.assertTrue(self.node2 in nodes)
-        nodes = self.element[0:2:2]  # should only get node, not node2
+        # should only get node, not node2
+        nodes = self.element[0:2:2]
         self.assertTrue(self.node in nodes)
         self.assertTrue(self.node2 not in nodes)
 
@@ -169,7 +181,8 @@ class TestNativeChildIndexing(unittest.TestCase):
         elem.remove(node)
         self.assertTrue(node2 == elem[0])
         elem.remove(node2)
-        self.assertFalse(elem[:])  # verify elem is child-less
+        # verify elem is child-less
+        self.assertFalse(elem[:])
 
     def test_remove_error(self):
         self.assertRaises(ValueError, self.element.remove, self.node)
@@ -192,7 +205,8 @@ class TestElementAccessor(unittest.TestCase):
         mme.BaseElement.nodes = ChildSubset.class_preconstructor(tag_regex=r'node')
         e = mme.BaseElement()
         self.assertTrue(hasattr(e, 'nodes'))
-        del mme.BaseElement.nodes  # be sure to remove this class variable
+        # be sure to remove this class variable
+        del mme.BaseElement.node
 
     def test_attrib_regex(self):
         self.element.colored = ChildSubset(self.element, attrib_regex={r'COLOR': '.*'})
@@ -229,7 +243,8 @@ class TestElementAccessor(unittest.TestCase):
     def test_alternative_constructor(self):
         elem = self.element
         elem.nodes = ChildSubset.class_preconstructor(tag_regex=r'node')
-        elem.nodes = elem.nodes(elem)  # why doesn't this work? it should just work w/ elem.nodes(). It works ..inside.. the instance, but not outside?
+        # why doesn't this work? it should just work w/ elem.nodes(). It works ..inside.. the instance, but not outside?
+        elem.nodes = elem.nodes(elem)
         self.assertIsInstance(elem.nodes, ChildSubset)
 
     def test_node_is_added_to_element_nodes(self):
@@ -340,10 +355,12 @@ class TestBaseElement(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()  # comment this out to run the code below
+    # comment this out to run the code below
+    unittest.main()
     mm = pymm.MindMap()
     m = mm.getmap()
     converter = pymm.Factories.MindMapConverter()
     tree = converter.revert_mm_element_and_tree(mm.getmap())
-    tree.getchildren()  # getchildren IS DEPRECIATED. Which means that... I need a new way to traverse children
+    # getchildren IS DEPRECIATED. Which means that... I need a new way to traverse children
+    tree.getchildren()
     print(len(tree))
