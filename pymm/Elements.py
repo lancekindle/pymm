@@ -83,22 +83,17 @@ class BaseElement:
         for k, v in kwargs.items():  # make this call different than updating attrib directly because it's more likely
             self.attrib[k] = v                       # that a developer specifically typed this out. This will error check it
 
-    def findall(self, tag):
-        """ Return all child elements with matching tag. Return all children if '*' passed in.
+    def findall(self, **kwargs):
+        """ Return all child elements matching regex parameters.
 
-        :param tag: child element tag (ex. 'node', 'hook', 'map', etc.)
+        :param tag_regex: regex matching child element tag (e.g. r'node')
+        :param attrib_regex: regex matching keys, values in child.attrib.
+                             Requires dictionary-format regex key/value pairs.
+                             e.g. {r'COLOR': r'ff[0-9a-f]{4}'}
         :return: list of matching children. Return empty list if none found.
         """
-        if tag == '*':
-            return self.children
-        matching = []
-        for element in self.children:
-            if element.tag == tag:
-                matching.append(element)
-        return matching
-
-    def getchildren(self):
-        return self.children
+        subset = _elementAccess.ChildSubset(self, **kwargs) 
+        return list(subset)
 
 
 class ImplicitNodeAttributes:
@@ -115,16 +110,22 @@ class ImplicitNodeAttributes:
         return self._attribute[key]
 
     def __iter__(self):
-        raise NotImplementedError('Cannot iterate node. Use .items() to' +
-                                  'iterate node attributes')
+        return iter(self._attribute)
+
+    def __contains__(self, key):
+        return self._attribute.__contains__(self, key)
 
     def __delitem__(self, key):
         del self._attribute[key]
 
     # I have chosen to only implement items because that most closely resembles
-    # (in name) attributes.
+    # (in name) attributes. If you want acess to the dictionary itself, call
+    # get_attributes()
     def items(self):
         return self._attribute.items()
+
+    def get_attributes(self):
+        return self._attribute
 
 
 class Node(ImplicitNodeAttributes, BaseElement):
@@ -150,10 +151,10 @@ class Node(ImplicitNodeAttributes, BaseElement):
         return self.tag + ': ' + self.attrib['TEXT'].replace('\n', '')
 
     def set_text(self, text):
-        self['TEXT'] = text
+        self.attrib['TEXT'] = text
 
     def get_text(self):
-        return self['TEXT']
+        return self.attrib['TEXT']
 
 
 class Map(BaseElement):
