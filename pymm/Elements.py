@@ -97,10 +97,12 @@ class BaseElement:
 
 
 class ImplicitNodeAttributes:
-    """ attributes are excel like tables (2-cells wide each) that define a key-value pair
-    they are attached (visually) beneath a Node in Freeplane. This class allows the user to define
-    attributes on a node with implicit indexing like a dictionary BUT iteration is not allowed.
-    Instead you should use the keys() or values() method to iterate over current attributes.
+    """ attributes are excel like tables (2-cells wide each) that define a
+    key-value pair they are attached (visually) beneath a Node in Freeplane. 
+    This class allows the user to define attributes on a node with implicit
+    indexing, iteration, and contains-checking like a dictionary but with only
+    the .items() method exposed. You can get the attribute dictionary directly
+    by calling .get_attributes()
     """
 
     def __setitem__(self, key, val):
@@ -118,9 +120,6 @@ class ImplicitNodeAttributes:
     def __delitem__(self, key):
         del self._attribute[key]
 
-    # I have chosen to only implement items because that most closely resembles
-    # (in name) attributes. If you want acess to the dictionary itself, call
-    # get_attributes()
     def items(self):
         return self._attribute.items()
 
