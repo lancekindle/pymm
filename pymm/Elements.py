@@ -142,6 +142,11 @@ class Node(ImplicitNodeAttributes, BaseElement):
             'CREATED': int, 'MODIFIED': int, 'HGAP': int, 'VGAP': int, 'VSHIFT': int,
             'ENCRYPTED_CONTENT': str, 'OBJECT': str, 'MIN_WIDTH': int, 'MAX_WIDTH': int}
 
+    def __new__(cls, *args, **kwargs):
+        self = super().__new__(cls, *args, **kwargs)
+        self._attribute = self._attribute.copy()
+        return self
+
     def __init__(self, **kwargs):
         self.attrib['ID'] = 'ID_' + str(uuid4().time).replace('L', '')
         super().__init__(**kwargs)
