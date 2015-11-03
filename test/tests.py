@@ -50,28 +50,6 @@ class TestNodeImplicitAttributes(unittest.TestCase):
         self.assertFalse((key, value) in self.n.items())
 
 
-class TestInitArgumentForCertainElements(unittest.TestCase):
-    """ test that Node, Icon, Equation can accept a single argument that sets
-    their default attrib value. And test that they override any passed in key,
-    value pair passed as keyword arguments.
-    """
-
-    def test_node_text(self):
-        text = 'overwrite attrib text'
-        n = mme.Node(text, TEXT='needs overwriting')
-        self.assertTrue(n.attrib['TEXT'] == text)
-
-    def test_icon_builtin(self):
-        builtin = 'star'
-        icon = mme.Icon(builtin, BUILTIN='flag')
-        self.assertTrue(icon.attrib['BUILTIN'] == builtin)
-
-    def test_equation_equation(self):
-        eqn = 'x+2**5'
-        e = mme.Equation(eqn, EQUATION='z^4')
-        self.assertTrue(e.attrib['EQUATION'] == eqn)
-
-
 class TestMutableClassVariables(unittest.TestCase):
     """ verify mutable variables are copied / deepcopied in instances. This
     ensures that class variables are not changed when changing an instance's
