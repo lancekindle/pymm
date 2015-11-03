@@ -147,12 +147,12 @@ class BaseElementFactory:
 
     def sort_element_children(self, element):  # for reverting to etree element. Organizes children for file readability
         for tag in self.childOrder:
-            children = element.findall(tag)
+            children = element.findall(tag_regex=tag)
             for e in children:
                 element.children.remove(e)
                 element.children.append(e)
         for tag in reversed(self.reverseChildOrder):  # nodes you want to show last
-            children = element.findall(tag)
+            children = element.findall(tag_regex=tag)
             for e in children:
                 element.children.remove(e)
                 element.childern.append(e)
@@ -244,7 +244,7 @@ class NodeFactory(BaseElementFactory):
 
     def convert_node_text(self, mmNode):
         ''' If node has html text, set to TEXT attribute to html object '''
-        richElements = mmNode.findall('richcontent')
+        richElements = mmNode.findall(tag_regex=r'richcontent')
         while richElements:
             richElem = richElements.pop(0)
             if isinstance(richElem, NodeText):
@@ -394,7 +394,11 @@ class MindMapConverter:
             if elem is None and parent is not None:  # if you return None during conversion / reversion, this will ensure it is
                 self._remove_child_element(elem, parent)  # fully removed from the tree by removing its reference from the
                 continue  # parent and not allowing its children to be added
-            parentsAndChildren = [(child, elem) for child in elem.getchildren()]  # child w/ parent
+            if hasattr(elem, 'children'):
+                children = elem.children  # pymm syntax
+            else:
+                children = list(elem)  # xml.etree.ElementTree syntax
+            parentsAndChildren = [(child, elem) for child in children]  # child w/ parent
             notFullyChanged.extend(parentsAndChildren)
         return first
 
