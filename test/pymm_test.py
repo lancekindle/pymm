@@ -112,13 +112,14 @@ class TestMutableClassVariables(unittest.TestCase):
                     self.fail(str(elem_class) + ' does not copy ' + key)
 
     def test_specific_nonduplicates(self):
-        """ test that children, attrib, _descriptors, and specs are all copied
-        to a new list/dict instance in every element when instantiated as an
-        instance. This, for example, tests that an instance of MindMap would
-        not add children to the MindMap class accidentally, because the class
-        attribute children is a different from the instance attribute children.
+        """ test that children, attrib, _display_attrib, and specs are all
+        copied to a new list/dict instance in every element when instantiated
+        as an instance. This, for example, tests that an instance of MindMap
+        would not add children to the MindMap class accidentally, because the
+        class attribute children is a different from the instance attribute
+        children.
         """
-        filt = ['children', 'attrib', '_descriptors', 'specs']
+        filt = ['children', 'attrib', '_display_attrib', 'specs']
         self.test_for_unique_mut_vars(filt)
 
 
