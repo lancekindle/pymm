@@ -1,3 +1,8 @@
+"""
+    This is the testing module for pymm. It tests that import and export work
+    correctly, as well as that element features like child subsets and node
+    attributes work correctly.
+"""
 from __future__ import print_function
 import sys
 # append parent directory so that import finds pymm
@@ -25,6 +30,10 @@ except ImportError:
 # AKA: I have no idea if type variants are used at all in any mindmap
 
 class TestNodeImplicitAttributes(unittest.TestCase):
+    """Nodes have attributes that are a name, value pair visually
+    stored beneath the node in freeplane. They are implemented as a dictionary
+    within Node, such that node[key] = value is a valid assignment.
+    """
 
     def setUp(self):
         self.attributes = {'requires': 'maintenance', 'serial#': 'XJ3V2'}
@@ -54,9 +63,18 @@ class TestNodeImplicitAttributes(unittest.TestCase):
 
 
 class TestMutableClassVariables(unittest.TestCase):
-    """ verify mutable variables are copied / deepcopied in instances. This
-    ensures that class variables are not changed when changing an instance's
-    variables
+    """BaseElement and some inheriting elements define some mutable
+    variables in their class definition (such as children). This is done for
+    clarity as to what data-structure the user should expect. However, this
+    presents the danger that an instance of BaseElement may share the same
+    "children" list with its instances. Were this the case, appending a
+    child to one element would also append a child to the class itself and
+    to all other instances that share the same "children" variable.
+    Test that mutable variables are not shared by verifying that a
+    class's instance holds different mutable variables than the class
+    itself. Specifically, verify that all dicts and lists defined in
+    BaseElement and any inheriting class does not share that dict/list with its
+    instances.
     """
 
     def setUp(self):
@@ -74,12 +92,9 @@ class TestMutableClassVariables(unittest.TestCase):
             self.elements.append(cls)
 
     def test_for_unique_mut_vars(self, filt=None):
-        """ searches for mutable variables within an Element, and verifies it
-        gets copied to a new memory address in each element instance.
-        """
         is_mutable_var = lambda k, v: (isinstance(v, dict) or
-                                       isinstance(v, list))\
-                                      and not k.endswith('__')
+                                       isinstance(v, list)) \
+                                       and not k.endswith('__')
         base_mutables = [k for k, v in vars(self.base).items()
                          if is_mutable_var(k, v)]
         for elem_class in self.elements:
@@ -123,6 +138,7 @@ class TestTypeVariants(unittest.TestCase):
     """ test typeVariant attribute of factory to load different objects given
     the same tag. (special attrib values are given that differentiate them)
     """
+
     def setUp(self):
         # I removed richcontent variants because they do not work correctly
         # when their html is not set. it causes ET to crash
