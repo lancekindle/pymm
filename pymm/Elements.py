@@ -13,61 +13,90 @@ class ExampleElement:  # example element showing minimum of things to define to 
         # convert the element of type 'tag'. Examples include 'node' or 'cloud'
     attrib = {}  # [OPTIONAL] pre-define default element attributes
     specs = {}  # [OPTIONAL] pre-define attribute types (like bool, str, int, float).
-    _descriptors = []  # [OPTIONAL] list of attribs that are used when constructing string representation
+    _display_attrib = []  # [OPTIONAL] list of attribs that are used when constructing string representation
 
    
 
 class BaseElement:
-    """ pymm's Base Element. All other elements inherit from BaseElement, which represents an element in a similar style
-    to xml.etree.ElementTree. with enhancements aimed at providing faster mindmap manipulation. Each element has a
-    specific identifier, a tag, that specifies what type of element it is. If a specific xml element type does not have
-    a corresponding pymm element, it will become a BaseElement, but the corresponding "BaseElement" tag will be replaced
-    with the actual xml element's tag.
+    """ pymm's Base Element. All other elements inherit from BaseElement, which
+    represents an element in a similar style to xml.etree.ElementTree with
+    enhancements aimed at providing faster mindmap manipulation. Each element
+    has a specific identifier--a tag--that specifies what type of element it
+    is. If a specific xml element type does not have a corresponding pymm
+    element, it will become a BaseElement, but the corresponding "BaseElement"
+    tag will be replaced with the actual xml element's tag.
 
-    It stores all its children in a list that you can access and modify @ BaseElement.children.
-    BaseElement stores xml attributes in a dictionary, which can be accessed as if the element sub-classed Dict.
-    e.g.: BaseE['TEXT'] or BaseE['SIZE'] can access BaseElement's attributes TEXT and SIZE, respectively. xml
-    attributes are those key=value declarations that exist within an xml-elements opening (<) and closing (>) tags.
-    The functions items(), keys(), and update() are used to access BaseElement's attributes.
-
+    
     :param tag: the tag specifying type of element
     :param parent: a link to the element's parent element
-    :param specs: a dictionary of expected xml attributes and their expected types (i.e. int, list, string, etc.).When
-                changing an element's attribute, the new attribute will be checked against the specs, and an warning
-                generated if the new attribute does not match the specs. Can be modified to allow additional specs. I.E.
-                elem['TEXT'] = 'HI 5' sets the element's TEXT attribute to 'HI 5'. If specs contains the key 'TEXT', the
-                type of value 'HI 5' (str) will be checked against the value of specs['TEXT'], and allowed if they match
-    """
-    tag = 'BaseElement'  # must set to cloud, hook, edge, etc.
+    :param specs:     """
+    tag = 'BaseElement'
     parent = None
-    _text = ''    # equivalent to ElementTree's .text  -- text between start tag and next element   # keep this for
-    _tail = ''    # equivalent to ElementTree's .tail  -- text after end tag                        # .mm compatibility
-    children = []  # all child elements including nodes
-    attrib = {}  # pre-define these (outside of init like this) in other classes to define default element attribs
-    _descriptors = []  # list of attribs that can be used to better describe instance. Used in str(self) construction
-    specs = {}  # list all possible attributes of an element and valid entries / types in a list or standalone:
-                    # [str, int, 'thin', etc.], str, int, 'thin', etc.
+
+    #: _text and _tail are here for compatibility reasons. They correspond to
+    #: xml.etree's .text and .tail, respectively. _text is the text between the
+    #: xml element's start tag, and the next element. _tail is the text after
+    #: the xml element's ending tag. These attributes are not necessary, but
+    #: help improve the plaintext readability of the written .mm file
+    _text = ''
+    _tail = ''
+    
+    #: BaseElement stores all its children in a list that you can access and
+    #: modify @ element.children. This is dissimilar to xml.etree, which
+    #: allows implicit indexing of children. If you want to access children
+    #: within pymm, you will need to access from the children list.
+    children = []
+
+    #: xml attributes are stored in the same fastion as xml.etree: in a
+    #: dictionary called attrib. xml attributes are key=value declarations
+    #: that exist within an xml-element's opening (<) and closing (>) tags.
+    #: For example, the attrib for an example element:
+    #: <edge COLOR='ff0000', STYLE='linear', WIDTH='2'>
+    #: would be:
+    #: attrib = {'COLOR': 'ff0000', 'STYLE': 'linear', 'WIDTH': '2'}
+    #: If you modify attrib in a class, thereafter each instance of that class
+    #: will include your attrib version unless overwritten when decoding
+    #: from an existing xml.etree Element.
+    attrib = {}
+
+    #: to improve readability of interactions with pymm elements,
+    #: _display_attrib may contain specific attribs that will be used in the
+    #: representation of an element.
+    _display_attrib = []
+
+    #: a dictionary of expected xml attributes and a list of their expected
+    #: types (i.e. int, list, string, etc.).When changing an element's 
+    #: attribute, the new attribute will be checked against the specs, and a
+    #: warning generated if the new attribute does not match the specs. Can be
+    #: modified to allow additional specs. I.E. elem.attrib['TEXT'] = 'HI 5'
+    #: sets the element's TEXT attrib to 'HI 5'. If specs contains the key
+    #: 'TEXT', the type of value 'HI 5' (str) will be checked against the
+    #: value of specs['TEXT'], and a warning generated if they do not match
+    #: list all possible attributes of an element and valid entries / types in
+    #: a list or standalone: [str, int, 'thin', etc.], str, int, 'thin', etc.
+    specs = {}
 
     def __new__(cls, *args, **kwargs):
-        """ DO NOT OVERRIDE W/O super. override __init__ for most stuff. Copy
+        """DO NOT OVERRIDE W/O super. override __init__ for most stuff. Copy
         all the mutable class attributes such as children, attrib, specs, and 
-        _descriptors into the class instance to prevent user from accidentally 
-        adding to class-wide attributes if he overrides __init__ and forgets to
-        call super().__init__ first. It is still possible for user to change 
-        class-wide variables, but this will make it less likely he will do so 
-        with an instance of the class. We do not use *args or **kwargs in 
-        __new__ because developer may want to override behavior of arguments
+        _display_attrib into the class instance to prevent user from
+        accidentally adding to class-wide attributes if he overrides __init__
+        and forgets to call super().__init__ first. It is still possible for
+        user to change class-wide variables, but this will make it less likely
+        he will do so with an instance of the class. We do not use *args or
+        **kwargs in __new__ because developer may want to override behavior of
+        arguments
         """
         self = super().__new__(cls)
         self.children = copy.deepcopy(self.children)
         self.attrib = copy.deepcopy(self.attrib)
-        self._descriptors = copy.deepcopy(self._descriptors)
+        self._display_attrib = copy.deepcopy(self._display_attrib)
         self.specs = copy.deepcopy(self.specs)
         self._init_all_preconstructed_element_accessors()
         return self
 
     def _init_all_preconstructed_element_accessors(self):
-        """ locate all preconstructed child access functions and run them.
+        """locate all preconstructed child access functions and run them.
         get back child access object, and set using same attribute name.
         things like self.nodes. Makes sure that this is a new, separate
         instance from the class itself. This feels computationally heavy tho...
@@ -84,7 +113,7 @@ class BaseElement:
             self.attrib[k] = v                       # that a developer specifically typed this out. This will error check it
 
     def findall(self, **kwargs):
-        """ Return all child elements matching regex parameters.
+        """Return all child elements matching regex parameters.
 
         :param tag_regex: regex matching child element tag (e.g. r'node')
         :param attrib_regex: regex matching keys, values in child.attrib.
@@ -97,7 +126,7 @@ class BaseElement:
 
 
 class ImplicitNodeAttributes:
-    """ attributes are excel like tables (2-cells wide each) that define a
+    """attributes are excel like tables (2-cells wide each) that define a
     key-value pair they are attached (visually) beneath a Node in Freeplane. 
     This class allows the user to define attributes on a node with implicit
     indexing, iteration, and contains-checking like a dictionary but with only
@@ -128,9 +157,11 @@ class ImplicitNodeAttributes:
 
 
 class Node(ImplicitNodeAttributes, BaseElement):
-    """ The most common element in a mindmap. The Node is the visual group, with an expandable branch of children.
-    Nodes contain the text you type, contains links to other nodes or urls, contains pictures, and can be made visually
-    unique through clouds, edge-line colors, or rich-text formatting. A Node contains an ID and text by default
+    """The most common element in a mindmap. The Node is the visual circle in
+    freeplane, with an expandable branch of children. A Node contains text
+    you type, contains pictures, urls or links to other nodes, and can be made
+    visually distict through clouds, edge-line colors, or rich-text formatting.
+    A Node contains an ID and text by default
     """
     tag = 'node'
     nodes = _elementAccess.ChildSubset.class_preconstructor(tag_regex=r'node')
@@ -162,8 +193,9 @@ class Node(ImplicitNodeAttributes, BaseElement):
 
 
 class Map(BaseElement):
-    """ Map is the first element of any mindmap. It is the highest-level element and all other elements are sub-children
-    of the Map. Map generally contains only two direct children: the RootNode, and MapStyle.
+    """Map is the first element of any mindmap. It is the highest-level
+    element and all other elements are sub-children of the Map. Map generally
+    contains only two direct children: a Node (root), and MapStyle.
     """
     tag = 'map'
     attrib = {'version': 'freeplane 1.3.0'}
@@ -181,16 +213,19 @@ class Map(BaseElement):
 
 
 class Cloud(BaseElement):
-    """ Cloud is a visual indicator around a particular Node, making it stand out above other Nodes. As a child of the
-    Node, a cloud applies its visual style to its parent Node and that nodes children and sub-children. The cloud has
-    two main attributes to control its visual style: SHAPE, and COLOR. SHAPE must be chosen from Cloud.shapeList, while
-    COLOR can be any string representation starting with #, and using two hexidecimal characters for each color in RGB
+    """Cloud is a visual indicator around a particular Node, making it stand
+    out above other Nodes. As a child of the Node, a cloud applies its visual
+    style to its parent Node and that nodes children and sub-children. The
+    cloud has two main attributes to control its visual style: SHAPE, and
+    COLOR. SHAPE must be chosen from Cloud.shapeList, while COLOR can be any 
+    string representation starting with #, and using two hexidecimal characters
+    for each color in RGB
     """
     tag = 'cloud'
     shapeList = ['ARC', 'STAR', 'RECT', 'ROUND_RECT']
     attrib = {'COLOR': '#f0f0f0', 'SHAPE': 'ARC'}  # set defaults
     specs = {'COLOR': str, 'SHAPE': shapeList, 'WIDTH': str}
-    _descriptors = ['COLOR', 'SHAPE']  # extra information to send during call to __str__
+    _display_attrib = ['COLOR', 'SHAPE']  # extra information to send during call to __str__
 
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls)
@@ -199,8 +234,10 @@ class Cloud(BaseElement):
 
 
 class Hook(BaseElement):
-    """ Hook is used frequently throughout a mindmap to represent different added elements. Hook is often subclassed
-    as a result. The NAME attribute of a hook tells what type of hook it is. Add a Hook as a child to apply the effect.
+    """Hook is used frequently throughout a mindmap to represent different
+    added elements. Hook is often subclassed as a result. The NAME attribute of
+    a hook tells what type of hook it is. Add a Hook as a child to apply the
+    effect.
     """
     tag = 'hook'
     attrib = {'NAME': 'overwritten'}
@@ -208,57 +245,64 @@ class Hook(BaseElement):
 
 
 class EmbeddedImage(Hook):
-    """ place EmbeddedImage as the child of a Node to embed the image into the given node. Must supply the full or
-    relative path to the image using EmbeddedImage['URI'] = path
+    """place EmbeddedImage as the child of a Node to embed the image into the
+    given node. Must supply the full or relative path to the image using
+    EmbeddedImage['URI'] = path
     """
     attrib = {'NAME': 'ExternalObject'}
     specs = {'NAME': str, 'URI': str, 'SIZE': float}
 
 
 class MapConfig(Hook):
-    """ MapConfig is only used once in a mindmap: as the child of RootNode. It provides a few configurations to the map,
-    such as zoom-level, or max_node_width which defines how many characters long a node runs before wrapping.
+    """MapConfig is only used once in a mindmap: as the child of RootNode. It
+    provides a few configurations to the map, such as zoom-level, or
+    max_node_width which defines how many characters long a node runs before
+    wrapping.
     """
     attrib = {'NAME': 'MapStyle', 'zoom': 1.0}
     specs = {'NAME': str, 'max_node_width': int, 'zoom': float}
 
 
 class Equation(Hook):
-    """ Equation allows a LaTeX-style equation to be inserted into a particular Node. Define the equation using
-    Equation['EQUATION'] = latex-string
+    """Equation allows a LaTeX-style equation to be inserted into a particular
+    Node. Define the equation using Equation['EQUATION'] = latex-string
     """
     attrib = {'NAME': 'plugins/latex/LatexNodeHook.properties'}
     specs = {'NAME': str, 'EQUATION': str}
 
 
 class AutomaticEdgeColor(Hook):
-    """ AutomaticEdgeColor is a child of RootNode. If AutomaticEdgeColor is present, then creating new child nodes of
-    the root will have their edge automatically colored differently. The COUNTER attribute keeps track of how many edges
-    have been automatically colored.
+    """AutomaticEdgeColor is a child of RootNode. If AutomaticEdgeColor is
+    present, then creating new child nodes of the root will have their edge
+    automatically colored differently. The COUNTER attribute keeps track of how
+    many edges have been automatically colored.
     """
     attrib = {'NAME': 'AutomaticEdgeColor', 'COUNTER': 0}
     specs = {'NAME': str, 'COUNTER': int}
 
 
 class MapStyles(BaseElement):
-    """ MapStyles is the child of the MapConfig Hook. MapStyles defines the styles of all the nodes. MapStyles contains
-    multiple StyleNodes, each defining a new style.
+    """MapStyles is the child of the MapConfig Hook. MapStyles defines the
+    styles of all the nodes. MapStyles contains multiple StyleNodes, each 
+    defining a new style.
     """
     tag = 'map_styles'
 
 
 class StyleNode(BaseElement):
-    """ StyleNode defines the characteristics of a style. Its LOCALIZED_TEXT attribute is the same name used by a Node's
-    LOCALIZED_STYLE_REF, when choosing what style to use. StyleNodes share their attributes through inheritance. Their
-    children StyleNodes will contain the same attributes as their parents + their unique attributes.
+    """StyleNode defines the characteristics of a style. Its LOCALIZED_TEXT
+    attribute is the same name used by a Node's LOCALIZED_STYLE_REF, when
+    choosing what style to use. StyleNodes share their attributes through
+    inheritance. Their children StyleNodes will contain the same attributes as 
+    their parents + their unique attributes.
     """
     tag = 'stylenode'
     specs = {'LOCALIZED_TEXT': str, 'POSITION': ['left', 'right'], 'COLOR': str, 'MAX_WIDTH': int, 'STYLE': str}
 
 
 class Font(BaseElement):
-    """ Font influence the visual style of text. Font should be a child of a StyleNode to change that StyleNode's text
-    appearance
+    """Font influence the visual style of text. Font should be a child of a
+    StyleNode to change that StyleNode's text appearance
     """
     tag = 'font'
     attrib = {'BOLD': False, 'ITALIC': False, 'NAME': 'SansSerif', 'SIZE': 10}  # set defaults
@@ -266,11 +310,12 @@ class Font(BaseElement):
 
 
 class Icon(BaseElement):
-    """ Add a small icon to the front of a node by adding Icon as a Node's child. Icon['BUILTIN'] = builtinIcon sets the
-    icon. You can choose a built-in icon from the list: Icon.builtinList.
+    """Add a small icon to the front of a node by adding Icon as a Node's
+    child. Icon['BUILTIN'] = builtinIcon sets the icon. You can choose a 
+    built-in icon from the list: Icon.builtinList.
     """
     tag = 'icon'
-    _descriptors = ['BUILTIN']
+    _display_attrib = ['BUILTIN']
     builtinList = ['help', 'bookmark', 'yes', 'button_ok', 'button_cancel', 'idea', 'messagebox_warning', 'stop-sign',
                    'closed', 'info', 'clanbomber', 'checked', 'unchecked', 'wizard', 'gohome', 'knotify', 'password',
                    'pencil', 'xmag', 'bell', 'launch', 'broken-line', 'stop', 'prepare', 'go', 'very_negative',
@@ -300,33 +345,33 @@ class Icon(BaseElement):
 
 
 class Edge(BaseElement):
-    """ Edge defines the look of the lines (edges) connecting nodes. You can change the color, style, and width.
-    The COLOR attribute must be any string representation, starting with # and having two hexidecimal characters for
-    each color in RGB. The STYLE attribute must be one of the styles in Edge.styleList. The WIDTH attribute must be
-    'thin' or a string representation of any integer. Any edge width > '8' is visually unappealing. If
-    you delete WIDTH attribute (or set to None), edge width will be inherited from Node's parent.
-    edge['COLOR'] = '#ff0033';     edge['STYLE'] = edge.styleList[0]  (linear)     edge['WIDTH'] = '4'
+    """Edge defines the look of the lines (edges) connecting nodes. You can
+    change the color, style, and width attrib. Any attrib not defined will be
+    visually inherited from a parent's edge. The COLOR attrib must be any
+    string starting with # and having two hexidecimal characters for
+    each color in RGB. The STYLE attrib must be one of the styles in
+    Edge.styleList. The WIDTH attrib must be 'thin' or a string
+    representation of any integer. Any edge width > '4' is visually
+    unappealing.
     """
     tag = 'edge'
     styleList = ['linear', 'bezier', 'sharp_linear', 'sharp_bezier', 'horizontal', 'hide_edge']
-    widthList = ['thin', int]  # can be 'thin' or a integer representing width. Anything > 4 is huge
+    widthList = ['thin', int]
     specs = {'COLOR': str, 'STYLE': styleList, 'WIDTH': widthList}
-    # attrib = {... DO NOT DEFINE attrib. User must define attrib because
-    # anything not defined will be inheritted from the parent. If we define any
-    # attribs then it will auto-overwrite the parent style which is not what we
-    # want. Usually we only want to override the attrib that we specify
 
     def __new__(cls, *args, **kwargs):
-        self = super().__new__(cls)  # always call super() in __new__
+        self = super().__new__(cls)
         self.styleList = copy.deepcopy(self.styleList)
         self.widthList = copy.deepcopy(self.widthList)
         return self
 
 class Attribute(BaseElement):
-    """ (Node) Attributes display underneath a Node like a table, with NAME attribute to the left, and VALUE to the
-    right. You can use Node Attributes to specify categories / traits of a specific Node. You can visually hide Node
-    Attributes by setting AttributeRegistry['SHOW_ATTRIBUTES'] = 'hide'. Additionally, you can hide or show an icon
-    indicating the presence of Attributes on a Node through the Properties Element.
+    """(Node) Attributes display underneath a Node like a table, with NAME
+    attribute to the left, and VALUE to the right. You can use Node Attributes
+    to specify categories / traits of a specific Node. You can visually hide
+    Node Attributes by setting AttributeRegistry['SHOW_ATTRIBUTES'] = 'hide'.
+    Additionally, you can hide or show an icon indicating the presence of 
+    Attributes on a Node through the Properties Element.
     """
     tag = 'attribute'
     attrib = {'NAME': '', 'VALUE': ''}
@@ -334,7 +379,8 @@ class Attribute(BaseElement):
 
 
 class Properties(BaseElement):
-    """ Control the appearance of notes on Nodes, and icons, note, or attribute presence on a node. Is child of MapStyle
+    """Control the appearance of notes on Nodes, and icons, note, or attribute 
+    presence on a node. Is child of MapStyle
     """
     tag = 'properties'
     attrib = {'show_icon_for_attributes': 'true', 'show_note_icons': 'true', 'show_notes_in_map': 'true'}
@@ -354,19 +400,22 @@ class AttributeLayout(BaseElement):
 
 class AttributeRegistry(BaseElement):
     tag = 'attribute_registry'
-    attrib = {'SHOW_ATTRIBUTES': 'all'}  # if we select 'all' the element should be omitted from file.
+    attrib = {'SHOW_ATTRIBUTES': 'all'}
     specs = {'SHOW_ATTRIBUTES': ['selected', 'all', 'hide']}
 
 
 class RichContent(BaseElement):
-    # there is no need to use richcontent in freeplane. all nodes will automatically convert their html to richcontent
-    # if their html contains html tags (such as <b>). And will auto-downgrade from richcontent if you replace
-    # a nodes html-like html with plaintext  (all accessed using node.html). Unfortunately, the richcontent that is
-    # available is fully-fledged html. So trying to set up something to parse it will need to simply have a
-    # getplaintext() function to allow the user to quickly downgrade text to something readable. Until that time, html
-    # text is going to be very messy.
+    """There is no need to use richcontent in freeplane. all nodes will
+    automatically convert their html to richcontent if their html contains html
+    tags (such as <b>). And will auto-downgrade from richcontent if you replace
+    a nodes html-like html with plaintext  (all accessed using node.html).
+    Unfortunately, the richcontent that is available is fully-fledged html. So
+    trying to set up something to parse it will need to simply have a 
+    getplaintext() function to allow the user to quickly downgrade text to 
+    something readable. Until that time, html text is going to be very messy.
+    """
     tag = 'richcontent'
-    _descriptors = ['TYPE']
+    _display_attrib = ['TYPE']
     specs = {'TYPE': str}
     html = ''
 
@@ -375,8 +424,9 @@ class RichContent(BaseElement):
 
 
 class NodeText(RichContent):
-    # developer does not need to create NodeText, ever. This is created by the node itself during reversion if the
-    # nodes' html includes html tags
+    """Developer does not need to create NodeText, ever. This is created by the
+    node itself during reversion if the nodes' html includes html tags
+    """
     attrib = {'TYPE': 'NODE'}
 
 
