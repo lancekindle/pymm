@@ -37,29 +37,35 @@ class TestNodeImplicitAttributes(unittest.TestCase):
 
     def setUp(self):
         self.attributes = {'requires': 'maintenance', 'serial#': 'XJ3V2'}
-        self.n = mme.Node()
-        for k, v in self.attributes.items():
-            self.n[k] = v
+        self.node = mme.Node()
+        for key, val in self.attributes.items():
+            self.node[key] = val
 
     def test_items(self):
-        self.assertTrue(self.n.items() == self.attributes.items())
+        """Test that attribute.items() matches node's attribute.items()"""
+        self.assertTrue(self.node.items() == self.attributes.items())
 
     def test_setitem(self):
+        """Test implicit setitem of node sets node's attribute item"""
         val = 'a new value'
-        for key, _ in self.n.items():
+        for key, _ in self.node.items():
+            self.node[key] = val
+            self.assertTrue((key, val) in self.node.items())
             break
-        self.n[key] = val
-        self.assertTrue((key, val) in self.n.items())
 
     def test_getitem(self):
-        for key, value in self.n.items():
-            self.assertTrue(self.n[key] == value)
+        """Test Node implicit getitem returns correct attribute values"""
+        for key, value in self.node.items():
+            self.assertTrue(self.node[key] == value)
 
     def test_delitem(self):
-        for key, value in self.n.items():
+        """Test node implicit delitem deletes correct attribute"""
+        count = len(self.node.items())
+        for key, value in self.node.items():
+            del self.node[key]
+            self.assertFalse((key, value) in self.node.items())
+            self.assertTrue(count - 1 == len(self.node.items()))
             break
-        del self.n[key]
-        self.assertFalse((key, value) in self.n.items())
 
 
 class TestMutableClassVariables(unittest.TestCase):
@@ -92,6 +98,9 @@ class TestMutableClassVariables(unittest.TestCase):
             self.elements.append(cls)
 
     def test_for_unique_mut_vars(self, filt=None):
+        """Test each element's mutable variable and confirm it does not share
+        the same memory address as the element's Class
+        """
         is_mutable_var = lambda k, v: (isinstance(v, dict) or
                                        isinstance(v, list)) \
                                        and not k.endswith('__')
@@ -100,12 +109,13 @@ class TestMutableClassVariables(unittest.TestCase):
         for elem_class in self.elements:
             mutables = [k for k, v in vars(elem_class).items()
                         if is_mutable_var(k, v)]
-            # unique mutables
             mutables = list(set(base_mutables + mutables))
+
             # optional filter to search only for known attributes
             if filt:
                 mutables = [m for m in mutables if m in filt]
             element = elem_class()
+
             # check if vars have same memory address
             for key in mutables:
                 if id(getattr(element, key)) == id(getattr(elem_class, key)):
@@ -402,6 +412,9 @@ class TestBaseElement(unittest.TestCase):
         elem.attrib[key] = value
         self.assertTrue(key in elem.attrib.keys())
 
+    # TODO: rewrite test to call sanity check that should trigger warnings
+    # TODO: instead of try/except, test for raisesWarning
+    @unittest.expectedFailure
     def test_dictionary_inspec_attr(self):
         """Test that dict won't raise error for inspec attribute assignment."""
         elem = self.element
