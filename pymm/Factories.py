@@ -1,4 +1,5 @@
 import xml.etree.ElementTree as ET
+from . import Elements
 from .Elements import *
 import warnings
 import copy
@@ -394,7 +395,7 @@ class MindMapConverter:
             if elem is None and parent is not None:  # if you return None during conversion / reversion, this will ensure it is
                 self._remove_child_element(elem, parent)  # fully removed from the tree by removing its reference from the
                 continue  # parent and not allowing its children to be added
-            if hasattr(elem, 'children'):
+            if isinstance(elem, Elements.BaseElement):
                 children = elem.children  # pymm syntax
             else:
                 children = list(elem)  # xml.etree.ElementTree syntax
