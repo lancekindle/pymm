@@ -134,6 +134,35 @@ class ChildSubset(ChildSubsetSimplified):
         return '<' + str(self)[:15] + '...'*(len(str(self)) > 15) + ' @' + hex(id(self)) + '>'
 
 
+class SingleChild:
+    """Provide access to a single child within an element's children. It does
+    not directly store the child, but rather provides functions for getting,
+    setting, and deleting the specified child from a parent element's children
+    attribute. This is meant to be instantiated as a class property. Pass the
+    init function tag_regex or attrib_regex in the same fashion as specifying a
+    ChildSubset, and pass the returned values to property(). You can look at an
+    example in Node.cloud.
+    """
+
+    def __init__(self, tag_regex=None, attrib_regex=None):
+        if tag_regex is None and attrib_regex is None:
+            raise ValueError('expected either tag_regex or attrib_regex')
+
+        def getter(self, parent):
+            return parent.find(tag_regex, attrib_regex)
+        
+        def setter(self, parent, child):
+            replaceable = parent.find(tag_regex, attrib_regex)
+            i = parent.children.index(replaceable)
+            parent.children[i] = child
+
+        def deleter(self, parent):
+            deleteable = parent.find(tag_regex, attrib_regex)
+            parent.children.remove(deleteable)
+
+        return getter, setter, deleter
+
+
 class Attrib:
     attrib = {}  # pre-define these (outside of init like this) in other classes to define default element attribs
     _descriptors = []  # list of attribs that can be used to better describe instance. Used in str(self) construction
