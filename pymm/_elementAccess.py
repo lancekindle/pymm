@@ -70,7 +70,11 @@ class ChildSubsetSimplified:
         return len(self[:])
 
     def __getitem__(self, index):
-        elements = [e for e in iter(self)]
+        if index == 0:  # speed shortcut
+            for e in self:
+                return e
+            raise IndexError('Index out of bounds')
+        elements = [e for e in self]
         return elements[index]
 
     def __iter__(self):
@@ -88,6 +92,17 @@ class ChildSubsetSimplified:
 
 
     def __setitem__(self, index, elem):   # removes elements, then re-appends them after modification.
+        """ remove element(s), then re-appends after modification. Sloppy, but
+        it works, and elements are reordered later anyways.
+        what really matters is that the order of elements of the same tag are
+        not altered
+        """
+        # check for index == 0, can use shortcut in that case
+        if index == 0:
+            e = self[index]
+            i = self._parent.children.index(e)
+            self._parent.children[i] = elem
+            return
         subchildren = self[:]             # sloppy, but it works. And elements are reordered later anyways.
         for element in subchildren:       # what really matters is that the order of elements of the same tag are not
             self._parent.children.remove(element)  # altered.
