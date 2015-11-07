@@ -1,78 +1,96 @@
+"""
+    Pymm is a module dedicated towards easing the development and parsing of
+    mindmaps built with or for Freeplane. Freeplane is a graphical
+    "spider-diagram" interface that allows one to build mindmaps; a
+    hierarchical tree of nodes, where each node contains some text, and parent
+    nodes can be "folded" to hide their child nodes. Pymm can read or write
+    Freeplane's file format: an xml-file with a .mm extension. Because
+    Freeplane's files are xml formatted, Pymm uses Python's built-in
+    xml.etree library to parse the file, and then decodes the generated tree
+    structure into Pymm's version of the tree, using Pymm's Elements instead.
+    The structure of the Pymm's tree (as opposed to xml.etree's version) is
+    similar in structure but has different syntax aimed at making development
+    easy and clear to those new and experienced with Freeplane.
+"""
 import xml.etree.ElementTree as ET
 from . import Elements
-from . import Factories  # python3 relative imports (doesn't work in python2)
+from . import Factories
+
+# of all Elements, Node is likely to be most used, so import here
 from .Elements import Node
 
-# reorganizing so that MindMap is a fancy version of Map
-# also working on methods open, write, convert, and revert to be directly
-# accessible from pymm imports. Aka pymm.open, pymm.write, pymm.convert,
-# pymm.revert
-# this way the functionality of MindMap is similar to navigating all of 
-# pymm's elements.
 
 def read(file_or_filename):
-    """ converts the file/filename into a pymm tree
+    """convert the file/filename into a pymm tree. User should expect to use
+    this module-wide function to decode a freeplane file (.mm) into a pymm
+    tree. If file specified is a fully-formed mindmap, the user should expect
+    to receive a MindMap instance. Calling .getroot() on that should get
+    the user the first node in the tree structure.
 
-    :param file_or_filename: string path to file or file instance of mindmap (.mm)
-    :return: FreeplaneFile instance with file read
+    :param file_or_filename: string path to file or file instance of mindmap
+    :return: If the file passed was a full mindmap, will return MindMap
+             instance, otherwise if file represents an incomplete mindmap, it
+             will pass the instance of the top-level element, which could be
+             BaseElement or any inheriting element in the Elements module.
     """
     tree = ET.parse(file_or_filename)
-    etElem = tree.getroot()
-    mmElem = convert(etElem)
-    if isinstance(mmElem, Elements.Map):
-        return MindMap(mmElem)
-    return mmElem
+    et_elem = tree.getroot()
+    mm_elem = convert(et_elem)
+    if isinstance(mm_elem, Elements.Map):
+        return MindMap(mm_elem)
+    return mm_elem
 
-def write(mmElement, file_or_filename):
-    """ write nodes / anything to file. Need to just write to file (but realize it may not be a mindmap)
+def write(mm_element, file_or_filename):
+    """write nodes / elements to file"""
+    et_elem = revert(mm_element)
+    xmltree = ET.ElementTree(et_elem)
+    xmltree.write(file_or_filename)
+
+def convert(et_element):
+    """Convert ElementTree Element to pymm Element
+
+    :param et_element: Element Tree Element -> generally an element from
+                       python's xml.etree.ElementTree module
+    :return: Pymm hierarchical tree. Usually MindMap instance but may return
+             BaseElement-inheriting element if et_element was incomplete
     """
-    etElem = revert(mmElement)
-    xmlTree = ET.ElementTree(etElem)
-    xmlTree.write(file_or_filename)
+    mmc = Factories.MindMapConverter()
+    return mmc.convert_etree_element_and_tree(et_element)
 
-def convert(etElement):
-    """ Convert ElementTree Element to pymm Element
+def revert(mm_element):
+    """Revert pymm Element to ElementTree Element
 
-    :param etElement: Element Tree Element -> generally an element from python's xml.etree.ElementTree module
-    :return:
+    :param mm_element: pymm Element from pymm.Elements module
+    :return: xml.etree version of passed pymm tree
     """
-    return Factories.MindMapConverter().convert_etree_element_and_tree(etElement)
-
-def revert(mmElement):
-    """ Revert pymm Element to ElementTreee Element
-
-    :param mmElement: pymm Element from pymm.mindmapElements module
-    :return:
-    """
-    return Factories.MindMapConverter().revert_mm_element_and_tree(mmElement)
+    return Factories.MindMapConverter().revert_mm_element_and_tree(mm_element)
 
 
 class MindMap(Elements.Map):
-    """ Interface to Freeplane structure. Allow reading and writing of xml mindmap formats (.mm)
+    """Interface to Freeplane structure. Allow reading and writing of xml
+    mindmap formats (.mm)
 
-    readfile - reads file/filename and converts to structural tree with Map as first node
-    writefile - writes full structural tree to file/filename
-    getroot - skip the Map element and obtain its first child - the Root Node
-    setroot - set the Map's only child node
-    getmap - obtain the Map element. At present, this Map contains just the Root Node. Recommend just using get/setroot
-    convert - generally implemented internally. Will convert an ElementTree Element into a Freeplane-compatible element
-    revert - generally implemented internally. Will revert a Freeplane-compatible element to an ElementTree Element
+    some methods inherited from Elements.Map that will prove useful:
+    getroot - obtain MindMap's first child - the Root Node
+    setroot - set the MindMap's only child node
     """
 
-    def __init__(self, mapElement=None):
+    def __init__(self, map_element=None):
         """ FreeplaneFile acts as an interface to intrepret xml-based .mm files into a tree of Nodes.
 
-        :param mapElement: (optional) a pymm Map Element. Obtained from another FreeplaneFile's getmap() method
+        :param mapElement: (optional) a pymm Map Element from which to copy all
+                           attributes
+
         :return:
         """
-        super().__init__()  # init real Map stuff. absolutely necessary
-        self._create_new_mindmap_hierarchy()  # initialize a new instance
-        if isinstance(mapElement, Elements.Map):
-            self._from_map(mapElement)  # we make the assumption that this is a mindmap Map
+        super().__init__()  # init Elements.Map parent. absolutely necessary
+        self._create_new_mindmap_hierarchy()
+        if isinstance(map_element, Elements.Map):
+            self._from_map(map_element)
 
-    def _from_map(self, mapElement): # copy everything from mapElement
-        for v in vars(mapElement):
-            vars(self)[v] = vars(mapElement)[v]
+    def _from_map(self, map_element):
+        for var in vars(map_element):
+            vars(self)[var] = vars(map_element)[var]
 
     def write(self, file_or_filename):
         """ writes internal map and linked Nodes to file/filename
@@ -80,11 +98,13 @@ class MindMap(Elements.Map):
         :param file_or_filename: string path to file or file instance of mindmap (.mm)
         :return:
         """
-        etMap = revert(self)
-        xmlTree = ET.ElementTree(etMap)
-        xmlTree.write(file_or_filename)
+        et_map = revert(self)
+        xmltree = ET.ElementTree(et_map)
+        xmltree.write(file_or_filename)
 
     def _create_new_mindmap_hierarchy(self):
-        ''' create default hierarchy for mindmap -- including map_styles and Automatic node coloring hook '''
-        self.children.append(Elements.Node())  # add root node to self (self is map)
+        """create default hierarchy for mindmap -- including map_styles and
+        Automatic node coloring hook
+        """
+        self.children.append(Elements.Node())
 

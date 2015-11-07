@@ -1,3 +1,10 @@
+"""
+    Pymm mindmaps are composed of a hierarchical tree composed of elements
+    defined within this Elements module. The hierarchical format is exact or
+    similar in structure to the trees constructed by xml.etree, but with
+    different syntax for traversing and modifying the tree.
+    Some terminology you may see throughout this module:
+"""
 from uuid import uuid4
 import warnings
 import re
