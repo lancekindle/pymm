@@ -132,6 +132,13 @@ class BaseElement:
         subset = _elementAccess.ChildSubset(self, **kwargs) 
         return list(subset)
 
+    def find(self, **kwargs):
+        subset = _elementAccess.ChildSubset(self, **kwargs)
+        try:
+            return subset[0]
+        except IndexError:
+            return None
+
 
 class ImplicitNodeAttributes:
     """attributes are excel like tables (2-cells wide each) that define a
@@ -178,9 +185,10 @@ class Node(ImplicitNodeAttributes, BaseElement):
     # have key/value pairs
     _attribute = {}
     # cloud automatically gets/sets a cloud within children
-    cloud = property(_elementAccess.SingleChild(tag_regex=r'cloud'))
+    cloud = property(*_elementAccess.SingleChild.setup(tag_regex=r'cloud'))
     # note automaticaly gets/sets a note within children
-    note = property(_elementAccess.SingleChild(r'hook', {r'STYLE': r'NOTE'}))
+    note = property(*_elementAccess.SingleChild.setup(r'hook',
+                                                      {r'STYLE': r'NOTE'}))
     specs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
              'POSITION': ['left', 'right'], 'STYLE': str, 'TEXT': str, 'LOCALIZED_TEXT': str, 'TYPE': str,
              'CREATED': int, 'MODIFIED': int, 'HGAP': int, 'VGAP': int, 'VSHIFT': int,
@@ -214,7 +222,7 @@ class Map(BaseElement):
     attrib = {'version': 'freeplane 1.3.0'}
     specs = {'version': str}
     nodes = _elementAccess.ChildSubset.class_preconstructor(tag_regex=r'node')
-    root = property(_elementAccess.SingleChild(tag_regex=r'node'))
+    root = property(*_elementAccess.SingleChild.setup(tag_regex=r'node'))
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
