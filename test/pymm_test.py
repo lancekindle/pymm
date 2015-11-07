@@ -157,7 +157,7 @@ class TestTypeVariants(unittest.TestCase):
                          mme.EmbeddedImage, mme.MapConfig, mme.Equation,
                          mme.AutomaticEdgeColor]
         self.mind_map = MindMap()
-        root = self.mind_map.getroot()
+        root = self.mind_map.root
         # clear out children of root
         root.children = []
         for variant in self.variants:
@@ -175,7 +175,7 @@ class TestTypeVariants(unittest.TestCase):
     def test_for_variants(self):
         """Check that the root contains at least one child for each variant
         element type."""
-        root = self.second_mind_map.getroot()
+        root = self.second_mind_map.root
         variants = self.variants.copy()
         for variant in variants:
             for child in root.children:
@@ -202,7 +202,7 @@ class TestReadWriteExample(unittest.TestCase):
         mm_path = os.path.join(this_path, '../docs/input.mm')
         mind_map = pymm.read(mm_path)
         self.assertTrue(mind_map)
-        self.assertTrue(mind_map.getroot())
+        self.assertTrue(mind_map.root)
         mind_map.write('input_2.mm')
         os.remove('input_2.mm')
 
