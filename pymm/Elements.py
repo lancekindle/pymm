@@ -43,8 +43,9 @@ class BaseElement:
     #: _text and _tail are here for compatibility reasons. They correspond to
     #: xml.etree's .text and .tail, respectively. _text is the text between the
     #: xml element's start tag, and the next element. _tail is the text after
-    #: the xml element's ending tag. These attributes are not necessary, but
-    #: help improve the plaintext readability of the written .mm file
+    #: the xml element's ending tag and before the next element. These 
+    #: attributes are not necessary, but help improve the plaintext readability
+    #: of the written .mm file
     _text = ''
     _tail = ''
     
@@ -63,7 +64,7 @@ class BaseElement:
     #: attrib = {'COLOR': 'ff0000', 'STYLE': 'linear', 'WIDTH': '2'}
     #: If you modify attrib in a class, thereafter each instance of that class
     #: will include your attrib version unless overwritten when decoding
-    #: from an existing xml.etree Element.
+    #: from an existing xml Element.
     attrib = {}
 
     #: to improve readability of interactions with pymm elements,
@@ -173,12 +174,17 @@ class Node(ImplicitNodeAttributes, BaseElement):
     tag = 'node'
     nodes = _elementAccess.ChildSubset.class_preconstructor(tag_regex=r'node')
     attrib = {'ID': 'random#', 'TEXT': ''}
-    # _attribute is node-specific, excel-like tables underneath a node that have key/value pairs
+    # _attribute is node-specific, excel-like tables underneath a node that
+    # have key/value pairs
     _attribute = {}
+    # cloud automatically gets/sets a cloud within children
+    cloud = property(_elementAccess.SingleChild(tag_regex=r'cloud'))
+    # note automaticaly gets/sets a note within children
+    note = property(_elementAccess.SingleChild(r'hook', {r'STYLE': r'NOTE'}))
     specs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
-            'POSITION': ['left', 'right'], 'STYLE': str, 'TEXT': str, 'LOCALIZED_TEXT': str, 'TYPE': str,
-            'CREATED': int, 'MODIFIED': int, 'HGAP': int, 'VGAP': int, 'VSHIFT': int,
-            'ENCRYPTED_CONTENT': str, 'OBJECT': str, 'MIN_WIDTH': int, 'MAX_WIDTH': int}
+             'POSITION': ['left', 'right'], 'STYLE': str, 'TEXT': str, 'LOCALIZED_TEXT': str, 'TYPE': str,
+             'CREATED': int, 'MODIFIED': int, 'HGAP': int, 'VGAP': int, 'VSHIFT': int,
+             'ENCRYPTED_CONTENT': str, 'OBJECT': str, 'MIN_WIDTH': int, 'MAX_WIDTH': int}
 
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls, *args, **kwargs)
@@ -208,15 +214,10 @@ class Map(BaseElement):
     attrib = {'version': 'freeplane 1.3.0'}
     specs = {'version': str}
     nodes = _elementAccess.ChildSubset.class_preconstructor(tag_regex=r'node')
+    root = property(_elementAccess.SingleChild(tag_regex=r'node'))
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
-    def setroot(self, root):
-        self.nodes[:] = [root]
-
-    def getroot(self):
-        return self.nodes[0]  # there should only be one node on Map!
 
 
 class Cloud(BaseElement):
