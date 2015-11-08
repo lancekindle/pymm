@@ -187,8 +187,8 @@ class Node(ImplicitNodeAttributes, BaseElement):
     # cloud automatically gets/sets a cloud within children
     cloud = property(*_elementAccess.SingleChild.setup(tag_regex=r'cloud'))
     # note automaticaly gets/sets a note within children
-    note = property(*_elementAccess.SingleChild.setup(r'hook',
-                                                      {r'STYLE': r'NOTE'}))
+    note = property(*_elementAccess.SingleChild.setup(tag_regex=r'hook',
+                                            attrib_regex={r'STYLE': r'NOTE'}))
     specs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
              'POSITION': ['left', 'right'], 'STYLE': str, 'TEXT': str, 'LOCALIZED_TEXT': str, 'TYPE': str,
              'CREATED': int, 'MODIFIED': int, 'HGAP': int, 'VGAP': int, 'VSHIFT': int,

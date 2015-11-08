@@ -160,14 +160,9 @@ class SingleChild:
     """
 
     @classmethod
-    def setup(cls, tag_regex=None, attrib_regex=None):
-        regexes = {}
-        if tag_regex is None and attrib_regex is None:
+    def setup(cls, **regexes):
+        if not regexes:
             raise ValueError('expected either tag_regex or attrib_regex')
-        if tag_regex is not None:
-            regexes['tag_regex'] = tag_regex
-        if attrib_regex is not None:
-            regexes['attrib_regex'] = attrib_regex
 
         def getter(parent):
             return parent.find(**regexes)
