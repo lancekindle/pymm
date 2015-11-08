@@ -3,7 +3,19 @@
     defined within this Elements module. The hierarchical format is exact or
     similar in structure to the trees constructed by xml.etree, but with
     different syntax for traversing and modifying the tree.
-    Some terminology you may see throughout this module:
+
+    If you want to make your own element, see the example below:
+
+    class ExampleElement:
+        # [REQUIRED]. Only way for a Factory (which you must code) to
+        # convert the element of type 'tag'. Examples include 'node' or 'cloud'
+        tag = ''
+        # [OPTIONAL] pre-define default element attributes
+        attrib = {}
+        # [OPTIONAL] pre-define attribute types (like bool, str, int, float).
+        specs = {}
+        # [OPTIONAL] list of attribs that are used when constructing str(self)
+        _display_attrib = []
 """
 from uuid import uuid4
 import warnings
@@ -11,18 +23,8 @@ import re
 import copy
 from . import _elementAccess
 import types
-# see http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format for file specifications
-# terminology: elem, element = MindMap Elements (no etree elements allowed! Use a mmFactory to convert those
+# http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format
 
-
-class ExampleElement:  # example element showing minimum of things to define to inherit from BaseElement and create one.
-    tag = ''  # [REQUIRED]. Only way for a Factory (which you must code) to
-        # convert the element of type 'tag'. Examples include 'node' or 'cloud'
-    attrib = {}  # [OPTIONAL] pre-define default element attributes
-    specs = {}  # [OPTIONAL] pre-define attribute types (like bool, str, int, float).
-    _display_attrib = []  # [OPTIONAL] list of attribs that are used when constructing string representation
-
-   
 
 class BaseElement:
     """ pymm's Base Element. All other elements inherit from BaseElement, which
@@ -104,21 +106,21 @@ class BaseElement:
         return self
 
     def _init_all_preconstructed_element_accessors(self):
-        """locate all preconstructed child access functions and run them.
+        """locate all preconstructed child access functions and run them:
         get back child access object, and set using same attribute name.
         things like self.nodes. Makes sure that this is a new, separate
         instance from the class itself. This feels computationally heavy tho...
+        basically a catch-all version of self.nodes = self.nodes()
         """
-        for varName in dir(self):  # looking for a .nodes or .clouds function
-            func = getattr(self, varName)  # idk why it's <class 'method'>
-                                           # instead of <class 'function'>
+        for varName in dir(self):
+            func = getattr(self, varName)
             if type(func) == types.MethodType and func.__name__ == 'this_function_gets_automatically_run_inside_elements__new__':
-                childAccessor = func()  # run function, get back child
-                setattr(self, varName, childAccessor)      # access object
+                childAccessor = func()
+                setattr(self, varName, childAccessor)
 
-    def __init__(self, **kwargs):  # used to be: (self, attrib={}, **kwargs)  ## self.attrib.update(attribs)
-        for k, v in kwargs.items():  # make this call different than updating attrib directly because it's more likely
-            self.attrib[k] = v                       # that a developer specifically typed this out. This will error check it
+    def __init__(self, **kwargs):
+        for k, v in kwargs.items():
+            self.attrib[k] = v
 
     def findall(self, **kwargs):
         """Return all child elements matching regex parameters.
@@ -189,10 +191,13 @@ class Node(ImplicitNodeAttributes, BaseElement):
     # note automaticaly gets/sets a note within children
     note = property(*_elementAccess.SingleChild.setup(tag_regex=r'hook',
                                             attrib_regex={r'STYLE': r'NOTE'}))
-    specs = {'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str, 'LINK': str,
-             'POSITION': ['left', 'right'], 'STYLE': str, 'TEXT': str, 'LOCALIZED_TEXT': str, 'TYPE': str,
-             'CREATED': int, 'MODIFIED': int, 'HGAP': int, 'VGAP': int, 'VSHIFT': int,
-             'ENCRYPTED_CONTENT': str, 'OBJECT': str, 'MIN_WIDTH': int, 'MAX_WIDTH': int}
+    specs = {
+        'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str,
+        'LINK': str, 'POSITION': ['left', 'right'], 'STYLE': str,  'TEXT': str,
+        'LOCALIZED_TEXT': str, 'TYPE': str, 'CREATED': int, 'MODIFIED': int,
+        'HGAP': int, 'VGAP': int, 'VSHIFT': int,  'ENCRYPTED_CONTENT': str,
+        'OBJECT': str, 'MIN_WIDTH': int, 'MAX_WIDTH': int,
+    }
 
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls, *args, **kwargs)
@@ -239,9 +244,9 @@ class Cloud(BaseElement):
     """
     tag = 'cloud'
     shapeList = ['ARC', 'STAR', 'RECT', 'ROUND_RECT']
-    attrib = {'COLOR': '#f0f0f0', 'SHAPE': 'ARC'}  # set defaults
+    attrib = {'COLOR': '#f0f0f0', 'SHAPE': 'ARC'}
     specs = {'COLOR': str, 'SHAPE': shapeList, 'WIDTH': str}
-    _display_attrib = ['COLOR', 'SHAPE']  # extra information to send during call to __str__
+    _display_attrib = ['COLOR', 'SHAPE']
 
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls)
@@ -313,7 +318,10 @@ class StyleNode(BaseElement):
     their parents + their unique attributes.
     """
     tag = 'stylenode'
-    specs = {'LOCALIZED_TEXT': str, 'POSITION': ['left', 'right'], 'COLOR': str, 'MAX_WIDTH': int, 'STYLE': str}
+    specs = {
+        'LOCALIZED_TEXT': str, 'POSITION': ['left', 'right'], 'COLOR': str,
+        'MAX_WIDTH': int, 'STYLE': str,
+    }
 
 
 class Font(BaseElement):
@@ -321,7 +329,7 @@ class Font(BaseElement):
     StyleNode to change that StyleNode's text appearance
     """
     tag = 'font'
-    attrib = {'BOLD': False, 'ITALIC': False, 'NAME': 'SansSerif', 'SIZE': 10}  # set defaults
+    attrib = {'BOLD': False, 'ITALIC': False, 'NAME': 'SansSerif', 'SIZE': 10}
     specs = {'BOLD': bool, 'ITALIC': bool, 'NAME': str, 'SIZE': int}
 
 
@@ -332,27 +340,36 @@ class Icon(BaseElement):
     """
     tag = 'icon'
     _display_attrib = ['BUILTIN']
-    builtinList = ['help', 'bookmark', 'yes', 'button_ok', 'button_cancel', 'idea', 'messagebox_warning', 'stop-sign',
-                   'closed', 'info', 'clanbomber', 'checked', 'unchecked', 'wizard', 'gohome', 'knotify', 'password',
-                   'pencil', 'xmag', 'bell', 'launch', 'broken-line', 'stop', 'prepare', 'go', 'very_negative',
-                   'negative', 'neutral', 'positive', 'very_positive', 'full-1', 'full-2', 'full-3', 'full-4', 'full-5',
-                   'full-6', 'full-7', 'full-8', 'full-9', 'full-0', '0%', '25%', '50%', '75%', '100%', 'attach',
-                   'desktop_new', 'list', 'edit', 'kaddressbook', 'pencil', 'folder', 'kmail', 'Mail', 'revision',
-                   'video', 'audio', 'executable', 'image', 'internet', 'internet_warning', 'mindmap', 'narrative',
-                   'flag-black', 'flag-blue', 'flag-green', 'flag-orange', 'flag-pink', 'flag', 'flag-yellow', 'clock',
-                   'clock2', 'hourglass', 'calendar', 'family', 'female1', 'female2', 'females', 'male1', 'male2',
-                   'males', 'fema', 'group', 'ksmiletris', 'smiley-neutral', 'smiley-oh', 'smiley-angry', 'smiley_bad',
-                   'licq', 'penguin', 'freemind_butterfly', 'bee', 'forward', 'back', 'up', 'down', 'addition',
-                   'subtraction', 'multiplication', 'division']
+    builtinList = [
+        'help', 'bookmark', 'yes', 'button_ok', 'button_cancel', 'idea',
+        'messagebox_warning', 'stop-sign', 'closed', 'info', 'clanbomber',
+        'checked', 'unchecked', 'wizard', 'gohome', 'knotify', 'password',
+        'pencil', 'xmag', 'bell', 'launch', 'broken-line', 'stop', 'prepare',
+        'go', 'very_negative', 'negative', 'neutral', 'positive',
+        'very_positive', 'full-1', 'full-2', 'full-3', 'full-4', 'full-5',
+        'full-6', 'full-7', 'full-8', 'full-9', 'full-0', '0%', '25%', '50%',
+        '75%', '100%', 'attach', 'desktop_new', 'list', 'edit', 'kaddressbook',
+        'pencil', 'folder', 'kmail', 'Mail', 'revision', 'video', 'audio',
+        'executable', 'image', 'internet', 'internet_warning', 'mindmap',
+        'narrative', 'flag-black', 'flag-blue', 'flag-green', 'flag-orange',
+        'flag-pink', 'flag', 'flag-yellow', 'clock', 'clock2', 'hourglass',
+        'calendar', 'family', 'female1', 'female2', 'females', 'male1',
+        'male2', 'males', 'fema', 'group', 'ksmiletris', 'smiley-neutral',
+        'smiley-oh', 'smiley-angry', 'smiley_bad', 'licq', 'penguin',
+        'freemind_butterfly', 'bee', 'forward', 'back', 'up', 'down',
+        'addition', 'subtraction', 'multiplication', 'division'
+    ]
     attrib = {'BUILTIN': 'bookmark'}
     specs = {'BUILTIN': builtinList}
 
     def set_icon(self, icon):
         self.attrib['BUILTIN'] = icon
         if icon not in self.builtinList:
-            warnings.warn('icon "' + str(icon) + '" not part of freeplanes builtin icon list. ' +
-                          'Freeplane may not display icon. Use an icon from the builtinList instead', SyntaxWarning,
-                          stacklevel=2)
+            warnings.warn(
+                'icon "' + str(icon) + '" not part of freeplanes builtin icon '
+                + 'list. Freeplane may not display icon. Use an icon from the '
+                + 'builtinList instead', SyntaxWarning, stacklevel=2
+            )
 
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls)
@@ -371,7 +388,10 @@ class Edge(BaseElement):
     unappealing.
     """
     tag = 'edge'
-    styleList = ['linear', 'bezier', 'sharp_linear', 'sharp_bezier', 'horizontal', 'hide_edge']
+    styleList = [
+        'linear', 'bezier', 'sharp_linear', 'sharp_bezier', 'horizontal',
+        'hide_edge'
+    ]
     widthList = ['thin', int]
     specs = {'COLOR': str, 'STYLE': styleList, 'WIDTH': widthList}
 
@@ -399,15 +419,25 @@ class Properties(BaseElement):
     presence on a node. Is child of MapStyle
     """
     tag = 'properties'
-    attrib = {'show_icon_for_attributes': 'true', 'show_note_icons': 'true', 'show_notes_in_map': 'true'}
-    specs = {'show_icon_for_attributes': bool, 'show_note_icons': bool, 'show_notes_in_map': bool}
+    attrib = {
+        'show_icon_for_attributes': 'true', 'show_note_icons': 'true',
+        'show_notes_in_map': 'true'
+    }
+    specs = {
+        'show_icon_for_attributes': bool, 'show_note_icons': bool,
+        'show_notes_in_map': bool
+    }
 
 
 class ArrowLink(BaseElement):
     tag = 'arrowlink'
     attrib = {'DESTINATION': ''}
-    specs = {'COLOR': str, 'DESTINATION': str, 'ENDARROW': str, 'ENDINCLINATION': str, 'ID': str, 'STARTARROW': str,
-             'STARTINCLINATION': str, 'SOURCE_LABEL': str, 'MIDDLE_LABEL': str, 'TARGET_LABEL': str, 'EDGE_LIKE': bool}
+    specs = {
+        'COLOR': str, 'DESTINATION': str, 'ENDARROW': str, 
+        'ENDINCLINATION': str, 'ID': str, 'STARTARROW': str, 
+        'STARTINCLINATION': str, 'SOURCE_LABEL': str, 'MIDDLE_LABEL': str,
+        'TARGET_LABEL': str, 'EDGE_LIKE': bool
+    }
 
 
 class AttributeLayout(BaseElement):
