@@ -23,7 +23,8 @@ class ChildSubsetSimplified:
     :param descriptor: the list of specific descriptor of elements to group and provide access to.
     '''
     def __init__(self, elementInstance, **kwargs):
-        self._verify_arguments(kwargs)
+        if not 'pre_verified' in kwargs:
+            self._verify_arguments(kwargs)
         self._TAG_REGEX = kwargs.get('tag_regex', None)
         self._ATTRIB_REGEX = kwargs.get('attrib_regex', {})
         self._parent = elementInstance
@@ -46,7 +47,7 @@ class ChildSubsetSimplified:
         if attrib and not isinstance(attrib, dict):
             raise ValueError('attrib_regex should be dict. Got ' + str(attrib))
         if not tag and not attrib:
-            raise ValueError('Must define either tag or attrior regex. Got ' +
+            raise ValueError('Must define either tag or attrib regex. Got ' +
                     str(tag) + str(attrib))
 
     @classmethod
@@ -58,6 +59,21 @@ class ChildSubsetSimplified:
         return this_function_gets_automatically_run_inside_elements__new__ #  long
         # name because this function name NEEDS to be unique. It is automatically
         # instantiated in the __new__ method of base element
+
+    @classmethod
+    def setup(cls, **regexes):
+        cls._verify_arguments(regexes)
+        regexes['pre_verified'] = True
+
+        def getter(parent):
+            return cls(parent, **regexes)
+
+        def setter(parent, iterable):
+            self = cls(parent, **regexes)
+            self[:] = iterable
+
+        return getter, setter
+
 
     def append(self, element):
         self._parent.children.append(element)

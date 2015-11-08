@@ -181,7 +181,7 @@ class Node(ImplicitNodeAttributes, BaseElement):
     A Node contains an ID and text by default
     """
     tag = 'node'
-    nodes = _elementAccess.ChildSubset.class_preconstructor(tag_regex=r'node')
+    nodes = property(*_elementAccess.ChildSubset.setup(tag_regex=r'node'))
     attrib = {'ID': 'random#', 'TEXT': ''}
     # _attribute is node-specific, excel-like tables underneath a node that
     # have key/value pairs
@@ -226,7 +226,7 @@ class Map(BaseElement):
     tag = 'map'
     attrib = {'version': 'freeplane 1.3.0'}
     specs = {'version': str}
-    nodes = _elementAccess.ChildSubset.class_preconstructor(tag_regex=r'node')
+    nodes = property(*_elementAccess.ChildSubset.setup(tag_regex=r'node'))
     root = property(*_elementAccess.SingleChild.setup(tag_regex=r'node'))
 
     def __init__(self, **kwargs):
