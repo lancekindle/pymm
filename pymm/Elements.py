@@ -122,6 +122,27 @@ class BaseElement:
         for k, v in kwargs.items():
             self.attrib[k] = v
 
+    def __str__(self):
+        """Construct string representation of self. Configured to display
+        attrib values listed in self._display_attrib
+        """
+        identifying = [
+            ' ' + prop + '=' + val for prop, val in self.attrib.items() if
+            prop in self._display_attrib
+        ]
+        return self.tag + ': ' + ''.join(identifying)
+
+    def __repr__(self):
+        """Return shortened description of self, encapsulated in < > brackets
+        like an xml-element
+        """
+        string = str(self)
+        shorter = string[:13]
+        ellipses = '...'
+        if shorter == string:
+            ellipses = ''
+        return '<' + shorter + ellipses + ' @' + hex(id(self)) + '>'
+
     def findall(self, **kwargs):
         """Return all child elements matching regex parameters.
 
