@@ -89,21 +89,16 @@ class BaseElement:
     specs = {}
 
     def __new__(cls, *args, **kwargs):
-        """DO NOT OVERRIDE W/O super. override __init__ for most stuff. Copy
-        all the mutable class attributes such as children, attrib, specs, and 
-        _display_attrib into the class instance to prevent user from
-        accidentally adding to class-wide attributes if he overrides __init__
-        and forgets to call super().__init__ first. It is still possible for
-        user to change class-wide variables, but this will make it less likely
-        he will do so with an instance of the class. We do not use *args or
-        **kwargs in __new__ because developer may want to override behavior of
-        arguments
+        """There are a few class-wide mutable attributes that are meant to be
+        changed in each instance: children and attrib. Copy children and
+        deepcopy attrib so that when either of these are changed, the change
+        does not alter the class's children/attrib attribute. If this is not
+        done, appending a child to an element would add it to all other
+        instances of that element.
         """
         self = super().__new__(cls)
-        self.children = copy.deepcopy(self.children)
+        self.children = copy.copy(self.children)
         self.attrib = copy.deepcopy(self.attrib)
-        self._display_attrib = copy.deepcopy(self._display_attrib)
-        self.specs = copy.deepcopy(self.specs)
         self._init_all_preconstructed_element_accessors()
         return self
 
@@ -262,20 +257,17 @@ class Cloud(BaseElement):
     out above other Nodes. As a child of the Node, a cloud applies its visual
     style to its parent Node and that nodes children and sub-children. The
     cloud has two main attributes to control its visual style: SHAPE, and
-    COLOR. SHAPE must be chosen from Cloud.shapeList, while COLOR can be any 
+    COLOR. SHAPE must be chosen from Cloud.shapeList, while COLOR can be any
     string representation starting with #, and using two hexidecimal characters
     for each color in RGB
     """
     tag = 'cloud'
-    shapeList = ['ARC', 'STAR', 'RECT', 'ROUND_RECT']
     attrib = {'COLOR': '#f0f0f0', 'SHAPE': 'ARC'}
-    specs = {'COLOR': [str], 'SHAPE': shapeList, 'WIDTH': [str]}
+    specs = {
+        'COLOR': [str], 'WIDTH': [str],
+        'SHAPE': ['ARC', 'STAR', 'RECT', 'ROUND_RECT'],
+    }
     _display_attrib = ['COLOR', 'SHAPE']
-
-    def __new__(cls, *args, **kwargs):
-        self = super().__new__(cls)
-        self.shapeList = copy.deepcopy(self.shapeList)
-        return self
 
 
 class Hook(BaseElement):
@@ -364,41 +356,39 @@ class Icon(BaseElement):
     """
     tag = 'icon'
     _display_attrib = ['BUILTIN']
-    builtinList = [
-        'help', 'bookmark', 'yes', 'button_ok', 'button_cancel', 'idea',
-        'messagebox_warning', 'stop-sign', 'closed', 'info', 'clanbomber',
-        'checked', 'unchecked', 'wizard', 'gohome', 'knotify', 'password',
-        'pencil', 'xmag', 'bell', 'launch', 'broken-line', 'stop', 'prepare',
-        'go', 'very_negative', 'negative', 'neutral', 'positive',
-        'very_positive', 'full-1', 'full-2', 'full-3', 'full-4', 'full-5',
-        'full-6', 'full-7', 'full-8', 'full-9', 'full-0', '0%', '25%', '50%',
-        '75%', '100%', 'attach', 'desktop_new', 'list', 'edit', 'kaddressbook',
-        'pencil', 'folder', 'kmail', 'Mail', 'revision', 'video', 'audio',
-        'executable', 'image', 'internet', 'internet_warning', 'mindmap',
-        'narrative', 'flag-black', 'flag-blue', 'flag-green', 'flag-orange',
-        'flag-pink', 'flag', 'flag-yellow', 'clock', 'clock2', 'hourglass',
-        'calendar', 'family', 'female1', 'female2', 'females', 'male1',
-        'male2', 'males', 'fema', 'group', 'ksmiletris', 'smiley-neutral',
-        'smiley-oh', 'smiley-angry', 'smiley_bad', 'licq', 'penguin',
-        'freemind_butterfly', 'bee', 'forward', 'back', 'up', 'down',
-        'addition', 'subtraction', 'multiplication', 'division'
-    ]
     attrib = {'BUILTIN': 'bookmark'}
-    specs = {'BUILTIN': builtinList}
+    specs = {
+        'BUILTIN': [
+            'help', 'bookmark', 'yes', 'button_ok', 'button_cancel', 'idea',
+            'messagebox_warning', 'stop-sign', 'closed', 'info', 'clanbomber',
+            'checked', 'unchecked', 'wizard', 'gohome', 'knotify', 'password',
+            'pencil', 'xmag', 'bell', 'launch', 'broken-line', 'stop',
+            'prepare', 'go', 'very_negative', 'negative', 'neutral',
+            'positive', 'very_positive', 'full-1', 'full-2', 'full-3',
+            'full-4', 'full-5', 'full-6', 'full-7', 'full-8', 'full-9',
+            'full-0', '0%', '25%', '50%', '75%', '100%', 'attach',
+            'desktop_new', 'list', 'edit', 'kaddressbook', 'pencil', 'folder',
+            'kmail', 'Mail', 'revision', 'video', 'audio', 'executable',
+            'image', 'internet', 'internet_warning', 'mindmap', 'narrative',
+            'flag-black', 'flag-blue', 'flag-green', 'flag-orange',
+            'flag-pink', 'flag', 'flag-yellow', 'clock', 'clock2', 'hourglass',
+            'calendar', 'family', 'female1', 'female2', 'females', 'male1',
+            'male2', 'males', 'fema', 'group', 'ksmiletris', 'smiley-neutral',
+            'smiley-oh', 'smiley-angry', 'smiley_bad', 'licq', 'penguin',
+            'freemind_butterfly', 'bee', 'forward', 'back', 'up', 'down',
+            'addition', 'subtraction', 'multiplication', 'division'
+        ],
+    }
+
 
     def set_icon(self, icon):
         self.attrib['BUILTIN'] = icon
-        if icon not in self.builtinList:
+        if icon not in self.specs['BUILTIN']:
             warnings.warn(
                 'icon "' + str(icon) + '" not part of freeplanes builtin icon '
-                + 'list. Freeplane may not display icon. Use an icon from the '
-                + 'builtinList instead', SyntaxWarning, stacklevel=2
+                + 'list. Freeplane may not display icon. Use an icon from '
+                + 'specs["BUILTIN"] instead', SyntaxWarning, stacklevel=2
             )
-
-    def __new__(cls, *args, **kwargs):
-        self = super().__new__(cls)
-        self.builtinList = copy.deepcopy(self.builtinList)
-        return self
 
 
 class Edge(BaseElement):
@@ -412,18 +402,14 @@ class Edge(BaseElement):
     unappealing.
     """
     tag = 'edge'
-    styleList = [
-        'linear', 'bezier', 'sharp_linear', 'sharp_bezier', 'horizontal',
-        'hide_edge'
-    ]
-    widthList = ['thin', int]
-    specs = {'COLOR': [str], 'STYLE': styleList, 'WIDTH': widthList}
+    specs = {
+        'COLOR': [str], 'WIDTH': ['thin', int],
+        'STYLE': [
+            'linear', 'bezier', 'sharp_linear', 'sharp_bezier', 'horizontal',
+            'hide_edge'
+        ],
+    }
 
-    def __new__(cls, *args, **kwargs):
-        self = super().__new__(cls)
-        self.styleList = copy.deepcopy(self.styleList)
-        self.widthList = copy.deepcopy(self.widthList)
-        return self
 
 class Attribute(BaseElement):
     """(Node) Attributes display underneath a Node like a table, with NAME
