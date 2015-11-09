@@ -12,7 +12,8 @@
         tag = ''
         # [OPTIONAL] pre-define default element attributes
         attrib = {}
-        # [OPTIONAL] pre-define attribute types (like bool, str, int, float).
+        # [OPTIONAL] specify possible attribute types. Put any / all possible
+        # attribute type (like bool, str, int, float) in a list.
         specs = {}
         # [OPTIONAL] list of attribs that are used when constructing str(self)
         _display_attrib = []
@@ -75,15 +76,16 @@ class BaseElement:
     _display_attrib = []
 
     #: a dictionary of expected xml attributes and a list of their expected
-    #: types (i.e. int, list, string, etc.).When changing an element's 
+    #: types ( i.e. [int, str, bool, etc.] ).When changing an element's
     #: attribute, the new attribute will be checked against the specs, and a
-    #: warning generated if the new attribute does not match the specs. Can be
+    #: warning generated if the new attribute does not match specs. Can be
     #: modified to allow additional specs. I.E. elem.attrib['TEXT'] = 'HI 5'
     #: sets the element's TEXT attrib to 'HI 5'. If specs contains the key
     #: 'TEXT', the type of value 'HI 5' (str) will be checked against the
-    #: value of specs['TEXT'], and a warning generated if they do not match
-    #: list all possible attributes of an element and valid entries / types in
-    #: a list or standalone: [str, int, 'thin', etc.], str, int, 'thin', etc.
+    #: values of specs['TEXT'], and a warning generated if str does not match
+    #: any of the listed attribute specs.
+    #: To reiterate: list all possible attributes of an element and their valid
+    #: entries / types in a list: [str, int, 'thin', etc.]
     specs = {}
 
     def __new__(cls, *args, **kwargs):
@@ -213,11 +215,12 @@ class Node(ImplicitNodeAttributes, BaseElement):
     note = property(*_elementAccess.SingleChild.setup(tag_regex=r'hook',
                                             attrib_regex={r'STYLE': r'NOTE'}))
     specs = {
-        'BACKGROUND_COLOR': str, 'COLOR': str, 'FOLDED': bool, 'ID': str,
-        'LINK': str, 'POSITION': ['left', 'right'], 'STYLE': str,  'TEXT': str,
-        'LOCALIZED_TEXT': str, 'TYPE': str, 'CREATED': int, 'MODIFIED': int,
-        'HGAP': int, 'VGAP': int, 'VSHIFT': int,  'ENCRYPTED_CONTENT': str,
-        'OBJECT': str, 'MIN_WIDTH': int, 'MAX_WIDTH': int,
+        'BACKGROUND_COLOR': [str], 'COLOR': [str], 'FOLDED': [bool],
+        'ID': [str], 'LINK': [str], 'POSITION': ['left', 'right'],
+        'STYLE': [str], 'TEXT': [str], 'LOCALIZED_TEXT': [str], 'TYPE': [str],
+        'CREATED': [int], 'MODIFIED': [int], 'HGAP': [int], 'VGAP': [int],
+        'VSHIFT': [int],  'ENCRYPTED_CONTENT': [str], 'OBJECT': [str],
+        'MIN_WIDTH': [int], 'MAX_WIDTH': [int],
     }
 
     def __new__(cls, *args, **kwargs):
@@ -246,7 +249,7 @@ class Map(BaseElement):
     """
     tag = 'map'
     attrib = {'version': 'freeplane 1.3.0'}
-    specs = {'version': str}
+    specs = {'version': [str]}
     nodes = property(*_elementAccess.ChildSubset.setup(tag_regex=r'node'))
     root = property(*_elementAccess.SingleChild.setup(tag_regex=r'node'))
 
@@ -266,7 +269,7 @@ class Cloud(BaseElement):
     tag = 'cloud'
     shapeList = ['ARC', 'STAR', 'RECT', 'ROUND_RECT']
     attrib = {'COLOR': '#f0f0f0', 'SHAPE': 'ARC'}
-    specs = {'COLOR': str, 'SHAPE': shapeList, 'WIDTH': str}
+    specs = {'COLOR': [str], 'SHAPE': shapeList, 'WIDTH': [str]}
     _display_attrib = ['COLOR', 'SHAPE']
 
     def __new__(cls, *args, **kwargs):
@@ -283,7 +286,7 @@ class Hook(BaseElement):
     """
     tag = 'hook'
     attrib = {'NAME': 'overwritten'}
-    specs = {'NAME': str}
+    specs = {'NAME': [str]}
 
 
 class EmbeddedImage(Hook):
@@ -292,7 +295,7 @@ class EmbeddedImage(Hook):
     EmbeddedImage['URI'] = path
     """
     attrib = {'NAME': 'ExternalObject'}
-    specs = {'NAME': str, 'URI': str, 'SIZE': float}
+    specs = {'NAME': [str], 'URI': [str], 'SIZE': [float]}
 
 
 class MapConfig(Hook):
@@ -302,7 +305,7 @@ class MapConfig(Hook):
     wrapping.
     """
     attrib = {'NAME': 'MapStyle', 'zoom': 1.0}
-    specs = {'NAME': str, 'max_node_width': int, 'zoom': float}
+    specs = {'NAME': [str], 'max_node_width': [int], 'zoom': [float]}
 
 
 class Equation(Hook):
@@ -310,7 +313,7 @@ class Equation(Hook):
     Node. Define the equation using Equation['EQUATION'] = latex-string
     """
     attrib = {'NAME': 'plugins/latex/LatexNodeHook.properties'}
-    specs = {'NAME': str, 'EQUATION': str}
+    specs = {'NAME': [str], 'EQUATION': [str]}
 
 
 class AutomaticEdgeColor(Hook):
@@ -320,7 +323,7 @@ class AutomaticEdgeColor(Hook):
     many edges have been automatically colored.
     """
     attrib = {'NAME': 'AutomaticEdgeColor', 'COUNTER': 0}
-    specs = {'NAME': str, 'COUNTER': int}
+    specs = {'NAME': [str], 'COUNTER': [int]}
 
 
 class MapStyles(BaseElement):
@@ -340,8 +343,8 @@ class StyleNode(BaseElement):
     """
     tag = 'stylenode'
     specs = {
-        'LOCALIZED_TEXT': str, 'POSITION': ['left', 'right'], 'COLOR': str,
-        'MAX_WIDTH': int, 'STYLE': str,
+        'LOCALIZED_TEXT': [str], 'POSITION': ['left', 'right'], 'COLOR': [str],
+        'MAX_WIDTH': [int], 'STYLE': [str],
     }
 
 
@@ -351,7 +354,7 @@ class Font(BaseElement):
     """
     tag = 'font'
     attrib = {'BOLD': False, 'ITALIC': False, 'NAME': 'SansSerif', 'SIZE': 10}
-    specs = {'BOLD': bool, 'ITALIC': bool, 'NAME': str, 'SIZE': int}
+    specs = {'BOLD': [bool], 'ITALIC': [bool], 'NAME': [str], 'SIZE': [int]}
 
 
 class Icon(BaseElement):
@@ -414,7 +417,7 @@ class Edge(BaseElement):
         'hide_edge'
     ]
     widthList = ['thin', int]
-    specs = {'COLOR': str, 'STYLE': styleList, 'WIDTH': widthList}
+    specs = {'COLOR': [str], 'STYLE': styleList, 'WIDTH': widthList}
 
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls)
@@ -432,7 +435,7 @@ class Attribute(BaseElement):
     """
     tag = 'attribute'
     attrib = {'NAME': '', 'VALUE': ''}
-    specs = {'NAME': str, 'VALUE': str, 'OBJECT': str}
+    specs = {'NAME': [str], 'VALUE': [str], 'OBJECT': [str]}
 
 
 class Properties(BaseElement):
@@ -445,8 +448,8 @@ class Properties(BaseElement):
         'show_notes_in_map': 'true'
     }
     specs = {
-        'show_icon_for_attributes': bool, 'show_note_icons': bool,
-        'show_notes_in_map': bool
+        'show_icon_for_attributes': [bool], 'show_note_icons': [bool],
+        'show_notes_in_map': [bool],
     }
 
 
@@ -454,10 +457,10 @@ class ArrowLink(BaseElement):
     tag = 'arrowlink'
     attrib = {'DESTINATION': ''}
     specs = {
-        'COLOR': str, 'DESTINATION': str, 'ENDARROW': str, 
-        'ENDINCLINATION': str, 'ID': str, 'STARTARROW': str, 
-        'STARTINCLINATION': str, 'SOURCE_LABEL': str, 'MIDDLE_LABEL': str,
-        'TARGET_LABEL': str, 'EDGE_LIKE': bool
+        'COLOR': [str], 'DESTINATION': [str], 'ENDARROW': [str],
+        'ENDINCLINATION': [str], 'ID': [str], 'STARTARROW': [str],
+        'STARTINCLINATION': [str], 'SOURCE_LABEL': [str],
+        'MIDDLE_LABEL': [str], 'TARGET_LABEL': [str], 'EDGE_LIKE': [bool],
     }
 
 
@@ -483,7 +486,7 @@ class RichContent(BaseElement):
     """
     tag = 'richcontent'
     _display_attrib = ['TYPE']
-    specs = {'TYPE': str}
+    specs = {'TYPE': [str]}
     html = ''
 
     def is_html(self):
