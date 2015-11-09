@@ -29,6 +29,34 @@ except ImportError:
 # (usually if somebody just inits a richcontent node)
 # AKA: I have no idea if type variants are used at all in any mindmap
 
+
+class TestAttribSpecs(unittest.TestCase):
+    """Element.specs contains a key/value pair that describes an attribute
+    (key) and its possible values (value). Value must be a list
+    """
+
+    def setUp(self):
+        mut = TestMutableClassVariables()
+        mut.setUp()
+        self.elements = mut.elements
+
+    def test_specs_values_are_lists(self):
+        for element in self.elements:
+            for val in element.specs.values():
+                if not isinstance(val, list):
+                    self.fail(
+                        str(element) + ' has non-list spec value: ' + str(val)
+                    )
+
+    def test_specs_keys_are_strings(self):
+        for element in self.elements:
+            for key in element.specs.keys():
+                if not isinstance(key, str):
+                    self.fail(
+                        str(element) + ' has non-str spec key: ' + str(key)
+                    )
+
+
 class TestNodeImplicitAttributes(unittest.TestCase):
     """Nodes have attributes that are a name, value pair visually
     stored beneath the node in freeplane. They are implemented as a dictionary
