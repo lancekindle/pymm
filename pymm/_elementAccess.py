@@ -176,8 +176,12 @@ class ChildSubset(ChildSubsetSimplified):
         return s
 
     def __repr__(self):
-        return '<' + str(self)[:15] + '...'*(len(str(self)) > 15) + ' @' + 
-               hex(id(self)) + '>'
+        string = str(self)
+        shorter = self[:15]
+        ellipses = '...'
+        if shorter == string:
+            ellipses = ''
+        return '<' + shorter + ellipses + ' @' + hex(id(self)) + '>'
 
 
 class SingleChild:
