@@ -80,7 +80,7 @@ class TestMutableClassVariables(unittest.TestCase):
     class's instance holds different mutable variables than the class
     itself. Specifically, verify that all dicts and lists defined in
     BaseElement and any inheriting class does not share that dict/list with its
-    instances.
+    instances, with a few exceptions (noteably specs and _display_attrib)
     """
 
     def setUp(self):
@@ -97,23 +97,27 @@ class TestMutableClassVariables(unittest.TestCase):
         for _, cls in inspect.getmembers(pymm.Elements, is_element_cls):
             self.elements.append(cls)
 
-    def test_for_unique_mut_vars(self, filt=None):
+    def test_unique_mutable_vars(self, filt=None,
+                                 filter_out=['specs', '_display_attrib']):
         """Test each element's mutable variable and confirm it does not share
         the same memory address as the element's Class
         """
-        is_mutable_var = lambda k, v: (isinstance(v, dict) or
-                                       isinstance(v, list)) \
-                                       and not k.endswith('__')
+        is_mutable = lambda k, v: (isinstance(v, dict) or
+                                   isinstance(v, list)) and \
+                                   not k.endswith('__')
         base_mutables = [k for k, v in vars(self.base).items()
-                         if is_mutable_var(k, v)]
+                         if is_mutable(k, v)]
         for elem_class in self.elements:
             mutables = [k for k, v in vars(elem_class).items()
-                        if is_mutable_var(k, v)]
+                        if is_mutable(k, v)]
             mutables = list(set(base_mutables + mutables))
 
             # optional filter to search only for known attributes
             if filt:
                 mutables = [m for m in mutables if m in filt]
+            # optional filter to remove known attributes (they are OK to share)
+            if filter_out:
+                mutables = [m for m in mutables if m not in filter_out]
             element = elem_class()
 
             # check if vars have same memory address
@@ -129,8 +133,8 @@ class TestMutableClassVariables(unittest.TestCase):
         class attribute children is a different from the instance attribute
         children.
         """
-        filt = ['children', 'attrib', '_display_attrib', 'specs']
-        self.test_for_unique_mut_vars(filt)
+        filt = ['children', 'attrib',]
+        self.test_unique_mutable_vars(filt)
 
 
 class TestIfRichContentFixedYet(unittest.TestCase):
