@@ -19,8 +19,10 @@ class ChildSubsetSimplified:
     Most useful for allowing access
     to child nodes. Provide access to slicing, removal, appending
 
-    :param element: the linked element whose children will be available through ElementAccessor
-    :param descriptor: the list of specific descriptor of elements to group and provide access to.
+    :param element: the linked element whose children will be available through
+        ElementAccessor
+    :param descriptor: the list of specific descriptor of elements to group and
+        provide access to.
     '''
     def __init__(self, elementInstance, **kwargs):
         if not 'pre_verified' in kwargs:
@@ -52,13 +54,20 @@ class ChildSubsetSimplified:
 
     @classmethod
     def class_preconstructor(cls, **kwargs):
+        """return a function that, when run, will return an instance of
+        ChildSubset with the kwargs previously passed into class_preconstructor
+        Useful for predefining childsubset in a class definition. Any element
+        inheriting from BaseElement will automatically call the
+        object-instantiating function returned by this classmethod.
+        However, it is recommended to use property(x) within a class
+        definition, where x = ChildSubset.setup(), which does almost the same
+        thing but is cleaner code-wise and easier to understand
+        """
         cls._verify_arguments(kwargs)
         kwargs = copy.deepcopy(kwargs)
         def this_function_gets_automatically_run_inside_elements__new__(elementInstance):
             return cls(elementInstance, **kwargs) 
-        return this_function_gets_automatically_run_inside_elements__new__ #  long
-        # name because this function name NEEDS to be unique. It is automatically
-        # instantiated in the __new__ method of base element
+        return this_function_gets_automatically_run_inside_elements__new__ 
 
     @classmethod
     def setup(cls, **regexes):
@@ -77,7 +86,6 @@ class ChildSubsetSimplified:
 
     def append(self, element):
         self._parent.children.append(element)
-        #what about setting child's 'parent' property?
 
     def remove(self, element):
         self._parent.chilren.remove(element)
@@ -94,24 +102,28 @@ class ChildSubsetSimplified:
         return elements[index]
 
     def __iter__(self):
+        """Iterate through _parent's children, yielding children when they
+        match tag_regex and/or attrib_regex
+        """
         for elem in self._parent.children:
             if self._TAG_REGEX:
                 if not re.fullmatch(self._TAG_REGEX, elem.tag):
-                    continue  # skip this element, it doesn't match tag_regex
+                    continue
             matches = lambda x, y, rx, ry: re.fullmatch(rx, x) and re.fullmatch(ry, y)
             for regK, regV in self._ATTRIB_REGEX.items():
                 match = [k for k, v in elem.attrib.items() if matches(k, v, regK, regV)]
                 if not match:
-                    break  # skip element that can't match one of our attribs
-            else:  # only get here if we didn't break attrib matching (always works if no attrib_regex)
-                yield elem  # yield element only if it matches tag and attrib regex
+                    break
+            else:
+                yield elem
 
 
-    def __setitem__(self, index, elem):   # removes elements, then re-appends them after modification.
-        """ remove element(s), then re-appends after modification. Sloppy, but
+    def __setitem__(self, index, elem):
+        """remove element(s), then re-appends after modification. Sloppy, but
         it works, and elements are reordered later anyways.
         what really matters is that the order of elements of the same tag are
-        not altered
+        not altered. Note that this is very inefficient because the list is
+        reconstructed each time a set-operation is applied
         """
         # check for index == 0, can use shortcut in that case
         if index == 0:
@@ -119,9 +131,9 @@ class ChildSubsetSimplified:
             i = self._parent.children.index(e)
             self._parent.children[i] = elem
             return
-        subchildren = self[:]             # sloppy, but it works. And elements are reordered later anyways.
-        for element in subchildren:       # what really matters is that the order of elements of the same tag are not
-            self._parent.children.remove(element)  # altered.
+        subchildren = self[:]
+        for element in subchildren:
+            self._parent.children.remove(element)
         subchildren[index] = elem
         for element in subchildren:
             self._parent.children.append(element)
@@ -133,11 +145,14 @@ class ChildSubsetSimplified:
 
 
 class ChildSubset(ChildSubsetSimplified):
-    ''' Provide access to specific elements within an element through matching of descriptor. Most useful for allowing access
-    to child nodes. Provide access with indexing, slicing, removal, appending, etc.
+    ''' Provide access to specific elements within an element through matching
+    of descriptor. Most useful for allowing access to child nodes. Provide
+    access with indexing, slicing, removal, appending, etc.
 
-    :param element: the linked element whose children will be available through ElementAccessor
-    :param descriptor: the list of specific descriptor of elements to group and provide access to.
+    :param element: the linked element whose children will be available through
+        ElementAccessor
+    :param descriptor: the list of specific descriptor of elements to group and
+        provide access to.
     '''
     
     def pop(self, index=-1):
@@ -155,14 +170,14 @@ class ChildSubset(ChildSubsetSimplified):
     def __str__(self):
         s = 'subset: '
         if self._TAG_REGEX:
-            s += str(self._TAG_REGEX)  # looks aweful because string
-            # representation of compiled regex is.... re.compiled('asdf')
+            s += str(self._TAG_REGEX)
         if self._ATTRIB_REGEX:
             s += str(self._ATTRIB_REGEX)
         return s
 
     def __repr__(self):
-        return '<' + str(self)[:15] + '...'*(len(str(self)) > 15) + ' @' + hex(id(self)) + '>'
+        return '<' + str(self)[:15] + '...'*(len(str(self)) > 15) + ' @' + 
+               hex(id(self)) + '>'
 
 
 class SingleChild:
