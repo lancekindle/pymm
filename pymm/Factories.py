@@ -180,7 +180,7 @@ class BaseElementFactory:
     def convert_attrib_value_using_spec_entries(self, value, entries):
         # first verify that entries is a list
         if not type(entries) == type(list()):
-            entries = [entries]
+            raise ValueError('specs contained a non-list spec-value')
         for entry in entries:
             if type(entry) == type:  # bool, str, int, etc...
                 valueType = entry
