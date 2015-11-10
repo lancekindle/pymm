@@ -201,14 +201,25 @@ class SingleChild:
 
         def getter(parent):
             return parent.find(**regexes)
-        
-        def setter(parent, child):
-            replaceable = parent.find(**regexes)
-            i = parent.children.index(replaceable)
-            parent.children[i] = child
 
         def deleter(parent):
             deleteable = parent.find(**regexes)
-            parent.children.remove(deleteable)
+            if deleteable is not None:
+                parent.children.remove(deleteable)
+
+        def setter(parent, child):
+            """replace or remove child. If child passed is None, will delete
+            first matching child. Otherwise will replace existing child with
+            passed child or append to end of children
+            """
+            if child is None:
+                deleter(parent)
+                return
+            replaceable = parent.find(**regexes)
+            if replaceable is None:
+                parent.children.append(child)
+                return
+            i = parent.children.index(replaceable)
+            parent.children[i] = child
 
         return getter, setter, deleter
