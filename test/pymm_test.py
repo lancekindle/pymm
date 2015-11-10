@@ -15,7 +15,7 @@ try:
     import pymm
     from pymm import Elements as mme
     from pymm import MindMap
-    from pymm._elementAccess import ChildSubset
+    from pymm._elementAccess import ChildSubset, SingleChild
 except ImportError:
     print('Error: I think you are editting file NOT from the test directory')
     print('please cd to test/ and rerun tests.py')
@@ -303,13 +303,53 @@ class TestElementAccessor(unittest.TestCase):
     """ Test Element Accessor """
 
     def setUp(self):
-        """Create placeholder objects for tests."""
+        """self.element will have childsubsets nodes, clouds. self.element will
+        also have singlechild property: firstnode, which will grab first node
+        in children list
+        """
+        mme.BaseElement.firstchild = property(
+            *SingleChild.setup(tag_regex=r'node')
+        )
         self.element = mme.BaseElement()
         self.node = mme.Node()
         self.node2 = mme.Node()
         self.cloud = mme.Cloud()
         self.element.nodes = ChildSubset(self.element, tag_regex=r'node')
         self.element.clouds = ChildSubset(self.element, tag_regex=r'cloud')
+
+    def tearDown(self):
+        del mme.BaseElement.firstchild
+
+    def test_singlechild_returns_none_when_empty(self):
+        self.assertTrue(self.element.firstchild is None)
+
+    def test_singlechild_returns_first_match(self):
+        self.add_nodes_and_cloud_to_element()
+        self.assertTrue(self.element.firstchild is self.node)
+
+    def add_nodes_and_cloud_to_element(self):
+        self.element.children.append(self.node)
+        self.element.children.append(self.node2)
+        self.element.children.append(self.cloud)
+
+    def test_singlechild_deletes_first_match(self):
+        self.add_nodes_and_cloud_to_element()
+        self.assertTrue(self.element.firstchild is self.node)
+        del self.element.firstchild
+        self.assertTrue(self.element.firstchild is self.node2)
+        del self.element.firstchild
+        self.assertTrue(self.element.firstchild is None)
+
+    def test_singlechild_replaces_child(self):
+        self.add_nodes_and_cloud_to_element()
+        self.element.firstchild = self.node2
+        self.assertTrue(self.element.nodes[:] == [self.node2, self.node2])
+
+    def test_set_singlechild_to_none_deletes_first_match(self):
+        self.add_nodes_and_cloud_to_element()
+        self.assertTrue(len(self.element.children) == 3)
+        self.element.firstchild = None
+        self.assertTrue(len(self.element.children) == 2)
 
     def test_add_preconstructed_subset(self):
         """Test that BaseElement properly handles addition of subset."""
@@ -419,6 +459,7 @@ class TestElementAccessor(unittest.TestCase):
         """Test that adding a cloud to element doesn't expose cloud in nodes."""
         self.element.children.append(self.cloud)
         self.assertTrue(self.cloud not in self.element.nodes)
+
 
 class TestBaseElement(unittest.TestCase):
     """Test BaseElement."""
