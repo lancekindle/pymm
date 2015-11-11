@@ -315,17 +315,13 @@ class TestNativeChildIndexing(unittest.TestCase):
         self.assertRaises(ValueError, self.element.children.remove, self.node2)
 
 
-class TestElementAccessor(unittest.TestCase):
-    """ Test Element Accessor """
+class TestChildSubset(unittest.TestCase):
 
     def setUp(self):
         """self.element will have childsubsets nodes, clouds. self.element will
         also have singlechild property: firstnode, which will grab first node
         in children list
         """
-        mme.BaseElement.firstchild = property(
-            *SingleChild.setup(tag_regex=r'node')
-        )
         self.element = mme.BaseElement()
         self.node = mme.Node()
         self.node2 = mme.Node()
@@ -336,33 +332,6 @@ class TestElementAccessor(unittest.TestCase):
             self.element.children, self.node, self.node2, self.cloud
         )
 
-    def tearDown(self):
-        del mme.BaseElement.firstchild
-
-    def test_singlechild_returns_none_when_empty(self):
-        self.element.children.clear()
-        self.assertTrue(self.element.firstchild is None)
-
-    def test_singlechild_returns_first_match(self):
-        self.assertTrue(self.element.firstchild is self.node)
-
-    def test_singlechild_deletes_first_match(self):
-        self.assertTrue(self.element.firstchild is self.node)
-        del self.element.firstchild
-        self.assertTrue(self.element.firstchild is self.node2)
-        del self.element.firstchild
-        self.assertTrue(self.element.firstchild is None)
-
-    def test_singlechild_replaces_child(self):
-        self.element.firstchild = self.node2
-        self.assertTrue(self.element.nodes[:] == [self.node2, self.node2])
-
-    def test_set_singlechild_to_none_deletes_first_match(self):
-        self.assertTrue(len(self.element.children) == 3)
-        self.element.firstchild = None
-        self.assertTrue(len(self.element.children) == 2)
-        self.assertTrue(self.element.firstchild == self.node2)
-
     def test_add_preconstructed_subset(self):
         """Test that BaseElement properly handles addition of subset"""
         mme.BaseElement.nodes = ChildSubset\
@@ -370,12 +339,6 @@ class TestElementAccessor(unittest.TestCase):
         elem = mme.BaseElement()
         self.assertTrue(hasattr(elem, 'nodes'))
         del mme.BaseElement.nodes  # cleanup
-
-    def test_add_preconstructed_singlechild(self):
-        mme.BaseElement.root = property(*SingleChild.setup(tag_regex=r'node'))
-        elem = mme.BaseElement()
-        self.assertTrue(hasattr(elem, 'root'))
-        del mme.BaseElement.root  # cleanup
 
     def test_attrib_regex(self):
         """Test to ensure proper matching of child elements by regex"""
@@ -476,6 +439,59 @@ class TestElementAccessor(unittest.TestCase):
         """Test that adding a cloud to element doesn't expose cloud in nodes"""
         self.element.children.append(self.cloud)
         self.assertTrue(self.cloud not in self.element.nodes)
+
+
+class TestSingleChild(unittest.TestCase):
+    """ Test Element Accessor """
+
+    def setUp(self):
+        """self.element will have childsubsets nodes, clouds. self.element will
+        also have singlechild property: firstnode, which will grab first node
+        in children list
+        """
+        mme.BaseElement.firstchild = property(
+            *SingleChild.setup(tag_regex=r'node')
+        )
+        self.element = mme.BaseElement()
+        self.node = mme.Node()
+        self.node2 = mme.Node()
+        self.cloud = mme.Cloud()
+        append_elements_to_list(
+            self.element.children, self.node, self.node2, self.cloud
+        )
+
+    def tearDown(self):
+        del mme.BaseElement.firstchild
+
+    def test_singlechild_returns_none_when_empty(self):
+        self.element.children.clear()
+        self.assertTrue(self.element.firstchild is None)
+
+    def test_singlechild_returns_first_match(self):
+        self.assertTrue(self.element.firstchild is self.node)
+
+    def test_singlechild_deletes_first_match(self):
+        self.assertTrue(self.element.firstchild is self.node)
+        del self.element.firstchild
+        self.assertTrue(self.element.firstchild is self.node2)
+        del self.element.firstchild
+        self.assertTrue(self.element.firstchild is None)
+
+    def test_singlechild_replaces_child(self):
+        self.element.firstchild = self.node2
+        self.assertTrue(self.element.children[:2] == [self.node2, self.node2])
+
+    def test_set_singlechild_to_none_deletes_first_match(self):
+        self.assertTrue(len(self.element.children) == 3)
+        self.element.firstchild = None
+        self.assertTrue(len(self.element.children) == 2)
+        self.assertTrue(self.element.firstchild == self.node2)
+
+    def test_add_preconstructed_singlechild(self):
+        mme.BaseElement.root = property(*SingleChild.setup(tag_regex=r'node'))
+        elem = mme.BaseElement()
+        self.assertTrue(hasattr(elem, 'root'))
+        del mme.BaseElement.root  # cleanup
 
 
 class TestBaseElement(unittest.TestCase):
