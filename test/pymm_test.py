@@ -30,15 +30,43 @@ except ImportError:
 # AKA: I have no idea if type variants are used at all in any mindmap
 
 
+def append_elements_to_list(children_list, *children):
+    """given a children list and 1+ children, append children in the order
+    given to the children list. Note children_list is not an element. It is the
+    element's .children or .nodes, etc attribute
+    """
+    for child in children:
+        children_list.append(child)
+
+
+def is_pymm_element_class(cls):
+    """Checks that cls is an object representing a class which inherits
+    from BaseElement
+    """
+    return inspect.isclass(cls) and issubclass(cls, pymm.Elements.BaseElement)
+
+
+def get_all_pymm_element_classes(*namespaces):
+    """Return list of pymm elements. Search pymm and pymm.Elements namespaces
+    for any elements inheriting from BaseElement, including BaseElement. Any
+    namespaces/modules passed as an argument to this function will also be
+    searched, and any elements found will be including in returned list.
+    """
+    modules = [pymm, pymm.Elements] + list(namespaces)
+    elements = set()
+    for module in modules:
+        for _, cls in inspect.getmembers(module, is_pymm_element_class):
+            elements.add(cls)
+    return list(elements)
+
+
 class TestAttribSpecs(unittest.TestCase):
     """Element.specs contains a key/value pair that describes an attribute
     (key) and its possible values (value). Value must be a list
     """
 
     def setUp(self):
-        mut = TestMutableClassVariables()
-        mut.setUp()
-        self.elements = mut.elements
+        self.elements = get_all_pymm_element_classes(pymm)
 
     def test_specs_values_are_lists(self):
         for element in self.elements:
@@ -114,17 +142,7 @@ class TestMutableClassVariables(unittest.TestCase):
     def setUp(self):
         """Gather all the `element` classes into `self.elements`"""
         self.base = pymm.Elements.BaseElement
-        # List of the element classes
-        self.elements = [self.base, pymm.MindMap]
-
-        def is_element_cls(obj):
-            """Checks that x is an object representing a class which inherits
-            from BaseElement
-            """
-            return inspect.isclass(obj) and isinstance(obj(), self.base)
-
-        for _, cls in inspect.getmembers(pymm.Elements, is_element_cls):
-            self.elements.append(cls)
+        self.elements = get_all_pymm_element_classes()
 
     def test_unique_mutable_vars(self, filt=None,
                                  filter_out=['specs', '_display_attrib']):
@@ -258,45 +276,40 @@ class TestNativeChildIndexing(unittest.TestCase):
         self.element = mme.BaseElement()
         self.node = mme.Node()
         self.node2 = mme.Node()
+        append_elements_to_list(self.element.children, self.node, self.node2)
 
     def test_append_and_index(self):
         """Test successful appending of node to element"""
-        elem = self.element
-        node = self.node
-        elem.children.append(node)
-        self.assertIn(node, elem.children)
-        self.assertTrue(node == elem.children[0])
+        self.element.children.clear()
+        self.element.children.append(self.node)
+        self.assertIn(self.node, self.element.children)
+        self.assertTrue(self.node == self.element.children[0])
 
     def test_slicing(self):
         """Test proper slicing of children"""
-        self.element.children.append(self.node)
-        self.element.children.append(self.node2)
         nodes = self.element.children[0:2]
         self.assertTrue(self.node in nodes)
         self.assertTrue(self.node2 in nodes)
         # should only get node, not node2
         nodes = self.element.children[0:2:2]
+        self.assertTrue(len(nodes) == 1)
         self.assertTrue(self.node in nodes)
         self.assertTrue(self.node2 not in nodes)
 
     def test_remove_and_index(self):
         """Test removal of nodes from element"""
-        elem = self.element
-        node = self.node
-        node2 = self.node2
-        elem.children.append(node)
-        elem.children.append(node2)
-        self.assertFalse(node2 == elem.children[0])
-        elem.children.remove(node)
-        self.assertTrue(node2 == elem.children[0])
-        elem.children.remove(node2)
+        self.assertFalse(self.node2 == self.element.children[0])
+        self.element.children.remove(self.node)
+        self.assertTrue(self.node2 == self.element.children[0])
+        self.element.children.remove(self.node2)
         # verify elem is child-less
-        self.assertFalse(elem.children)  # verify elem is child-less
+        self.assertFalse(self.element.children)  # verify elem is child-less
 
     def test_remove_error(self):
         """Ensure proper error handling for erroneous removal of node from
         element
         """
+        self.element.children.clear()
         self.assertRaises(ValueError, self.element.children.remove, self.node)
         self.element.children.append(self.node)
         self.assertRaises(ValueError, self.element.children.remove, self.node2)
@@ -319,24 +332,21 @@ class TestElementAccessor(unittest.TestCase):
         self.cloud = mme.Cloud()
         self.element.nodes = ChildSubset(self.element, tag_regex=r'node')
         self.element.clouds = ChildSubset(self.element, tag_regex=r'cloud')
+        append_elements_to_list(
+            self.element.children, self.node, self.node2, self.cloud
+        )
 
     def tearDown(self):
         del mme.BaseElement.firstchild
 
     def test_singlechild_returns_none_when_empty(self):
+        self.element.children.clear()
         self.assertTrue(self.element.firstchild is None)
 
     def test_singlechild_returns_first_match(self):
-        self.add_nodes_and_cloud_to_element()
         self.assertTrue(self.element.firstchild is self.node)
 
-    def add_nodes_and_cloud_to_element(self):
-        self.element.children.append(self.node)
-        self.element.children.append(self.node2)
-        self.element.children.append(self.cloud)
-
     def test_singlechild_deletes_first_match(self):
-        self.add_nodes_and_cloud_to_element()
         self.assertTrue(self.element.firstchild is self.node)
         del self.element.firstchild
         self.assertTrue(self.element.firstchild is self.node2)
@@ -344,15 +354,14 @@ class TestElementAccessor(unittest.TestCase):
         self.assertTrue(self.element.firstchild is None)
 
     def test_singlechild_replaces_child(self):
-        self.add_nodes_and_cloud_to_element()
         self.element.firstchild = self.node2
         self.assertTrue(self.element.nodes[:] == [self.node2, self.node2])
 
     def test_set_singlechild_to_none_deletes_first_match(self):
-        self.add_nodes_and_cloud_to_element()
         self.assertTrue(len(self.element.children) == 3)
         self.element.firstchild = None
         self.assertTrue(len(self.element.children) == 2)
+        self.assertTrue(self.element.firstchild == self.node2)
 
     def test_add_preconstructed_subset(self):
         """Test that BaseElement properly handles addition of subset"""
@@ -360,8 +369,13 @@ class TestElementAccessor(unittest.TestCase):
                 .class_preconstructor(tag_regex=r'node')
         elem = mme.BaseElement()
         self.assertTrue(hasattr(elem, 'nodes'))
-        # be sure to remove this class variable
-        del mme.BaseElement.nodes
+        del mme.BaseElement.nodes  # cleanup
+
+    def test_add_preconstructed_singlechild(self):
+        mme.BaseElement.root = property(*SingleChild.setup(tag_regex=r'node'))
+        elem = mme.BaseElement()
+        self.assertTrue(hasattr(elem, 'root'))
+        del mme.BaseElement.root  # cleanup
 
     def test_attrib_regex(self):
         """Test to ensure proper matching of child elements by regex"""
@@ -369,13 +383,12 @@ class TestElementAccessor(unittest.TestCase):
                                            attrib_regex={r'COLOR': '.*'})
         colored = self.element.colored
         node = self.node
-        colored.append(node)
         self.assertFalse('COLOR' in node.attrib.keys())
-        self.assertTrue(len(colored) == 0)
+        colored_count = len(colored)
         node.attrib['COLOR'] = 'f0f0ff'
-        self.assertTrue(len(colored) == 1)
+        self.assertTrue(len(colored) == colored_count + 1)
         del node.attrib['COLOR']
-        self.assertTrue(len(colored) == 0)
+        self.assertTrue(len(colored) == colored_count)
 
     def test_constructor_empty_attrib(self):
         """Test that a child subset cannot be created given an empty regex"""
