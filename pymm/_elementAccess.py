@@ -27,13 +27,14 @@ class ChildSubsetSimplified:
     def __init__(self, elementInstance, **kwargs):
         if not 'pre_verified' in kwargs:
             self._verify_arguments(kwargs)
+        self._TAG = kwargs.get('tag', None)
         self._TAG_REGEX = kwargs.get('tag_regex', None)
         self._ATTRIB_REGEX = kwargs.get('attrib_regex', {})
         self._parent = elementInstance
 
     @classmethod
     def _verify_arguments(cls, kwargs):
-        keysExpected = set(('tag_regex', 'attrib_regex'))
+        keysExpected = set(('tag', 'tag_regex', 'attrib_regex'))
         keysGot = set(kwargs.keys())
         unexpectedKeys = keysGot.difference(keysExpected)
         if not keysGot:
@@ -42,15 +43,22 @@ class ChildSubsetSimplified:
         if unexpectedKeys:
             raise KeyError('Unexpected keys found in subset init: ' +
                             str(unexpectedKeys))
-        tag = kwargs.get('tag_regex', None)
-        attrib = kwargs.get('attrib_regex', {})
-        if tag and not isinstance(tag, str):
+        tagr = kwargs.get('tag_regex', None)
+        if not tagr:
+            tagr = None
+        attribr = kwargs.get('attrib_regex', {})
+        tag = kwargs.get('tag', None)
+        if tagr and not isinstance(tagr, str):
             raise ValueError('tag_regex should be string. Got ' + str(tag))
-        if attrib and not isinstance(attrib, dict):
-            raise ValueError('attrib_regex should be dict. Got ' + str(attrib))
-        if not tag and not attrib:
-            raise ValueError('Must define either tag or attrib regex. Got ' +
-                    str(tag) + str(attrib))
+        if attribr and not isinstance(attribr, dict):
+            raise ValueError('attrib_regex should be dict.Got ' + str(attribr))
+        if not tagr and not attribr and not tag:
+            raise ValueError(
+                'Must define either tag, tag_regex or attribregex. Got ' +
+                    str(tagr) + str(attribr)
+            )
+        if tag and tagr:
+            raise ValueError('cannot specify both tag and tag_regex matching')
 
     @classmethod
     def class_preconstructor(cls, **kwargs):
@@ -108,6 +116,9 @@ class ChildSubsetSimplified:
         for elem in self._parent.children:
             if self._TAG_REGEX:
                 if not re.fullmatch(self._TAG_REGEX, elem.tag):
+                    continue
+            if self._TAG:
+                if not self._TAG == elem.tag:
                     continue
             matches = lambda x, y, rx, ry: re.fullmatch(rx, x) and re.fullmatch(ry, y)
             for regK, regV in self._ATTRIB_REGEX.items():

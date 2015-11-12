@@ -326,16 +326,19 @@ class TestChildSubset(unittest.TestCase):
         self.node = mme.Node()
         self.node2 = mme.Node()
         self.cloud = mme.Cloud()
-        self.element.nodes = ChildSubset(self.element, tag_regex=r'node')
+        self.element.nodes = ChildSubset(self.element, tag=r'node')
         self.element.clouds = ChildSubset(self.element, tag_regex=r'cloud')
         append_elements_to_list(
             self.element.children, self.node, self.node2, self.cloud
         )
 
+    def test_clouds_holds_only_clouds(self):
+        self.assertTrue(self.element.clouds[:] == [self.cloud])
+
     def test_add_preconstructed_subset(self):
         """Test that BaseElement properly handles addition of subset"""
         mme.BaseElement.nodes = ChildSubset\
-                .class_preconstructor(tag_regex=r'node')
+                .class_preconstructor(tag='node')
         elem = mme.BaseElement()
         self.assertTrue(hasattr(elem, 'nodes'))
         del mme.BaseElement.nodes  # cleanup
