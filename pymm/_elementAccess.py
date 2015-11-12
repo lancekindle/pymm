@@ -178,21 +178,8 @@ class ChildSubset(ChildSubsetSimplified):
     def __contains__(self, element):
         return element in self[:]
 
-    def __str__(self):
-        s = 'subset: '
-        if self._TAG_REGEX:
-            s += str(self._TAG_REGEX)
-        if self._ATTRIB_REGEX:
-            s += str(self._ATTRIB_REGEX)
-        return s
-
     def __repr__(self):
-        string = str(self)
-        shorter = self[:15]
-        ellipses = '...'
-        if shorter == string:
-            ellipses = ''
-        return '<' + shorter + ellipses + ' @' + hex(id(self)) + '>'
+        return str(self[:])
 
 
 class SingleChild:
