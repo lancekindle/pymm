@@ -31,27 +31,27 @@ class BaseElement:
     """ pymm's Base Element. All other elements inherit from BaseElement, which
     represents an element in a similar style to xml.etree.ElementTree with
     enhancements aimed at providing faster mindmap manipulation. Each element
-    has a specific identifier--a tag--that specifies what type of element it
+    has a specific identifier (a tag) that specifies what type of element it
     is. If a specific xml element type does not have a corresponding pymm
     element, it will become a BaseElement, but the corresponding "BaseElement"
     tag will be replaced with the actual xml element's tag.
 
-    
     :param tag: the tag specifying type of element
     :param parent: a link to the element's parent element
-    :param specs:     """
+    :param specs:
+    """
     tag = 'BaseElement'
     parent = None
 
     #: _text and _tail are here for compatibility reasons. They correspond to
     #: xml.etree's .text and .tail, respectively. _text is the text between the
     #: xml element's start tag, and the next element. _tail is the text after
-    #: the xml element's ending tag and before the next element. These 
+    #: the xml element's ending tag and before the next element. These
     #: attributes are not necessary, but help improve the plaintext readability
     #: of the written .mm file
     _text = ''
     _tail = ''
-    
+
     #: BaseElement stores all its children in a list that you can access and
     #: modify @ element.children. This is dissimilar to xml.etree, which
     #: allows implicit indexing of children. If you want to access children
@@ -109,15 +109,15 @@ class BaseElement:
         instance from the class itself. This feels computationally heavy tho...
         basically a catch-all version of self.nodes = self.nodes()
         """
-        for varName in dir(self):
-            func = getattr(self, varName)
+        for var_name in dir(self):
+            func = getattr(self, var_name)
             if type(func) == types.MethodType and func.__name__ == 'this_function_gets_automatically_run_inside_elements__new__':
-                childAccessor = func()
-                setattr(self, varName, childAccessor)
+                child_accessor = func()
+                setattr(self, var_name, child_accessor)
 
     def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            self.attrib[k] = v
+        for key, val in kwargs.items():
+            self.attrib[key] = val
 
     def __str__(self):
         """Construct string representation of self. Configured to display
@@ -141,18 +141,24 @@ class BaseElement:
         return '<' + shorter + ellipses + ' @' + hex(id(self)) + '>'
 
     def findall(self, **kwargs):
-        """Return all child elements matching regex parameters.
+        """Return all child elements matching key parameters.
 
         :param tag_regex: regex matching child element tag (e.g. r'node')
         :param attrib_regex: regex matching keys, values in child.attrib.
                              Requires dictionary-format regex key/value pairs.
                              e.g. {r'COLOR': r'ff[0-9a-f]{4}'}
+        :param tag: exact string of child element tag to search
         :return: list of matching children. Return empty list if none found.
         """
-        subset = _elementAccess.ChildSubset(self, **kwargs) 
+        subset = _elementAccess.ChildSubset(self, **kwargs)
         return list(subset)
 
     def find(self, **kwargs):
+        """ search all children using keywords "tag", "tag_regex", and
+        "attrib_regex". Like findall, but only returns first result
+
+        :Return: first child found matching keyword criteria, else None
+        """
         subset = _elementAccess.ChildSubset(self, **kwargs)
         try:
             return subset[0]
@@ -162,12 +168,13 @@ class BaseElement:
 
 class ImplicitNodeAttributes:
     """attributes are excel like tables (2-cells wide each) that define a
-    key-value pair they are attached (visually) beneath a Node in Freeplane. 
+    key-value pair they are attached (visually) beneath a Node in Freeplane.
     This class allows the user to define attributes on a node with implicit
     indexing, iteration, and contains-checking like a dictionary but with only
     the .items() method exposed. You can get the attribute dictionary directly
     by calling .get_attributes()
     """
+    _attribute = {}
 
     def __setitem__(self, key, val):
         self._attribute[key] = val
@@ -185,9 +192,13 @@ class ImplicitNodeAttributes:
         del self._attribute[key]
 
     def items(self):
+        """ Like a dictionary's .items() method, return a list of (key, value)
+        tuples of the attributes in this element
+        """
         return self._attribute.items()
 
     def get_attributes(self):
+        """ return a referenc to the attributes dictionary of the element """
         return self._attribute
 
 
@@ -208,13 +219,13 @@ class Node(ImplicitNodeAttributes, BaseElement):
     cloud = property(*_elementAccess.SingleChild.setup(tag_regex=r'cloud'))
     # note automaticaly gets/sets a note within children
     note = property(*_elementAccess.SingleChild.setup(tag_regex=r'hook',
-                                            attrib_regex={r'STYLE': r'NOTE'}))
+                    attrib_regex={r'STYLE': r'NOTE'}))
     specs = {
         'BACKGROUND_COLOR': [str], 'COLOR': [str], 'FOLDED': [bool],
         'ID': [str], 'LINK': [str], 'POSITION': ['left', 'right'],
         'STYLE': [str], 'TEXT': [str], 'LOCALIZED_TEXT': [str], 'TYPE': [str],
         'CREATED': [int], 'MODIFIED': [int], 'HGAP': [int], 'VGAP': [int],
-        'VSHIFT': [int],  'ENCRYPTED_CONTENT': [str], 'OBJECT': [str],
+        'VSHIFT': [int], 'ENCRYPTED_CONTENT': [str], 'OBJECT': [str],
         'MIN_WIDTH': [int], 'MAX_WIDTH': [int],
     }
 
@@ -320,7 +331,7 @@ class AutomaticEdgeColor(Hook):
 
 class MapStyles(BaseElement):
     """MapStyles is the child of the MapConfig Hook. MapStyles defines the
-    styles of all the nodes. MapStyles contains multiple StyleNodes, each 
+    styles of all the nodes. MapStyles contains multiple StyleNodes, each
     defining a new style.
     """
     tag = 'map_styles'
@@ -330,7 +341,7 @@ class StyleNode(BaseElement):
     """StyleNode defines the characteristics of a style. Its LOCALIZED_TEXT
     attribute is the same name used by a Node's LOCALIZED_STYLE_REF, when
     choosing what style to use. StyleNodes share their attributes through
-    inheritance. Their children StyleNodes will contain the same attributes as 
+    inheritance. Their children StyleNodes will contain the same attributes as
     their parents + their unique attributes.
     """
     tag = 'stylenode'
@@ -351,7 +362,7 @@ class Font(BaseElement):
 
 class Icon(BaseElement):
     """Add a small icon to the front of a node by adding Icon as a Node's
-    child. Icon['BUILTIN'] = builtinIcon sets the icon. You can choose a 
+    child. Icon['BUILTIN'] = builtinIcon sets the icon. You can choose a
     built-in icon from the list: Icon.builtinList.
     """
     tag = 'icon'
@@ -382,6 +393,10 @@ class Icon(BaseElement):
 
 
     def set_icon(self, icon):
+        """ set icon of node. Will warn if icon is not from builtin list
+
+        :param icon: (string) icon to display on node in freeplane
+        """
         self.attrib['BUILTIN'] = icon
         if icon not in self.specs['BUILTIN']:
             warnings.warn(
@@ -416,7 +431,7 @@ class Attribute(BaseElement):
     attribute to the left, and VALUE to the right. You can use Node Attributes
     to specify categories / traits of a specific Node. You can visually hide
     Node Attributes by setting AttributeRegistry['SHOW_ATTRIBUTES'] = 'hide'.
-    Additionally, you can hide or show an icon indicating the presence of 
+    Additionally, you can hide or show an icon indicating the presence of
     Attributes on a Node through the Properties Element.
     """
     tag = 'attribute'
@@ -425,8 +440,12 @@ class Attribute(BaseElement):
 
 
 class Properties(BaseElement):
-    """Control the appearance of notes on Nodes, and icons, note, or attribute 
-    presence on a node. Is child of MapStyle
+    """ Properties is a non-visible element that controls the visual appearance
+    of notes, icons, and attributes on a Node. It is a child of MapStyle,
+    another non-visible element.
+    Set attrib values in Properties to show or hide notes and attributes,
+    or to show or hide a note icon (an icon on a node that indicates the
+    presence of a note)
     """
     tag = 'properties'
     attrib = {
@@ -440,6 +459,10 @@ class Properties(BaseElement):
 
 
 class ArrowLink(BaseElement):
+    """ ArrowLink is a visual green/red arrow at the beginning of a node which
+    can be clicked on to navigate to the embedded URL. ArrowLink can point to
+    either a web address (URL) or to another node.
+    """
     tag = 'arrowlink'
     attrib = {'DESTINATION': ''}
     specs = {
@@ -466,8 +489,8 @@ class RichContent(BaseElement):
     tags (such as <b>). And will auto-downgrade from richcontent if you replace
     a nodes html-like html with plaintext  (all accessed using node.html).
     Unfortunately, the richcontent that is available is fully-fledged html. So
-    trying to set up something to parse it will need to simply have a 
-    getplaintext() function to allow the user to quickly downgrade text to 
+    trying to set up something to parse it will need to simply have a
+    getplaintext() function to allow the user to quickly downgrade text to
     something readable. Until that time, html text is going to be very messy.
     """
     tag = 'richcontent'
@@ -476,6 +499,7 @@ class RichContent(BaseElement):
     html = ''
 
     def is_html(self):
+        """ return boolean if richcontent is html-like or not """
         return bool(re.findall(r'<[^>]+>', self.html))
 
 
