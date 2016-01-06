@@ -24,18 +24,18 @@ class ChildSubsetSimplified:
     :param descriptor: the list of specific descriptor of elements to group and
         provide access to.
     '''
-    def __init__(self, elementInstance, **kwargs):
-        if not 'pre_verified' in kwargs:
-            self._verify_arguments(kwargs)
-        self._TAG = kwargs.get('tag', None)
-        self._TAG_REGEX = kwargs.get('tag_regex', None)
-        self._ATTRIB_REGEX = kwargs.get('attrib_regex', {})
+    def __init__(self, elementInstance, **identifier):
+        if not 'pre_verified' in identifier:
+            self._verify_arguments(identifier)
+        self._TAG = identifier.get('tag', None)
+        self._TAG_REGEX = identifier.get('tag_regex', None)
+        self._ATTRIB_REGEX = identifier.get('attrib_regex', {})
         self._parent = elementInstance
 
     @classmethod
-    def _verify_arguments(cls, kwargs):
+    def _verify_arguments(cls, identifier):
         keysExpected = set(('tag', 'tag_regex', 'attrib_regex'))
-        keysGot = set(kwargs.keys())
+        keysGot = set(identifier.keys())
         unexpectedKeys = keysGot.difference(keysExpected)
         if not keysGot:
             raise ValueError('Must pass in either/both tag_regex and ' + 
@@ -43,11 +43,11 @@ class ChildSubsetSimplified:
         if unexpectedKeys:
             raise KeyError('Unexpected keys found in subset init: ' +
                             str(unexpectedKeys))
-        tagr = kwargs.get('tag_regex', None)
+        tagr = identifier.get('tag_regex', None)
         if not tagr:
             tagr = None
-        attribr = kwargs.get('attrib_regex', {})
-        tag = kwargs.get('tag', None)
+        attribr = identifier.get('attrib_regex', {})
+        tag = identifier.get('tag', None)
         if tagr and not isinstance(tagr, str):
             raise ValueError('tag_regex should be string. Got ' + str(tag))
         if attribr and not isinstance(attribr, dict):
@@ -61,20 +61,20 @@ class ChildSubsetSimplified:
             raise ValueError('cannot specify both tag and tag_regex matching')
 
     @classmethod
-    def class_preconstructor(cls, **kwargs):
+    def class_preconstructor(cls, **identifier):
         """return a function that, when run, will return an instance of
-        ChildSubset with the kwargs previously passed into class_preconstructor
-        Useful for predefining childsubset in a class definition. Any element
-        inheriting from BaseElement will automatically call the
-        object-instantiating function returned by this classmethod.
+        ChildSubset with the identifier previously passed into
+        class_preconstructor. Useful for predefining childsubset in a class
+        definition. Any element inheriting from BaseElement will automatically
+        call the object-instantiating function returned by this classmethod.
         However, it is recommended to use property(x) within a class
         definition, where x = ChildSubset.setup(), which does almost the same
         thing but is cleaner code-wise and easier to understand
         """
-        cls._verify_arguments(kwargs)
-        kwargs = copy.deepcopy(kwargs)
+        cls._verify_arguments(identifier)
+        identifier = copy.deepcopy(identifier)
         def this_function_gets_automatically_run_inside_elements__new__(elementInstance):
-            return cls(elementInstance, **kwargs) 
+            return cls(elementInstance, **identifier) 
         return this_function_gets_automatically_run_inside_elements__new__ 
 
     @classmethod

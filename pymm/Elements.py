@@ -58,7 +58,7 @@ class BaseElement:
     #: within pymm, you will need to access from the children list.
     children = []
 
-    #: xml attributes are stored in the same fastion as xml.etree: in a
+    #: xml attributes are stored in the same fashion as xml.etree: in a
     #: dictionary called attrib. xml attributes are key=value declarations
     #: that exist within an xml-element's opening (<) and closing (>) tags.
     #: For example, the attrib for an example element:
@@ -88,7 +88,7 @@ class BaseElement:
     #: entries / types in a list: [str, int, 'thin', etc.]
     specs = {}
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, **attrib):
         """There are a few class-wide mutable attributes that are meant to be
         changed in each instance: children and attrib. Copy children and
         deepcopy attrib so that when either of these are changed, the change
@@ -115,8 +115,8 @@ class BaseElement:
                 child_accessor = func()
                 setattr(self, var_name, child_accessor)
 
-    def __init__(self, **kwargs):
-        for key, val in kwargs.items():
+    def __init__(self, **attrib):
+        for key, val in attrib.items():
             self.attrib[key] = val
 
     def __str__(self):
@@ -140,26 +140,26 @@ class BaseElement:
             ellipses = ''
         return '<' + shorter + ellipses + ' @' + hex(id(self)) + '>'
 
-    def findall(self, **kwargs):
+    def findall(self, **identifier):
         """Return all child elements matching key parameters.
 
+        :param tag: exact string of child element tag to search
         :param tag_regex: regex matching child element tag (e.g. r'node')
         :param attrib_regex: regex matching keys, values in child.attrib.
                              Requires dictionary-format regex key/value pairs.
                              e.g. {r'COLOR': r'ff[0-9a-f]{4}'}
-        :param tag: exact string of child element tag to search
         :return: list of matching children. Return empty list if none found.
         """
-        subset = _elementAccess.ChildSubset(self, **kwargs)
+        subset = _elementAccess.ChildSubset(self, **identifier)
         return list(subset)
 
-    def find(self, **kwargs):
+    def find(self, **identifier):
         """ search all children using keywords "tag", "tag_regex", and
         "attrib_regex". Like findall, but only returns first result
 
         :Return: first child found matching keyword criteria, else None
         """
-        subset = _elementAccess.ChildSubset(self, **kwargs)
+        subset = _elementAccess.ChildSubset(self, **identifier)
         try:
             return subset[0]
         except IndexError:
@@ -229,14 +229,14 @@ class Node(ImplicitNodeAttributes, BaseElement):
         'MIN_WIDTH': [int], 'MAX_WIDTH': [int],
     }
 
-    def __new__(cls, *args, **kwargs):
-        self = super().__new__(cls, *args, **kwargs)
+    def __new__(cls, *args, **attrib):
+        self = super().__new__(cls, *args, **attrib)
         self._attribute = self._attribute.copy()
         return self
 
-    def __init__(self, **kwargs):
+    def __init__(self, **attrib):
         self.attrib['ID'] = 'ID_' + str(uuid4().time).replace('L', '')
-        super().__init__(**kwargs)
+        super().__init__(**attrib)
 
     def __str__(self):
         return self.tag + ': ' + self.attrib['TEXT'].replace('\n', '')
@@ -259,8 +259,8 @@ class Map(BaseElement):
     nodes = property(*_elementAccess.ChildSubset.setup(tag_regex=r'node'))
     root = property(*_elementAccess.SingleChild.setup(tag_regex=r'node'))
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, **attrib):
+        super().__init__(**attrib)
 
 
 class Cloud(BaseElement):
