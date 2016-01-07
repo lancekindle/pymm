@@ -221,3 +221,23 @@ class SingleChild:
             parent.children[i] = child
 
         return getter, setter, deleter
+
+
+class Text:
+    """text for a node. Sets and gets attrib['TEXT'] for attached node """
+
+    @classmethod
+    def setup(cls, TextClass):
+
+        def getter(parent):
+            text = parent.attrib['TEXT']
+            return text
+
+        def setter(parent, text):
+            parent.attrib['TEXT'] = text
+
+        def deleter(parent):
+            parent.attrib['TEXT'] = ''
+
+        return getter, setter, deleter
+

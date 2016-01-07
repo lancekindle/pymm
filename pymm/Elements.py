@@ -22,6 +22,7 @@ from uuid import uuid4
 import warnings
 import re
 import copy
+from html.parser import HTMLParser
 from . import _elementAccess
 import types
 # http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format
@@ -202,6 +203,29 @@ class ImplicitNodeAttributes:
         return self._attribute
 
 
+class ImplicitNodeText(str):
+    _is_html = False
+
+    def __init__(self, s, is_html=False, **kwargs):
+        if isinstance(s, self.__class__):
+            self = s
+        else:
+            super().__new__(s, **kwargs)
+            self._is_html = is_html
+
+    def __str__(self):
+        if self._is_html:
+            plaintext = []
+            parser = HTMLParser()
+            parser.handle_data = plaintext.append
+            parser.feed(repr(self))
+            parser.close()
+            plaintext = ''.join(plaintext)
+        else:
+            plaintext = super().__str__(self)
+        return plaintext
+
+
 class Node(ImplicitNodeAttributes, BaseElement):
     """The most common element in a mindmap. The Node is the visual circle in
     freeplane, with an expandable branch of children. A Node contains text
@@ -220,6 +244,11 @@ class Node(ImplicitNodeAttributes, BaseElement):
     # note automaticaly gets/sets a note within children
     note = property(*_elementAccess.SingleChild.setup(tag_regex=r'hook',
                     attrib_regex={r'STYLE': r'NOTE'}))
+    #: text can be used interchangeably with attrib['TEXT']. Node text may
+    #: contain formatted (e.g. bold) text or html/non-textual elements such as
+    #: tables. But may be safely treated as a simple string. (any string method
+    #: called on this will return a plaintext string
+    text = property(*_elementAccess.Text.setup(ImplicitNodeText))
     specs = {
         'BACKGROUND_COLOR': [str], 'COLOR': [str], 'FOLDED': [bool],
         'ID': [str], 'LINK': [str], 'POSITION': ['left', 'right'],
@@ -239,13 +268,7 @@ class Node(ImplicitNodeAttributes, BaseElement):
         super().__init__(**attrib)
 
     def __str__(self):
-        return self.tag + ': ' + self.attrib['TEXT'].replace('\n', '')
-
-    def set_text(self, text):
-        self.attrib['TEXT'] = text
-
-    def get_text(self):
-        return self.attrib['TEXT']
+        return self.tag + ': ' + self.text.replace('\n', '')
 
 
 class Map(BaseElement):
