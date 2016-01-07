@@ -316,6 +316,18 @@ class NodeFactory(BaseElementFactory):
         AttributeLayout.tag, Attribute.tag
     ]
 
+    def convert_attribs(self, mmElement, attrib):
+        """Replace undesired parts of attrib with desired parts.
+        specifically: look for occasional LOCALIZED_TEXT attrib which
+        is supposed to be TEXT
+        """
+        swapout = [('TEXT', 'LOCALIZED_TEXT')]
+        for desired, undesired in swapout:
+            if desired not in attrib and undesired in attrib:
+                attrib[desired] = attrib[undesired]
+                del attrib[undesired]
+        return super().convert_attribs(mmElement, attrib)
+
     def finish_conversion(self, mmElement, parent=None):
         super().finish_conversion(mmElement, parent)
         self.convert_node_text(mmElement)
