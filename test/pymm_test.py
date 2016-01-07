@@ -540,11 +540,11 @@ class TestBaseElement(unittest.TestCase):
         elem.attrib['integer'] = 42
         elem.attrib['one_or_two'] = 1
         try:
-            elem.attrib['string'] = 'good'
-            elem.attrib['integer'] = 42
-            elem.attrib['one_or_two'] = 1
-        except ValueError:
-            self.fail('setting element attribute raised incorrect error')
+            pymm.sanity_check(elem)
+        except Warning:
+            self.fail('in-spec attributes raised warning')
+        elem.attrib['string'] = 5
+        self.assertWarns(Warning, pymm.sanity_check, elem)
 
 
 if __name__ == '__main__':
