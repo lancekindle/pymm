@@ -62,13 +62,19 @@ def get_all_pymm_element_classes(*namespaces):
 
 class TestAttribSpecs(unittest.TestCase):
     """Element.specs contains a key/value pair that describes an attribute
-    (key) and its possible values (value). Value must be a list
+    (key) and a list of alloweable values. These allowable values can be
+    specific elements (like a 1, or '1') or a class (like str, int) or a
+    function that converts the attrib. If an allowable value presents a
+    function, then any attribute for that specific key is allowed
     """
 
     def setUp(self):
         self.elements = get_all_pymm_element_classes(pymm)
 
     def test_specs_values_are_lists(self):
+        """Each element has a specs dictionary. For each key/value pair,
+        verify that the value is a list
+        """
         for element in self.elements:
             for val in element.specs.values():
                 if not isinstance(val, list):
@@ -77,6 +83,9 @@ class TestAttribSpecs(unittest.TestCase):
                     )
 
     def test_specs_keys_are_strings(self):
+        """Each element has a specs dictionary. For each key/value pair,
+        verify that the key is a string
+        """
         for element in self.elements:
             for key in element.specs.keys():
                 if not isinstance(key, str):
@@ -512,24 +521,24 @@ class TestBaseElement(unittest.TestCase):
         after = len(elem.children)
         self.assertTrue(before + 1 == after)
 
-    def test_dictionary_attribut_return(self):
+    def test_dictionary_attribute_return(self):
         """Test that dict returns correctly if attribute is or isn't present"""
         elem = self.element
         key, value = 'hogwash', 'hogvalue'
         self.assertFalse(key in elem.attrib.keys())
-        elem.specs[key] = type(value)
+        elem.specs[key] = [type(value)]
         elem.attrib[key] = value
         self.assertTrue(key in elem.attrib.keys())
 
-    # TODO: rewrite test to call sanity check that should trigger warnings
-    # TODO: instead of try/except, test for raisesWarning
-    @unittest.expectedFailure
     def test_dictionary_inspec_attr(self):
         """Test that dict won't raise error for inspec attribute assignment"""
         elem = self.element
-        elem.specs['string'] = str
-        elem.specs['integer'] = int
+        elem.specs['string'] = [str]
+        elem.specs['integer'] = [int]
         elem.specs['one_or_two'] = [1, 2]
+        elem.attrib['string'] = 'good'
+        elem.attrib['integer'] = 42
+        elem.attrib['one_or_two'] = 1
         try:
             elem.attrib['string'] = 'good'
             elem.attrib['integer'] = 42
