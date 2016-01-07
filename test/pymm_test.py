@@ -202,7 +202,7 @@ class TestIfRichContentFixedYet(unittest.TestCase):
         rich_content = mme.RichContent()
         mind_map = pymm.MindMap()
         mind_map.nodes[0].children.append(rich_content)
-        mind_map.write('richcontent_test.mm')
+        pymm.write('richcontent_test.mm', mind_map)
 
 
 class TestTypeVariants(unittest.TestCase):
@@ -225,7 +225,7 @@ class TestTypeVariants(unittest.TestCase):
             root.children.append(variant())
         self.filename = uuid4().hex + '.mm'
 
-        self.mind_map.write(self.filename)
+        pymm.write(self.filename, self.mind_map)
         self.second_mind_map = pymm.read(self.filename)
 
     def tearDown(self):
@@ -264,14 +264,14 @@ class TestReadWriteExample(unittest.TestCase):
         mind_map = pymm.read(mm_path)
         self.assertTrue(mind_map)
         self.assertTrue(mind_map.root)
-        mind_map.write('input_2.mm')
+        pymm.write('input_2.mm', mind_map)
         os.remove('input_2.mm')
 
     def test_write_file(self):
         """Test the writing of a mind map"""
         mind_map = MindMap()
         # just test that no errors are thrown
-        mind_map.write('write_test.mm')
+        pymm.write('write_test.mm', mind_map)
         os.remove('write_test.mm')
 
 
