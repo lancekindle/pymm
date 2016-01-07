@@ -19,8 +19,10 @@ import types
 from . import Elements
 from . import Factories
 
-# of all Elements, Node is likely to be most used, so import here
-from .Elements import Node
+# import most-likely to be used Elements
+from .Elements import Node, Cloud, Icon, Edge, ArrowLink
+
+
 def sanity_check(pymm_element):
     """checks for common errors in pymm element and issues warnings
     for out-of-spec attrib
