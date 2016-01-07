@@ -144,9 +144,8 @@ class BaseElementFactory:
         '''
         # choose between self.elementType and typeVariants
         elemClass = self.compute_element_type(etElement)
-        attrib = self.convert_attribs(elemClass(), etElement.attrib)
+        attrib = self.convert_attribs(elemClass, etElement.attrib)
         mmElem = elemClass(**attrib)  # yep, we initialize it a second time,
-# but this time with attribs  (I don't know why this doesn't work) ??
         mmElem.children = [c for c in etElement[:]]
         if not mmElem.tag == etElement.tag:
             self.noFactoryWarnings.add(etElement.tag)
