@@ -435,9 +435,8 @@ class Edge(BaseElement):
     visually inherited from a parent's edge. The COLOR attrib must be any
     string starting with # and having two hexidecimal characters for
     each color in RGB. The STYLE attrib must be one of the styles in
-    Edge.styleList. The WIDTH attrib must be 'thin' or a string
-    representation of any integer. Any edge width > '4' is visually
-    unappealing.
+    Edge.styleList. The WIDTH attrib must be 'thin' or an integer. Any edge
+    width > 4 is too large and visually unappealing.
     """
     tag = 'edge'
     specs = {
@@ -534,6 +533,10 @@ class NodeText(RichContent):
 
 
 class NodeNote(RichContent):
+    """NodeNote is a special text/html note that sits beneath a node when
+    displayed. If a Note is present on a Node, there is an option to display
+    the Note icon beside the Node itself. By default this is enabled
+    """
     attrib = {'TYPE': 'NOTE'}
 
 
