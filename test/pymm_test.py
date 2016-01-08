@@ -240,6 +240,22 @@ class TestMindMapFeatures(unittest.TestCase):
         except FileNotFoundError:
             pass
 
+class TestPymmModuleFeatures(TestMindMapFeatures):
+
+    def test_write_file(self):
+        pymm.write(self.filename, pymm.MindMap())
+        if not os.path.exists(self.filename):
+            self.fail('MindMap did not create file ' + str(self.filename))
+
+    def test_read_file(self):
+        text = '0x34'
+        mm = pymm.MindMap()
+        mm.root.text = text
+        pymm.write(self.filename, mm)
+        mm = pymm.read(self.filename)
+        self.assertTrue(mm.root.text == text)
+
+
 class TestTypeVariants(unittest.TestCase):
     """ test typeVariant attribute of factory to load different objects given
     the same tag. (special attrib values are given that differentiate them)
