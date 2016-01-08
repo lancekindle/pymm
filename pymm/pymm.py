@@ -128,10 +128,10 @@ class MindMap(Elements.Map):
     root - set/get the MindMap's only child node
     """
     filename = None
-    filemode = 'r'
+    mode = 'r'
     _load_default_mindmap_flag = True
 
-    def __new__(cls, *args, **attrib): 
+    def __new__(cls, *args, **attrib):
         """FreeplaneFile acts as an interface to intrepret
         xml-based .mm files into a tree of Nodes.
         if MindMap is created with no arguments, a default hierarchy
@@ -142,12 +142,28 @@ class MindMap(Elements.Map):
                 return cls._load_default_mindmap(**attrib)
         else:
             # we assume that user has passed in file-reading options
-            self = read(args[0])
-            self.filename = args[0]
-            if len(args) == 2:
-                self.filemode = args[1]
+            if len(args) > 3:
+                raise ValueError(
+                    'MindMap expects at most 2 arguments specifying filename' +
+                    ' and mode. Got ' + str(len(args))
+                )
+            # use default filemode if none supplied
+            filename, mode, *_ = list(args) + [cls.mode]
+            if 'r' in mode and 'w' in mode:
+                raise ValueError('must have exactly one of read/write mode')
+            if 'r' in mode:
+                self = read(filename)
+            elif 'w' in mode:
+                self = cls._load_default_mindmap(**attrib)
+            else:
+                raise ValueError('unknown mode: ' + str(mode))
+            self.filename = filename
+            self.mode = mode
             return self
         return super().__new__(cls)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
 
     @classmethod
     def _load_default_mindmap(cls, **attrib):
@@ -165,4 +181,16 @@ class MindMap(Elements.Map):
             cls._load_default_mindmap_flag = True
             raise
         return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        for arg in args:
+            if arg is not None:  # then we have an error????
+                return  # skip saving step then
+        # write self tree to file when exiting if filemode indicates
+        # 'write-mode'
+        if 'w' in self.mode:
+            write(self.filename, self)
 

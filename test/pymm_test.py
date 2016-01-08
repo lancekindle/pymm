@@ -205,6 +205,41 @@ class TestIfRichContentFixedYet(unittest.TestCase):
         pymm.write('richcontent_test.mm', mind_map)
 
 
+class TestMindMapFeatures(unittest.TestCase):
+
+    def setUp(self):
+        self.filename = 'test_context_manager.mm'
+
+    def test_context_manager_write_file(self):
+        with pymm.MindMap(self.filename, 'w') as mm:
+            mm.root.text = 'testing'
+        if not os.path.exists(self.filename):
+            self.fail('MindMap did not create file ' + str(self.filename))
+
+    def test_error_on_read_only_nonexistant_file(self):
+        self.assertRaises(FileNotFoundError, pymm.MindMap, self.filename, 'r')
+        self.assertRaises(FileNotFoundError, pymm.MindMap, self.filename)
+
+    def test_context_manager_read_file(self):
+        text = 'testing 123'
+        with pymm.MindMap(self.filename, 'w') as mm:
+            mm.root.text = text
+        with pymm.MindMap(self.filename, 'r') as mm:
+            self.assertTrue(mm.root.text == text)
+
+    def test_loads_default_hierarchy(self):
+        """Recursion depth could be exceeded if MindMap tried to load
+        default hierarchy file and then recursively loaded default
+        hierarchy file
+        """
+        mm = pymm.MindMap()
+
+    def tearDown(self):
+        try:
+            os.remove(self.filename)
+        except FileNotFoundError:
+            pass
+
 class TestTypeVariants(unittest.TestCase):
     """ test typeVariant attribute of factory to load different objects given
     the same tag. (special attrib values are given that differentiate them)
