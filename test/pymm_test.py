@@ -227,6 +227,19 @@ class TestMindMapFeatures(unittest.TestCase):
         with pymm.MindMap(self.filename, 'r') as mm:
             self.assertTrue(mm.root.text == self.text)
 
+    def test_context_manager_abort_on_error(self):
+        """Test that context manager does NOT write to file if an error occurs.
+        Verify that context-manager does not handle error, either
+        """
+        mm = None
+        with self.assertRaises(TypeError):
+            with pymm.MindMap(self.filename, 'w') as mm:
+                mm.root.text = self.text
+                mm.root.children.append(3, 3)  # triggers TypeError
+        self.assertFalse(os.path.exists(self.filename))
+        self.assertTrue(mm is not None)
+
+
     def test_loads_default_hierarchy(self):
         """Recursion depth could be exceeded if MindMap tried to load
         default hierarchy file and then recursively loaded default

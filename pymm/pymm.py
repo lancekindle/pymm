@@ -154,14 +154,16 @@ class MindMap(Elements.Map):
         return self
 
     def __enter__(self):
+        """allow user to use MindMap as context-manager, in which MindMap can
+        take filename and a mode as seen in __init__. If set to write mode 'w',
+        then upon exit MindMap will write to file given
+        """
         return self
 
-    def __exit__(self, *args):
-        for arg in args:
-            if arg is not None:  # then we have an error????
-                return  # skip saving step then
-        # write self tree to file when exiting if filemode indicates
-        # 'write-mode'
-        if 'w' in self.mode:
-            write(self.filename, self)
-
+    def __exit__(self, *error):
+        """on context-manager exit, write to file IF no errors occurred and
+        mode is 'w'
+        """
+        if error == (None, None, None):
+            if 'w' in self.mode:
+                write(self.filename, self)
