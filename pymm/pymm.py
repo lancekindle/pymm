@@ -24,7 +24,7 @@ from .Elements import Node, Cloud, Icon, Edge, ArrowLink
 
 
 def read(file_or_filename):
-    """convert the file/filename into a pymm tree. User should expect to use
+    """decode the file/filename into a pymm tree. User should expect to use
     this module-wide function to decode a freeplane file (.mm) into a pymm
     tree. If file specified is a fully-formed mindmap, the user should expect
     to receive a MindMap instance. Calling .getroot() on that should get
@@ -38,7 +38,7 @@ def read(file_or_filename):
     """
     tree = ET.parse(file_or_filename)
     et_elem = tree.getroot()
-    mm_elem = convert(et_elem)  # should return MindMap instance
+    mm_elem = decode(et_elem)  # should return MindMap instance
     return mm_elem
 
 
@@ -57,14 +57,14 @@ def write(file_or_filename, mm_element):
         raise ValueError(
             'pymm.write requires file/filename, then pymm element'
         )
-    et_elem = revert(mm_element)
+    et_elem = encode(mm_element)
     xmltree = ET.ElementTree(et_elem)
     xmltree.write(file_or_filename)
 
 
-def convert(et_element):
-    """Convert ElementTree Element to pymm Element. Temporarily sets
-    converter factory to use MindMap instead of Elements.Map
+def decode(et_element):
+    """decode ElementTree Element to pymm Element. Temporarily sets
+    decode factory to use MindMap instead of Elements.Map
 
     :param et_element: Element Tree Element -> generally an element from
                        python's xml.etree.ElementTree module
@@ -76,19 +76,19 @@ def convert(et_element):
     mm_factory = Factories.MapFactory()
     mm_factory.element = MindMap
     mmc.add_factory(mm_factory)
-    return mmc.convert_etree_element_and_tree(et_element)
+    return mmc.decode_etree_element_and_tree(et_element)
 
 
-def revert(mm_element):
-    """Revert pymm Element to ElementTree Element
+def encode(mm_element):
+    """encode pymm Element to ElementTree Element
 
     :param mm_element: pymm Element from pymm.Elements module
     :return: xml.etree version of passed pymm tree
     """
     if not isinstance(mm_element, Elements.BaseElement):
-        raise ValueError('cannot revert mm_element: it is not a pymm element')
+        raise ValueError('cannot encode mm_element: it is not a pymm element')
     mmc = Factories.MindMapConverter()
-    return mmc.revert_mm_element_and_tree(mm_element)
+    return mmc.encode_mm_element_and_tree(mm_element)
 
 
 class MindMap(Elements.Map):

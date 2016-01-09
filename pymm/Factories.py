@@ -19,40 +19,40 @@ from . import Elements
 # an example factory that shows which methods you'll need to override when
 # inheriting from BaseElementFactory
 class ExampleElementFactory:  
-    def revert_to_etree_element(self, mmElement, parent=None):
+    def encode_to_etree_element(self, mmElement, parent=None):
         # does all the heavy lifting.
-        etElement = super().revert_to_etree_element(mmElement, parent)
+        etElement = super().encode_to_etree_element(mmElement, parent)
         raise NotImplementedError(
                 'DO NOT use ExampleElementFactory. Inherit '
                 + 'from BaseElementFactory Instead!'
         )
         return etElement
 
-    def convert_from_etree_element(self, etElement, parent=None):
-        mmElem = super().convert_from_etree_element(etElement, parent)
+    def decode_from_etree_element(self, etElement, parent=None):
+        mmElem = super().decode_from_etree_element(etElement, parent)
         raise NotImplementedError(
                 'DO NOT use ExampleElementFactory. Inherit from '
                 + 'BaseElementFactory Instead!'
         )
         return mmElem
 
-# a super-simple converter that you can use in reverting your custom nodes
+# a super-simple encoder to use in encoding your custom nodes
 # into another format.
-class SimpleConverter:  
+class SimpleEncoder:
 
     def write(self, filename, node_tree):
         with open(filename, 'w') as self.file:
-            # SimpleConverter only works with nodes, since it's expected to be
+            # SimpleEncoder only works with nodes, since it's expected to be
             # the only usable part of the mindmap.
-            self.revert_node_tree_depth_first(node_tree)
+            self.encode_node_tree_depth_first(node_tree)
 
-    def revert_node_tree_depth_first(self, node):
-        self.revert_node(node)
+    def encode_node_tree_depth_first(self, node):
+        self.encode_node(node)
         for child in node.nodes:
-            self.revert_node_tree_depth_first(child)
+            self.encode_node_tree_depth_first(child)
 
 # this is the only method you need to override.
-    def revert_node(self, node):
+    def encode_node(self, node):
         self.file.writeline(node.attrib['TEXT'])
 
 
@@ -71,7 +71,7 @@ def sanity_check(pymm_element):
                 for allowed in allowed_values:
                     if attribute == allowed or isinstance(attribute, allowed):
                         break
-                    # allow attribute if spec contains converter fxn
+                    # allow attribute if spec contains a function
                     if isinstance(allowed, types.BuiltinMethodType) or \
                        isinstance(allowed, types.LambdaType) or \
                        isinstance(allowed, types.MethodType) or \
@@ -86,17 +86,17 @@ def sanity_check(pymm_element):
 
 
 class BaseElementFactory:
-    ''' Convert between ElementTree elements and pymm elements.
+    ''' decode between ElementTree elements and pymm elements.
     Conversion from ElementTree element to pymm elements is done by
-    passing the etElement to convert_from_et_element() After converting
+    passing the etElement to decode_from_et_element() After decoding
     the full tree's worth of elements, re-iterate through the tree
     (starting at top-level) and pass that element into this factory's
-    finish_conversion(). For each conversion / reversion function,
-    convert the full xml tree before using the finish_ function.
-    Factory does not keep children. In converting full xml-tree, you
+    finish_decode(). For each decode / encode function,
+    decode the full xml tree before using the finish_ function.
+    Factory does not keep children. In decoding full xml-tree, you
     will have to add the children how you see fit. Generally, it is best
-    to add the children after initial convert / revert and then
-    immediately convert / revert those children. This pattern avoids
+    to add the children after initial decode / encode and then
+    immediately decode / encode those children. This pattern avoids
     recursion limits in python.
     '''
     element = Elements.BaseElement
@@ -113,7 +113,7 @@ class BaseElementFactory:
     # tuple with a dictionary of distinguishing attribute name and its
     # expected value: (element, {attribName: attribValue})
     typeVariants = []
-    # xml etree appears to correctly convert html-safe to ascii: &lt; = <
+    # xml etree appears to correctly decode html-safe to ascii: &lt; = <
 
     def __init__(self):
         # make list instance so we don't modify class variable
@@ -126,12 +126,12 @@ class BaseElementFactory:
 
     def display_any_warnings(self):
         '''Display warnings for elements found without a specific factory.
-        Call once after full convert / revert
+        Call once after full decode / encode
         '''
         if self.noFactoryWarnings:
             warnings.warn(
                 'elements ' + str(self.noFactoryWarnings) +  ' do not have '
-                + 'conversion factories. Elements will import and export '
+                + 'decode factories. Elements will import and export '
                 + 'correctly, but warnings about spec will follow',
                 RuntimeWarning, stacklevel=2
             )
@@ -160,15 +160,15 @@ class BaseElementFactory:
         if len(otherChoices) > 1:
             warnings.warn(
                 etElement.tag + ' has 2+ possible elements with which to '
-                + 'convert with these attribs: ' + str(etElement.attrib),
+                + 'decode with these attribs: ' + str(etElement.attrib),
                 RuntimeWarning, stacklevel=2
             )
         if otherChoices:
             return otherChoices[-1]  # choose last of choices
         return self.element  # default if no other choices found
 
-    def convert_from_etree_element(self, etElement, parent=None):
-        '''converts an etree etElement to a pymm element
+    def decode_from_etree_element(self, etElement, parent=None):
+        '''decodes an etree etElement to a pymm element
 
         :param parent:
         :returns mmElement or None
@@ -177,7 +177,7 @@ class BaseElementFactory:
         '''
         # choose between self.element and typeVariants
         elemClass = self.compute_element_type(etElement)
-        attrib = self.convert_attribs(elemClass, etElement.attrib)
+        attrib = self.decode_attribs(elemClass, etElement.attrib)
         mmElem = elemClass(**attrib)  # yep, we initialize it a second time,
         mmElem.children = [c for c in etElement[:]]
         if not mmElem.tag == etElement.tag:
@@ -185,10 +185,10 @@ class BaseElementFactory:
             mmElem.tag = etElement.tag
         return mmElem
 
-    # should be called full tree conversion
-    def finish_conversion(self, mmElement, parent=None):
-        ''' Finishes conversion of mindmap element. Call only after
-        convert_from_etree_element() has converted tree
+    # should be called full tree decode
+    def finish_decode(self, mmElement, parent=None):
+        ''' Finishes decode of mindmap element. Call only after
+        decode_from_etree_element() has decoded tree
 
         :return mindmap Element or None
         if return None, it is expected that this element and all its
@@ -196,23 +196,23 @@ class BaseElementFactory:
         '''
         return mmElement
 
-    def revert_to_etree_element(self, mmElement, parent=None):
+    def encode_to_etree_element(self, mmElement, parent=None):
         # If you return None, this element and all its children will be
         # dropped from tree.
         if isinstance(mmElement, ET.Element):
             # we expected a pymm element, not an Etree Element
             warnings.warn(
-                'program is reverting an ET Element! ' + str(mmElement)
+                'program is encoding an ET Element! ' + str(mmElement)
                 + ' which means that it will lose text and tail properties. '
                 + 'If you wish to preserve those, consider attaching ET '
                 + 'Element as child of an Element in the '
-                + '"additional_reversion" function instead. This message '
+                + '"additional_encode" function instead. This message '
                 + 'indicates that the Element was added during the '
-                + '"revert_to_etree_element" function call. See '
+                + '"encode_to_etree_element" function call. See '
                 + 'RichContentFactory for an example.',
                 RuntimeWarning, stacklevel=2
             )
-        attribs = self.revert_attribs(mmElement)
+        attribs = self.encode_attribs(mmElement)
         self.sort_element_children(mmElement)
         # fyi: it's impossible to write attribs in specific order.
         etElem = ET.Element(mmElement.tag, attribs)
@@ -221,8 +221,8 @@ class BaseElementFactory:
         etElem.tail = mmElement._tail
         return etElem
 
-    def finish_reversion(self, etElement, parent=None):
-        """Call after full tree reversion. If you return None, this
+    def finish_encode(self, etElement, parent=None):
+        """Call after full tree encode. If you return None, this
         etElement and all its children will be dropped from tree.
         """
         # prettify file layout with newlines for readability
@@ -233,8 +233,8 @@ class BaseElementFactory:
         return etElement
 
     def sort_element_children(self, element):
-        """For reverting to etree element. Organizes children for file
-        readability
+        """For encoding to etree element. Organize children as written to file
+        for file readability (by placing nodes closer to top of chilren)
         """
         for child_element in self.child_order:
             tag = child_element.tag
@@ -250,14 +250,14 @@ class BaseElementFactory:
                 element.children.remove(e)
                 element.childern.append(e)
 
-    def convert_attribs(self, mmElement, attribs):
-        '''Using mmElement (class or instance) as guide, converts
+    def decode_attribs(self, mmElement, attribs):
+        '''Using mmElement (class or instance) as guide, decode
         attribs (from etree element) to match the spec in mmElement.
         Warn (but still allow it) if attribute key/value pair is not
         valid
         '''
-        convertedAttribs = {}
-        # converting from et element: assume all keys and values are strings
+        decoded_attribs = {}
+        # decoding from et element: assume all keys and values are strings
         for key, value in attribs.items():
             try:
                 if key not in mmElement.spec and mmElement.spec:
@@ -265,7 +265,7 @@ class BaseElementFactory:
                         '"' + str(key) + '" was not found in spec'
                     )
                 entries = mmElement.spec[key]
-                value = self.convert_attrib_value_using_spec_entries(
+                value = self.decode_attrib_value_using_spec_entries(
                             key, value, entries
                         )
             except ValueError:
@@ -275,10 +275,10 @@ class BaseElementFactory:
                 )
             finally:
                 # add attribute regardless of errors
-                convertedAttribs[key] = value
-        return convertedAttribs
+                decoded_attribs[key] = value
+        return decoded_attribs
 
-    def convert_attrib_value_using_spec_entries(self, key, value, entries):
+    def decode_attrib_value_using_spec_entries(self, key, value, entries):
         # first verify that entries is a list
         if not isinstance(entries, list):
             raise ValueError('spec contained a non-list spec-value')
@@ -295,15 +295,15 @@ class BaseElementFactory:
                     if value in false_strings:
                         value = False
                         break
-                value = valueType(value)  # convert value to new type
+                value = valueType(value)  # decode value to new type
                 break
             elif isinstance(entry, types.LambdaType) or \
                  isinstance(entry, types.BuiltinFunctionType) or \
                  isinstance(entry, types.BuiltinMethodType) or \
                  isinstance(entry, types.FunctionType) or \
                  isinstance(entry, types.MethodType):
-                valueConverter = entry
-                value = valueConverter(value)  # convert value using function
+                valuedecoder = entry
+                value = valuedecoder(value)  # decode value using function
                 break
             else:
                 valueString = entry
@@ -316,32 +316,32 @@ class BaseElementFactory:
             )
         return value
 
-    def revert_attribs(self, mmElement):
+    def encode_attribs(self, mmElement):
         '''
-        using mmElements' spec, reverts attribs to string instances,
+        using mmElements' spec, encodes attribs to string instances,
         validating that value are proper type. If a specific attribs'
         value is None, attrib will not be included. if attrib is not
         in spec, attrib will not be included
 
         :param mmElement - pymm element containing attribs to be
-        reverted
+        encoded
         '''
         # drop all None-valued attribs
         attribs = {
             key: value for key, value in mmElement.attrib.items() if \
             value is not None
         }
-        revertedAttribs = {}
+        encoded_attribs = {}
         for key, value in attribs.items():
             if key not in mmElement.spec:
                 continue  # WARNING: skip adding attrib that isn't in spec???
             entries = mmElement.spec[key]
-            value = self.convert_attrib_value_using_spec_entries(
-                        key, value, entries
-                    )
+            value = self.decode_attrib_value_using_spec_entries(
+                key, value, entries
+            )
             key, value = str(key), str(value)
-            revertedAttribs[key] = value
-        return revertedAttribs
+            encoded_attribs[key] = value
+        return encoded_attribs
 
 
 class NodeFactory(BaseElementFactory):
@@ -353,7 +353,7 @@ class NodeFactory(BaseElementFactory):
         Elements.AttributeLayout, Elements.Attribute
     ]
 
-    def convert_attribs(self, mmElement, attrib):
+    def decode_attribs(self, mmElement, attrib):
         """Replace undesired parts of attrib with desired parts.
         specifically: look for occasional LOCALIZED_TEXT attrib which
         is supposed to be TEXT
@@ -363,18 +363,18 @@ class NodeFactory(BaseElementFactory):
             if desired not in attrib and undesired in attrib:
                 attrib[desired] = attrib[undesired]
                 del attrib[undesired]
-        return super().convert_attribs(mmElement, attrib)
+        return super().decode_attribs(mmElement, attrib)
 
-    def finish_conversion(self, mmElement, parent=None):
-        super().finish_conversion(mmElement, parent)
-        self.convert_node_text(mmElement)
+    def finish_decode(self, mmElement, parent=None):
+        super().finish_decode(mmElement, parent)
+        self.decode_node_text(mmElement)
         return mmElement
 
-    def revert_to_etree_element(self, mmElement, parent=None):
-        self.revert_node_text(mmElement)
-        return super().revert_to_etree_element(mmElement, parent)
+    def encode_to_etree_element(self, mmElement, parent=None):
+        self.encode_node_text(mmElement)
+        return super().encode_to_etree_element(mmElement, parent)
 
-    def revert_node_text(self, mmNode):
+    def encode_node_text(self, mmNode):
         '''If node text is html, creates html child and appends to
         node's children
         '''
@@ -387,7 +387,7 @@ class NodeFactory(BaseElementFactory):
             # using richcontent, do not leave attribute 'TEXT' for mmNode
             del mmNode.attrib['TEXT']
 
-    def convert_node_text(self, mmNode):
+    def decode_node_text(self, mmNode):
         '''If node has html text, set to TEXT attribute to html object'''
         richElements = mmNode.findall(tag_regex=r'richcontent')
         while richElements:
@@ -401,12 +401,12 @@ class NodeFactory(BaseElementFactory):
 class MapFactory(BaseElementFactory):
     element = Elements.Map
 
-    def finish_reversion(self, etElement, parent=None):
-        etMap = super().finish_reversion(etElement, parent)
+    def finish_encode(self, etElement, parent=None):
+        etMap = super().finish_encode(etElement, parent)
         comment = ET.Comment(
-                    'To view this file, download free mind mapping software '
-                    + 'Freeplane from http://freeplane.sourceforge.net'
-                  )
+            'To view this file, download free mind mapping software '
+            + 'Freeplane from http://freeplane.sourceforge.net'
+        )
         comment.tail = '\n'
         etMap[:] = [comment] + etMap[:]
         return etMap
@@ -455,46 +455,46 @@ class RichContentFactory(BaseElementFactory):
         (Elements.NodeDetails, {'TYPE': r'DETAILS'})
     ]
 
-    def convert_from_etree_element(self, etElement, parent=None):
-        mmRichC = super().convert_from_etree_element(etElement, parent)
+    def decode_from_etree_element(self, etElement, parent=None):
+        mmRichC = super().decode_from_etree_element(etElement, parent)
 # this makes a critical assumption that there'll be 1 child. If not, upon
-# reversion, ET may complain about "ParseError: junk after document etRichC..
+# encode, ET may complain about "ParseError: junk after document etRichC..
         html = ''
         for htmlElement in mmRichC.children:
             htmlString = ET.tostring(htmlElement)
-            if not type(htmlString) == str:
+            if not isinstance(htmlString, str):
                 # I have once got back <class 'bytes'> when the string was a
                 # binary string. weird...
                 htmlString = htmlString.decode('ascii')
             html += htmlString
         mmRichC.html = html
-  # remove html children to prevent their conversion.
+  # remove html children to prevent their decode.
         mmRichC.children.clear()
         return mmRichC
 
-    def revert_to_etree_element(self, mmElement, parent=None):
+    def encode_to_etree_element(self, mmElement, parent=None):
         html = mmElement.html
-        element = super().revert_to_etree_element(mmElement, parent)
-# temporarily store html string in element.text  (will convert in
-# additional_reversion)
+        element = super().encode_to_etree_element(mmElement, parent)
+# temporarily store html string in element.text  (will decode in
+# additional_encode)
         element.text = html
         return element
 
-    def finish_reversion(self, etElement, parent=None):
+    def finish_encode(self, etElement, parent=None):
         html = etElement.text
         etElement.text = '\n'
-        etRichC = super().finish_reversion(etElement, parent)  # sets tail
-# this etRichC will have additional_reversion() called on it. It Should
+        etRichC = super().finish_encode(etElement, parent)  # sets tail
+# this etRichC will have additional_encode() called on it. It Should
 # have no effect, however
         etRichC.append(ET.fromstring(html))
         return etRichC
 
 
 class MindMapConverter:
-    """Pass this Converter a node to convert and it will convert by
-    choosing which factory to use in converting a given node it is also
-    tasked with non-recursively converting all nodes contained within
-    the first converted node. You can add_factory(factory) if you have
+    """Pass this converter a node to decode and it will decode by
+    choosing which factory to use in decoding a given node it is also
+    tasked with non-recursively decoding all nodes contained within
+    the first decoded node. You can add_factory(factory) if you have
     created a new node type / new factory to handle different features
     here
     """
@@ -527,7 +527,7 @@ class MindMapConverter:
         element = factory.element()
         self.tag2factory[element.tag] = factory
 
-    def _apply_convert_fxns_to_full_tree(self, element, fxn1, fxn2):
+    def _apply_decode_fxns_to_full_tree(self, element, fxn1, fxn2):
         firstPassRoot = self._apply_first_pass_fxn_to_full_tree(element, fxn1)
         return self._apply_second_pass_fxn_to_full_tree(firstPassRoot, fxn2)
 
@@ -567,7 +567,7 @@ class MindMapConverter:
             element, parent = notFullyChanged.pop(0)
             elem = fxn2(element, parent)
             if elem is None and parent is not None:
-                # if you return None during conversion / reversion, this
+                # if you return None during decode / encode, this
                 # will ensure it is fully removed from the tree by removing
                 # its reference from the parent and not allowing its children
                 # to be added
@@ -587,43 +587,43 @@ class MindMapConverter:
         else:
             parent.remove(child)  # xml.etree format
 
-    def convert_etree_element_and_tree(self, etElement):
+    def decode_etree_element_and_tree(self, etElement):
         etElement = copy.deepcopy(etElement)
-        action1 = self.convert_etree_element
-        action2 = self.additional_conversion
-        node = self._apply_convert_fxns_to_full_tree(etElement, action1, action2)
-        # finally, warn developer of any problems during conversion
+        action1 = self.decode_etree_element
+        action2 = self.additional_decode
+        node = self._apply_decode_fxns_to_full_tree(etElement, action1, action2)
+        # finally, warn developer of any problems during decode
         self.defaultFactory.display_any_warnings()
         return node
 
-    def convert_etree_element(self, etElement, parent):
-        ff = self.get_conversion_factory_for(etElement)
-        node = ff.convert_from_etree_element(etElement, parent)
+    def decode_etree_element(self, etElement, parent):
+        ff = self.get_decode_factory_for(etElement)
+        node = ff.decode_from_etree_element(etElement, parent)
         return node
 
-    def additional_conversion(self, mmElement, parent):
-        ff = self.get_conversion_factory_for(mmElement)
-        return ff.finish_conversion(mmElement, parent)
+    def additional_decode(self, mmElement, parent):
+        ff = self.get_decode_factory_for(mmElement)
+        return ff.finish_decode(mmElement, parent)
 
-    def get_conversion_factory_for(self, element):
+    def get_decode_factory_for(self, element):
         '''Intended for etElement or mmElement'''
         tag = element.tag
         if tag and tag in self.tag2factory:
             return self.tag2factory[tag]
         return self.defaultFactory
 
-    def revert_mm_element_and_tree(self, mmElement):
+    def encode_mm_element_and_tree(self, mmElement):
         mmElement = copy.deepcopy(mmElement)
-        action1 = self.revert_mm_element
-        action2 = self.additional_reversion
-        return self._apply_convert_fxns_to_full_tree(
+        action1 = self.encode_mm_element
+        action2 = self.additional_encode
+        return self._apply_decode_fxns_to_full_tree(
                    mmElement, action1, action2
                )
 
-    def revert_mm_element(self, mmElement, parent):
-        ff = self.get_conversion_factory_for(mmElement)
-        return ff.revert_to_etree_element(mmElement, parent)
+    def encode_mm_element(self, mmElement, parent):
+        ff = self.get_decode_factory_for(mmElement)
+        return ff.encode_to_etree_element(mmElement, parent)
 
-    def additional_reversion(self, etElement, parent):
-        ff = self.get_conversion_factory_for(etElement)
-        return ff.finish_reversion(etElement, parent)
+    def additional_encode(self, etElement, parent):
+        ff = self.get_decode_factory_for(etElement)
+        return ff.finish_encode(etElement, parent)
