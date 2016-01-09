@@ -23,35 +23,6 @@ from . import Factories
 from .Elements import Node, Cloud, Icon, Edge, ArrowLink
 
 
-def sanity_check(pymm_element):
-    """checks for common errors in pymm element and issues warnings
-    for out-of-spec attrib
-    """
-    unchecked = [pymm_element]
-    while unchecked:
-        elem = unchecked.pop(0)
-        unchecked.extend(elem.children)
-        attrib = elem.attrib
-        for key, allowed_values in elem.spec.items():
-            if key in attrib:
-                attribute = attrib[key]
-                for allowed in allowed_values:
-                    if attribute == allowed or isinstance(attribute, allowed):
-                        break
-                    # allow attribute if spec contains converter fxn
-                    if isinstance(allowed, types.BuiltinMethodType) or \
-                       isinstance(allowed, types.LambdaType) or \
-                       isinstance(allowed, types.MethodType) or \
-                       isinstance(allowed, types.FunctionType) or \
-                       isinstance(allowed, types.BuiltinFunctionType):
-                        break
-                else:
-                    warnings.warn(
-                        'out-of-spec attribute "' + str(attribute) +
-                        ' in element: ' + str(elem.tag)
-                    )
-
-
 def read(file_or_filename):
     """convert the file/filename into a pymm tree. User should expect to use
     this module-wide function to decode a freeplane file (.mm) into a pymm
@@ -103,7 +74,7 @@ def convert(et_element):
     """
     mmc = Factories.MindMapConverter()
     mm_factory = Factories.MapFactory()
-    mm_factory.elementType = MindMap
+    mm_factory.element = MindMap
     mmc.add_factory(mm_factory)
     return mmc.convert_etree_element_and_tree(et_element)
 
