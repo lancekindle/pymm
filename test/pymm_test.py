@@ -60,8 +60,8 @@ def get_all_pymm_element_classes(*namespaces):
     return list(elements)
 
 
-class TestAttribSpecs(unittest.TestCase):
-    """Element.specs contains a key/value pair that describes an attribute
+class TestAttribspec(unittest.TestCase):
+    """Element.spec contains a key/value pair that describes an attribute
     (key) and a list of alloweable values. These allowable values can be
     specific elements (like a 1, or '1') or a class (like str, int) or a
     function that converts the attrib. If an allowable value presents a
@@ -71,23 +71,23 @@ class TestAttribSpecs(unittest.TestCase):
     def setUp(self):
         self.elements = get_all_pymm_element_classes(pymm)
 
-    def test_specs_values_are_lists(self):
-        """Each element has a specs dictionary. For each key/value pair,
+    def test_spec_values_are_lists(self):
+        """Each element has a spec dictionary. For each key/value pair,
         verify that the value is a list
         """
         for element in self.elements:
-            for val in element.specs.values():
+            for val in element.spec.values():
                 if not isinstance(val, list):
                     self.fail(
                         str(element) + ' has non-list spec value: ' + str(val)
                     )
 
-    def test_specs_keys_are_strings(self):
-        """Each element has a specs dictionary. For each key/value pair,
+    def test_spec_keys_are_strings(self):
+        """Each element has a spec dictionary. For each key/value pair,
         verify that the key is a string
         """
         for element in self.elements:
-            for key in element.specs.keys():
+            for key in element.spec.keys():
                 if not isinstance(key, str):
                     self.fail(
                         str(element) + ' has non-str spec key: ' + str(key)
@@ -145,7 +145,7 @@ class TestMutableClassVariables(unittest.TestCase):
     class's instance holds different mutable variables than the class
     itself. Specifically, verify that all dicts and lists defined in
     BaseElement and any inheriting class does not share that dict/list with its
-    instances, with a few exceptions (noteably specs and _display_attrib)
+    instances, with a few exceptions (noteably spec and _display_attrib)
     """
 
     def setUp(self):
@@ -154,7 +154,7 @@ class TestMutableClassVariables(unittest.TestCase):
         self.elements = get_all_pymm_element_classes()
 
     def test_unique_mutable_vars(self, filt=None,
-                                 filter_out=['specs', '_display_attrib']):
+                                 filter_out=['spec', '_display_attrib']):
         """Test each element's mutable variable and confirm it does not share
         the same memory address as the element's Class
         """
@@ -182,7 +182,7 @@ class TestMutableClassVariables(unittest.TestCase):
                     self.fail(str(elem_class) + ' does not copy ' + key)
 
     def test_specific_nonduplicates(self):
-        """ test that children, attrib, _display_attrib, and specs are all
+        """ test that children, attrib, _display_attrib, and spec are all
         copied to a new list/dict instance in every element when instantiated
         as an instance. This, for example, tests that an instance of MindMap
         would not add children to the MindMap class accidentally, because the
@@ -572,21 +572,21 @@ class TestBaseElement(unittest.TestCase):
         after = len(elem.children)
         self.assertTrue(before + 1 == after)
 
-    def test_dictionary_attribute_return(self):
-        """Test that dict returns correctly if attribute is or isn't present"""
+    def test_out_of_spec_attrib_allowed(self):
+        """Test that attrib dict handles as a dict regardless of spec"""
         elem = self.element
         key, value = 'hogwash', 'hogvalue'
         self.assertFalse(key in elem.attrib.keys())
-        elem.specs[key] = [type(value)]
+        elem.spec[key] = [type(value)]
         elem.attrib[key] = value
         self.assertTrue(key in elem.attrib.keys())
 
     def test_dictionary_inspec_attr(self):
         """Test that dict won't raise error for inspec attribute assignment"""
         elem = self.element
-        elem.specs['string'] = [str]
-        elem.specs['integer'] = [int]
-        elem.specs['one_or_two'] = [1, 2]
+        elem.spec['string'] = [str]
+        elem.spec['integer'] = [int]
+        elem.spec['one_or_two'] = [1, 2]
         elem.attrib['string'] = 'good'
         elem.attrib['integer'] = 42
         elem.attrib['one_or_two'] = 1

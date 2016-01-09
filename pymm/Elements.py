@@ -14,7 +14,7 @@
         attrib = {}
         # [OPTIONAL] specify possible attribute types. Put any / all possible
         # attribute type (like bool, str, int, float) in a list.
-        specs = {}
+        spec = {}
         # [OPTIONAL] list of attribs that are used when constructing str(self)
         _display_attrib = []
 """
@@ -39,7 +39,7 @@ class BaseElement:
 
     :param tag: the tag specifying type of element
     :param parent: a link to the element's parent element
-    :param specs:
+    :param spec:
     """
     tag = 'BaseElement'
     parent = None
@@ -77,17 +77,18 @@ class BaseElement:
     _display_attrib = []
 
     #: a dictionary of expected xml attributes and a list of their expected
-    #: types ( i.e. [int, str, bool, etc.] ).When changing an element's
-    #: attribute, the new attribute will be checked against the specs, and a
-    #: warning generated if the new attribute does not match specs. Can be
-    #: modified to allow additional specs. I.E. elem.attrib['TEXT'] = 'HI 5'
-    #: sets the element's TEXT attrib to 'HI 5'. If specs contains the key
-    #: 'TEXT', the type of value 'HI 5' (str) will be checked against the
-    #: values of specs['TEXT'], and a warning generated if str does not match
-    #: any of the listed attribute specs.
+    #: types i.e. [int, str, bool, etc.], OR
+    #: entries i.e. ['thin', 'strong', '1', etc.]. All entries are strings.
+    #: When saving a mindmap, all elements will sanity check their attrib
+    #: against the spec, and a warning generated if the new attribute does
+    #: not match spec. Can be modified to allow additional spec.
+    #: I.E. elem.attrib['TEXT'] = 'HI 5' sets the element's TEXT attrib to 
+    #: 'HI 5'. If spec contains the key 'TEXT', the type of value 'HI 5' (str)
+    #: will be checked against the values of spec['TEXT'], and a warning
+    #: generated if str does not match any of the listed attribute spec.
     #: To reiterate: list all possible attributes of an element and their valid
     #: entries / types in a list: [str, int, 'thin', etc.]
-    specs = {}
+    spec = {}
 
     def __new__(cls, *args, **attrib):
         """There are a few class-wide mutable attributes that are meant to be
@@ -249,7 +250,7 @@ class Node(ImplicitNodeAttributes, BaseElement):
     #: tables. But may be safely treated as a simple string. (any string method
     #: called on this will return a plaintext string
     text = property(*_elementAccess.Text.setup(ImplicitNodeText))
-    specs = {
+    spec = {
         'BACKGROUND_COLOR': [str], 'COLOR': [str], 'FOLDED': [bool],
         'ID': [str], 'LINK': [str], 'POSITION': ['left', 'right'],
         'STYLE': [str], 'TEXT': [str], 'LOCALIZED_TEXT': [str], 'TYPE': [str],
@@ -278,7 +279,7 @@ class Map(BaseElement):
     """
     tag = 'map'
     attrib = {'version': 'freeplane 1.3.0'}
-    specs = {'version': [str]}
+    spec = {'version': [str]}
     nodes = property(*_elementAccess.ChildSubset.setup(tag_regex=r'node'))
     root = property(*_elementAccess.SingleChild.setup(tag_regex=r'node'))
 
@@ -297,7 +298,7 @@ class Cloud(BaseElement):
     """
     tag = 'cloud'
     attrib = {'COLOR': '#f0f0f0', 'SHAPE': 'ARC'}
-    specs = {
+    spec = {
         'COLOR': [str], 'WIDTH': [str],
         'SHAPE': ['ARC', 'STAR', 'RECT', 'ROUND_RECT'],
     }
@@ -312,7 +313,7 @@ class Hook(BaseElement):
     """
     tag = 'hook'
     attrib = {'NAME': 'overwritten'}
-    specs = {'NAME': [str]}
+    spec = {'NAME': [str]}
 
 
 class EmbeddedImage(Hook):
@@ -321,7 +322,7 @@ class EmbeddedImage(Hook):
     EmbeddedImage['URI'] = path
     """
     attrib = {'NAME': 'ExternalObject'}
-    specs = {'NAME': [str], 'URI': [str], 'SIZE': [float]}
+    spec = {'NAME': [str], 'URI': [str], 'SIZE': [float]}
 
 
 class MapConfig(Hook):
@@ -331,7 +332,7 @@ class MapConfig(Hook):
     wrapping.
     """
     attrib = {'NAME': 'MapStyle', 'zoom': 1.0}
-    specs = {'NAME': [str], 'max_node_width': [int], 'zoom': [float]}
+    spec = {'NAME': [str], 'max_node_width': [int], 'zoom': [float]}
 
 
 class Equation(Hook):
@@ -339,7 +340,7 @@ class Equation(Hook):
     Node. Define the equation using Equation['EQUATION'] = latex-string
     """
     attrib = {'NAME': 'plugins/latex/LatexNodeHook.properties'}
-    specs = {'NAME': [str], 'EQUATION': [str]}
+    spec = {'NAME': [str], 'EQUATION': [str]}
 
 
 class AutomaticEdgeColor(Hook):
@@ -349,7 +350,7 @@ class AutomaticEdgeColor(Hook):
     many edges have been automatically colored.
     """
     attrib = {'NAME': 'AutomaticEdgeColor', 'COUNTER': 0}
-    specs = {'NAME': [str], 'COUNTER': [int]}
+    spec = {'NAME': [str], 'COUNTER': [int]}
 
 
 class MapStyles(BaseElement):
@@ -368,7 +369,7 @@ class StyleNode(BaseElement):
     their parents + their unique attributes.
     """
     tag = 'stylenode'
-    specs = {
+    spec = {
         'LOCALIZED_TEXT': [str], 'POSITION': ['left', 'right'], 'COLOR': [str],
         'MAX_WIDTH': [int], 'STYLE': [str],
     }
@@ -380,7 +381,7 @@ class Font(BaseElement):
     """
     tag = 'font'
     attrib = {'BOLD': False, 'ITALIC': False, 'NAME': 'SansSerif', 'SIZE': 10}
-    specs = {'BOLD': [bool], 'ITALIC': [bool], 'NAME': [str], 'SIZE': [int]}
+    spec = {'BOLD': [bool], 'ITALIC': [bool], 'NAME': [str], 'SIZE': [int]}
 
 
 class Icon(BaseElement):
@@ -391,7 +392,7 @@ class Icon(BaseElement):
     tag = 'icon'
     _display_attrib = ['BUILTIN']
     attrib = {'BUILTIN': 'bookmark'}
-    specs = {
+    spec = {
         'BUILTIN': [
             'help', 'bookmark', 'yes', 'button_ok', 'button_cancel', 'idea',
             'messagebox_warning', 'stop-sign', 'closed', 'info', 'clanbomber',
@@ -421,11 +422,11 @@ class Icon(BaseElement):
         :param icon: (string) icon to display on node in freeplane
         """
         self.attrib['BUILTIN'] = icon
-        if icon not in self.specs['BUILTIN']:
+        if icon not in self.spec['BUILTIN']:
             warnings.warn(
                 'icon "' + str(icon) + '" not part of freeplanes builtin icon '
                 + 'list. Freeplane may not display icon. Use an icon from '
-                + 'specs["BUILTIN"] instead', SyntaxWarning, stacklevel=2
+                + 'spec["BUILTIN"] instead', SyntaxWarning, stacklevel=2
             )
 
 
@@ -439,7 +440,7 @@ class Edge(BaseElement):
     width > 4 is too large and visually unappealing.
     """
     tag = 'edge'
-    specs = {
+    spec = {
         'COLOR': [str], 'WIDTH': ['thin', int],
         'STYLE': [
             'linear', 'bezier', 'sharp_linear', 'sharp_bezier', 'horizontal',
@@ -458,7 +459,7 @@ class Attribute(BaseElement):
     """
     tag = 'attribute'
     attrib = {'NAME': '', 'VALUE': ''}
-    specs = {'NAME': [str], 'VALUE': [str], 'OBJECT': [str]}
+    spec = {'NAME': [str], 'VALUE': [str], 'OBJECT': [str]}
 
 
 class Properties(BaseElement):
@@ -474,7 +475,7 @@ class Properties(BaseElement):
         'show_icon_for_attributes': 'true', 'show_note_icons': 'true',
         'show_notes_in_map': 'true'
     }
-    specs = {
+    spec = {
         'show_icon_for_attributes': [bool], 'show_note_icons': [bool],
         'show_notes_in_map': [bool],
     }
@@ -487,7 +488,7 @@ class ArrowLink(BaseElement):
     """
     tag = 'arrowlink'
     attrib = {'DESTINATION': ''}
-    specs = {
+    spec = {
         'COLOR': [str], 'DESTINATION': [str], 'ENDARROW': [str],
         'ENDINCLINATION': [str], 'ID': [str], 'STARTARROW': [str],
         'STARTINCLINATION': [str], 'SOURCE_LABEL': [str],
@@ -502,7 +503,7 @@ class AttributeLayout(BaseElement):
 class AttributeRegistry(BaseElement):
     tag = 'attribute_registry'
     attrib = {'SHOW_ATTRIBUTES': 'all'}
-    specs = {'SHOW_ATTRIBUTES': ['selected', 'all', 'hide']}
+    spec = {'SHOW_ATTRIBUTES': ['selected', 'all', 'hide']}
 
 
 class RichContent(BaseElement):
@@ -517,7 +518,7 @@ class RichContent(BaseElement):
     """
     tag = 'richcontent'
     _display_attrib = ['TYPE']
-    specs = {'TYPE': [str]}
+    spec = {'TYPE': [str]}
     html = ''
 
     def is_html(self):

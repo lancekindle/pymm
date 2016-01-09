@@ -32,13 +32,13 @@ def sanity_check(pymm_element):
         elem = unchecked.pop(0)
         unchecked.extend(elem.children)
         attrib = elem.attrib
-        for key, allowed_values in elem.specs.items():
+        for key, allowed_values in elem.spec.items():
             if key in attrib:
                 attribute = attrib[key]
                 for allowed in allowed_values:
                     if attribute == allowed or isinstance(attribute, allowed):
                         break
-                    # allow attribute if specs contains converter fxn
+                    # allow attribute if spec contains converter fxn
                     if isinstance(allowed, types.BuiltinMethodType) or \
                        isinstance(allowed, types.LambdaType) or \
                        isinstance(allowed, types.MethodType) or \

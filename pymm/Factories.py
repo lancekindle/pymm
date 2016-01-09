@@ -99,7 +99,7 @@ class BaseElementFactory:
             warnings.warn(
                 'elements ' + str(self.noFactoryWarnings) +  ' do not have '
                 + 'conversion factories. Elements will import and export '
-                + 'correctly, but warnings about specs will follow',
+                + 'correctly, but warnings about spec will follow',
                 RuntimeWarning, stacklevel=2
             )
         # reset warnings so we won't display the same ones
@@ -217,7 +217,7 @@ class BaseElementFactory:
 
     def convert_attribs(self, mmElement, attribs):
         '''Using mmElement (class or instance) as guide, converts
-        attribs (from etree element) to match the specs in mmElement.
+        attribs (from etree element) to match the spec in mmElement.
         Warn (but still allow it) if attribute key/value pair is not
         valid
         '''
@@ -225,18 +225,18 @@ class BaseElementFactory:
         # converting from et element: assume all keys and values are strings
         for key, value in attribs.items():
             try:
-                if key not in mmElement.specs and mmElement.specs:
+                if key not in mmElement.spec and mmElement.spec:
                     raise ValueError(
-                        '"' + str(key) + '" was not found in specs'
+                        '"' + str(key) + '" was not found in spec'
                     )
-                entries = mmElement.specs[key]
+                entries = mmElement.spec[key]
                 value = self.convert_attrib_value_using_spec_entries(
                             value, entries
                         )
             except ValueError:
                 warnings.warn(
                     'Attrib ' + key + '=' + value + ' not valid <'
-                    + mmElement.tag + '> specs', SyntaxWarning, stacklevel=2
+                    + mmElement.tag + '> spec', SyntaxWarning, stacklevel=2
                 )
             finally:
                 # add attribute regardless of errors
@@ -246,7 +246,7 @@ class BaseElementFactory:
     def convert_attrib_value_using_spec_entries(self, value, entries):
         # first verify that entries is a list
         if not type(entries) == type(list()):
-            raise ValueError('specs contained a non-list spec-value')
+            raise ValueError('spec contained a non-list spec-value')
         for entry in entries:
             if type(entry) == type:  # bool, str, int, etc...
                 valueType = entry
@@ -282,10 +282,10 @@ class BaseElementFactory:
 
     def revert_attribs(self, mmElement):
         '''
-        using mmElements' specs, reverts attribs to string instances,
+        using mmElements' spec, reverts attribs to string instances,
         validating that value are proper type. If a specific attribs'
         value is None, attrib will not be included. if attrib is not
-        in specs, attrib will not be included
+        in spec, attrib will not be included
 
         :param mmElement - pymm element containing attribs to be
         reverted
@@ -297,9 +297,9 @@ class BaseElementFactory:
         }
         revertedAttribs = {}
         for key, value in attribs.items():
-            if key not in mmElement.specs:
-                continue  # WARNING: skip adding attrib that isn't in specs???
-            entries = mmElement.specs[key]
+            if key not in mmElement.spec:
+                continue  # WARNING: skip adding attrib that isn't in spec???
+            entries = mmElement.spec[key]
             value = self.convert_attrib_value_using_spec_entries(
                         value, entries
                     )
