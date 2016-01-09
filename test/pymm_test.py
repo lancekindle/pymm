@@ -209,10 +209,11 @@ class TestMindMapFeatures(unittest.TestCase):
 
     def setUp(self):
         self.filename = 'test_context_manager.mm'
+        self.text = 'testing 123'
 
     def test_context_manager_write_file(self):
         with pymm.MindMap(self.filename, 'w') as mm:
-            mm.root.text = 'testing'
+            mm.root.text = self.text
         if not os.path.exists(self.filename):
             self.fail('MindMap did not create file ' + str(self.filename))
 
@@ -221,11 +222,10 @@ class TestMindMapFeatures(unittest.TestCase):
         self.assertRaises(FileNotFoundError, pymm.MindMap, self.filename)
 
     def test_context_manager_read_file(self):
-        text = 'testing 123'
         with pymm.MindMap(self.filename, 'w') as mm:
-            mm.root.text = text
+            mm.root.text = self.text
         with pymm.MindMap(self.filename, 'r') as mm:
-            self.assertTrue(mm.root.text == text)
+            self.assertTrue(mm.root.text == self.text)
 
     def test_loads_default_hierarchy(self):
         """Recursion depth could be exceeded if MindMap tried to load
@@ -248,12 +248,11 @@ class TestPymmModuleFeatures(TestMindMapFeatures):
             self.fail('MindMap did not create file ' + str(self.filename))
 
     def test_read_file(self):
-        text = '0x34'
         mm = pymm.MindMap()
-        mm.root.text = text
+        mm.root.text = self.text
         pymm.write(self.filename, mm)
         mm = pymm.read(self.filename)
-        self.assertTrue(mm.root.text == text)
+        self.assertTrue(mm.root.text == self.text)
 
 
 class TestTypeVariants(unittest.TestCase):
