@@ -1,13 +1,22 @@
 """
-    Pymm mindmaps are composed of a hierarchical tree composed of elements
-    defined within this Elements module. The hierarchical format is exact or
+    A Pymm mindmap a hierarchical tree composed of elements defined
+    within this Elements module. The hierarchical format is exact or
     similar in structure to the trees constructed by xml.etree, but with
     different syntax for traversing and modifying the tree.
+    A typical (and simplified) tree might look like:
+    <map ... >
+        <node ... >
+            <node ... />
+            <node ... />
+        </node>
+    </map>
+    The above represents a mindmap composed of a map element with one
+    node child. The node child in turn has two node children.
 
     If you want to make your own element, see the example below:
 
     class ExampleElement:
-        # [REQUIRED]. Only way for a Factory (which you must code) to
+        # [REQUIRED]. Only way for a Factory (which you may code) to
         # convert the element of type 'tag'. Examples include 'node' or 'cloud'
         tag = ''
         # [OPTIONAL] pre-define default element attributes
@@ -29,7 +38,7 @@ import types
 
 
 class BaseElement:
-    """ pymm's Base Element. All other elements inherit from BaseElement, which
+    """pymm's Base Element. All other elements inherit from BaseElement, which
     represents an element in a similar style to xml.etree.ElementTree with
     enhancements aimed at providing faster mindmap manipulation. Each element
     has a specific identifier (a tag) that specifies what type of element it
@@ -41,6 +50,10 @@ class BaseElement:
     :param parent: a link to the element's parent element
     :param spec:
     """
+    #: xml-based elements are uniquely identified by a tag. For
+    #: example, a node looks like <node ... >, where the first string
+    #: is the tag of the element. BaseElement's tag, however, will be
+    #: overwritten
     tag = 'BaseElement'
     parent = None
 
@@ -79,9 +92,9 @@ class BaseElement:
     #: a dictionary of expected xml attributes and a list of their expected
     #: types i.e. [int, str, bool, etc.], OR
     #: entries i.e. ['thin', 'strong', '1', etc.]. All entries are strings.
-    #: When saving a mindmap, all elements will sanity check their attrib
-    #: against the spec, and a warning generated if the new attribute does
-    #: not match spec. Can be modified to allow additional spec.
+    #: When saving a mindmap, all elements will sanity check their .attrib
+    #: against their .spec, and a warning generated if the new attribute does
+    #: not match spec. Can be modified to add/remove specific specs.
     #: I.E. elem.attrib['TEXT'] = 'HI 5' sets the element's TEXT attrib to 
     #: 'HI 5'. If spec contains the key 'TEXT', the type of value 'HI 5' (str)
     #: will be checked against the values of spec['TEXT'], and a warning
@@ -228,10 +241,13 @@ class ImplicitNodeText(str):
 
 
 class Node(ImplicitNodeAttributes, BaseElement):
-    """The most common element in a mindmap. The Node is the visual circle in
-    freeplane, with an expandable branch of children. A Node contains text
-    you type, contains pictures, urls or links to other nodes, and can be made
-    visually distict through clouds, edge-line colors, or rich-text formatting.
+    """The most common element in a mindmap. The Node is the visual
+    circle in freeplane with an expandable branch of children. A Node
+    may contain text, a picture, a note, excel-like attributes, or link
+    to another node or a web address.
+    A node can be made visually distict through rich-text formatting,
+    distinct outlining (called clouds), changes to edge appearance
+    (color or style), or rich-text formatting.
     A Node contains an ID and text by default
     """
     tag = 'node'

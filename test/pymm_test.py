@@ -313,7 +313,7 @@ class TestTypeVariants(unittest.TestCase):
 
 
 class TestReadWriteExample(unittest.TestCase):
-    """ Test full import export functionality """
+    """Test full import export functionality"""
 
     def setUp(self):
         pass
@@ -339,7 +339,7 @@ class TestReadWriteExample(unittest.TestCase):
 
 
 class TestNativeChildIndexing(unittest.TestCase):
-    """ native child indexing iterates over all children
+    """Native child indexing iterates over all children
     using native indexing style [0], or [1:4], etc.
     """
 

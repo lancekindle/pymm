@@ -9,7 +9,7 @@
     xml.etree library to parse the file, and then decodes the generated tree
     structure into Pymm's version of the tree, using Pymm's Elements instead.
     The structure of the Pymm's tree (as opposed to xml.etree's version) is
-    similar in structure but has different syntax aimed at making development
+    similar but has different syntax aimed at making development
     easy and clear to those new and experienced with Freeplane.
 """
 import xml.etree.ElementTree as ET
