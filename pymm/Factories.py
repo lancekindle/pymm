@@ -8,52 +8,413 @@ import warnings
 import copy
 import re
 import types
+from uuid import uuid4
 from . import Elements
 
-#terminology  ... mme, mmElem, mmElement == MindMap element
-#.... ete, etElem, etElement == ElementTree element
-# element == could be either one. Sometimes it must conform to either one,
-# other times it doesn't yet
-# conform to a specific element
 
-# an example factory that shows which methods you'll need to override when
-# inheriting from BaseElementFactory
-class ExampleElementFactory:  
-    def encode_to_etree_element(self, mmElement, parent=None):
-        # does all the heavy lifting.
-        etElement = super().encode_to_etree_element(mmElement, parent)
-        raise NotImplementedError(
-                'DO NOT use ExampleElementFactory. Inherit '
-                + 'from BaseElementFactory Instead!'
+def decode(element):
+    converter = ConversionHandler()
+    return converter.convert_element_hierarchy(element, 'decode')
+
+
+def encode(element):
+    converter = ConversionHandler()
+    return converter.convert_element_hierarchy(element, 'encode')
+
+
+class ConversionHandler:
+
+    def __init__(self):
+        """Lock in set of factories for handling elements. If you
+        create another element after instantiating ConversionHandler,
+        get another instance to auto-generate a factory for that
+        element. Otherwise, DefaultFactory will be used
+        """
+        self.factories = registry.get_factories()
+
+    def find_encode_factory(self, element):
+        for factory in reversed(self.factories):
+            if factory.can_encode(element):
+                return factory
+        return DefaultFactory
+
+    def find_decode_factory(self, element):
+        """Return factory that can handle given element.
+        Default to DefaultFactory
+        """
+        for factory in reversed(self.factories):
+            if factory.can_decode(element):
+                return factory
+        return DefaultFactory
+
+    def convert_element_hierarchy(self, element, convert):
+        """encode or decode element and its hierarchy. Each element
+        will be completely converted before its children begin the
+        process
+        """
+        queue = [(None, [element])]  # parent, children
+        root = None
+        while queue:
+            parent, children = queue.pop(0)
+            if root is None and parent is not None:
+                root = parent
+            for child in children:
+                if convert == 'encode':
+                    factory_class = self.find_encode_factory(child)
+                    factory = factory_class()
+                    child, grandchildren = factory.full_encode(parent, child)
+                elif convert == 'decode':
+                    factory_class = self.find_decode_factory(child)
+                    factory = factory_class()
+                    child, grandchildren = factory.full_decode(parent, child)
+                else:
+                    raise ValueError('pass in "decode" or "encode"')
+                # if convert fxn returns no decoded child, drop from hierarchy
+                if child is not None:
+                    queue.append((child, grandchildren))
+        return root
+
+
+class registry(type):
+    """Metaclass to hold all factories created
+    """
+    _factories = []
+    verbose = False
+    # variable to keep track of generated factory name (don't add to factories)
+    _generated_factory_name = ''
+
+    @classmethod
+    def get_factories(cls):
+        factories = list(tuple(cls._factories))
+        generated = cls.create_factories_for_unclaimed_elements(factories)
+        return factories + generated
+
+    def __new__(cls, clsname, bases, attr_dict):
+        FactoryClass = super().__new__(cls, clsname, bases, attr_dict)
+        if clsname != cls._generated_factory_name:
+            cls._factories.append(FactoryClass)
+        return FactoryClass
+
+    @classmethod
+    def create_factories_for_unclaimed_elements(cls, factories):
+        """iterate all elements inheriting from Elements.BaseElement.
+        For each element with no corresponding factory, create a factory
+        to handle it, inheriting from closest-matching factory.
+        Closest-matching factory is determined as the newest factory to
+        use a decoding-element of which the unclaimed element is a
+        subclass.
+
+        Return list of all factories created in this way
+        """
+        generated = []
+        for element in Elements.registry.get_elements():
+            closest_match = DefaultFactory
+            for factory in factories:
+                if issubclass(element, factory.decoding_element):
+                    closest_match = factory
+                if factory.decoding_element == element:
+                    break
+            else:
+                # create factory for unclaimed element
+                if cls.verbose:
+                    print(
+                        'unclaimed element:', element,
+                        '\n\t tag:', element.tag,
+                        '\n\t identifier:', element.identifier,
+                        '\n\t closest matching factory:', closest_match,
+                    )
+                name = 'Dynamic-'+ element.tag + '-Factory@' + uuid4().hex
+                cls._generated_factory_name = name
+                inherit_from = (closest_match,)
+                variables = {'decoding_element': element}
+                new_factory = type(name, inherit_from, variables)
+                generated.append(new_factory)
+        cls._accept_new_factories = True
+        return generated
+
+
+class DefaultElementFactory:
+    """Expose methods to construct encoding / decoding element class
+    given attrib and children. At this point in the conversion process,
+    the attribs are converted but the children are not.
+    It is the responsibility of this factory to add the converted
+    element to it's parent.
+    """
+
+    def decode_element(
+            self, parent, src_element, element_class, attrib, children):
+        """create decoded element using element_class and decoded
+        attrib. The children are not yet decoded, however.
+        DO NOT ADD CHILDREN TO ELEMENT! The children are not yet
+        decoded. Instead you should add the newly instantiated element
+        to the parent's children list
+        """
+        element = element_class(**attrib)
+        if parent is not None:
+            parent.children.append(element)
+        element.tag = getattr(src_element, 'tag', element_class.tag)
+        element._text = getattr(src_element, 'text', '')
+        element._tail = getattr(src_element, 'tail', '\n')
+        return element
+
+    def encode_element(
+            self, parent, src_element, element_class, attrib, children):
+        """create encoded element using element_class and pre-encoded
+        arguments attrib & children. This is the function in which
+        to create an xml.etree Element
+        DO NOT ADD CHILDREN TO ELEMENT! the children are not yet
+        encoded. Instead you should add the newly encoded element as a
+        child to the parent
+        """
+        tag = getattr(src_element, 'tag', 'unknown_element')
+        element = element_class(tag, **attrib)
+        if parent is not None:
+            parent.append(element)
+        element.text = getattr(src_element, '_text', '')
+        element.tail = getattr(src_element, '_tail', '\n')
+        # add spacing if element has child (makes file more readable)
+        if len(element) and not element.text:
+            element.text = '\n'
+        return element
+
+
+class DefaultAttribFactory:
+    """expose methods to encode/decode attrib"""
+
+    def decode_attrib(self, src_element, dst_element_class):
+        """Decode attrib (from etree element) to match the spec in
+        pymm element. Warn user (but still allow attrib) if attrib
+        key/value pair is not valid.
+        """
+        attrib = src_element.attrib
+        spec = dst_element_class.spec
+        decoded_attrib = {}
+        # decoding from et element: assume all keys and values are strings
+        for key, value in attrib.items():
+            key = self.stringify(key)
+            value = self.stringify(value)
+            value = self.decode_attrib_value(key, value, spec)
+            decoded_attrib[key] = value
+        return decoded_attrib
+
+    def decode_attrib_value(self, key, value, spec):
+        """Spec values are lists that contain expected attrib values OR
+        expected type of value (such as bool, int, or a custom class).
+        Convert to expected type or verify that value matches one of
+        corresponding spec value. If spec does not contain key, return
+        value unaltered. Generate warning if value matched none of the
+        spec values and/or could not be cast to type specified
+        """
+        entries = spec.get(key)
+        if entries is None:
+            return value
+        if not isinstance(entries, list):
+            raise ValueError('spec value must be a list of choices/types')
+        # break out of for loop if match found
+        for entry in entries:
+            if entry == value:
+                break
+            if isinstance(entry, type):  # bool, str, int, etc...
+                # special handling for finding false bool
+                if issubclass(entry, bool):
+                    if value in ['0', 'false', 'False', 'FALSE']:
+                        value = False
+                        break
+                try:
+                    value = entry(value)  # decode value to new type
+                    break
+                except:
+                    warnings.warn(
+                        key + ': ' + value + 'not of type ' + str(entry)
+                    )
+                    continue  # try next entry
+        else:
+            warnings.warn(key + ': ' + value + ' does not match spec')
+        return value
+
+    def encode_attrib(self, src_element, dst_element_class):
+        """using src_element (pymm element) spec, decode (again)
+        attrib to expected type. Then cast each key: value pair to
+        string. If a particular value in spec is None, the key: value
+        will be dropped from the encoded attrib.
+
+        :param mmElement - pymm element containing attrib to be
+        encoded
+        """
+        attrib = {
+            key: value for key, value in src_element.attrib.items() if \
+            value is not None
+        }
+        spec = src_element.spec
+        encoded_attrib = {}
+        for key, value in attrib.items():
+            if key in spec:
+                value = self.decode_attrib_value(key, value, spec)
+            value = self.stringify(value)
+            key = self.stringify(key)
+            encoded_attrib[key] = value
+        return encoded_attrib
+
+    def stringify(self, arg):
+        """If possible, decode into string, else cast arg to string"""
+        if isinstance(arg, str):
+            return arg
+        try:
+            return arg.decode()
+        except:
+            return str(arg)
+
+
+class DefaultChildFactory:
+    """expose methods for retrieving list of children to encode/decode"""
+    # order in which children will be written to file
+    child_order = [
+        Elements.BaseElement, Elements.ArrowLink, Elements.Cloud,
+        Elements.Edge, Elements.Properties, Elements.MapStyles, Elements.Icon,
+        Elements.AttributeLayout, Elements.Attribute, Elements.Hook,
+        Elements.Font, Elements.StyleNode, Elements.RichContent, Elements.Node
+    ]
+    # order of nth to last for children. First node listed will be last child.
+    reverse_child_order = []
+
+    def decode_getchildren(self, element):
+        """return list of children from xml.etree element"""
+        return list(element)
+
+    def encode_getchildren(self, element):
+        """return list of children from pymm element. It is recommended
+        to return a copied list of children, so that any modification
+        to the list does not change the original element's children
+        """
+        return list(element.children)
+
+
+class DefaultFactory(
+        DefaultAttribFactory, DefaultElementFactory, DefaultChildFactory,
+        metaclass=registry):
+    """Factory with default methods for encoding and decoding between
+    xml.ElementTree and pymm
+    """
+    decoding_element = Elements.BaseElement
+    encoding_element = ET.Element
+
+    def full_decode(self, parent, src_element):
+        """decode ElementTree element to pymm element by calling
+        decoding functions for attrib, children, and element
+        itself. Override this function if you wish to change the
+        order of decoding calls
+        """
+        dst_element = self.decoding_element
+        attrib = self.decode_attrib(src_element, dst_element)
+        children = self.decode_getchildren(src_element)
+        element = self.decode_element(
+            parent, src_element, dst_element, attrib, children
         )
-        return etElement
+        return element, children
 
-    def decode_from_etree_element(self, etElement, parent=None):
-        mmElem = super().decode_from_etree_element(etElement, parent)
-        raise NotImplementedError(
-                'DO NOT use ExampleElementFactory. Inherit from '
-                + 'BaseElementFactory Instead!'
+    def full_encode(self, parent, src_element):
+        """encode from pymm element to ElementTree element. Override
+        this to change order or encoding
+        """
+        dst_element = self.encoding_element
+        children = self.encode_getchildren(src_element)
+        attrib = self.encode_attrib(src_element, dst_element)
+        element = self.encode_element(
+            parent, src_element, dst_element, attrib, children
         )
-        return mmElem
+        return element, children
 
-# a super-simple encoder to use in encoding your custom nodes
-# into another format.
-class SimpleEncoder:
+    @classmethod
+    def can_decode(cls, element):
+        """return False is element.tag does not equal decoding
+        element's tag.
+        If decoding_element has identifier, only
+        return True if all key/value pairs of identifier regex match
+        attrib key/value pair
+        """
+        if element.tag != cls.decoding_element.tag:
+            return False
+        for key_id, val_id in cls.decoding_element.identifier.items():
+            # return False if identifying key/val is not found in attrib
+            for key, val in element.attrib.items():
+                if re.fullmatch(key_id, key) and re.fullmatch(val_id, val):
+                    break
+            else:
+                return False
+        return True
 
-    def write(self, filename, node_tree):
-        with open(filename, 'w') as self.file:
-            # SimpleEncoder only works with nodes, since it's expected to be
-            # the only usable part of the mindmap.
-            self.encode_node_tree_depth_first(node_tree)
+    @classmethod
+    def can_encode(cls, element):
+        if isinstance(element, cls.decoding_element):
+            return True
+        return False
 
-    def encode_node_tree_depth_first(self, node):
-        self.encode_node(node)
-        for child in node.nodes:
-            self.encode_node_tree_depth_first(child)
 
-# this is the only method you need to override.
-    def encode_node(self, node):
-        self.file.writeline(node.attrib['TEXT'])
+
+class NodeFactory(DefaultFactory):
+    decoding_element = Elements.Node
+    child_order = [
+        Elements.BaseElement, Elements.ArrowLink, Elements.Cloud,
+        Elements.Edge, Elements.Font, Elements.Hook, Elements.Properties,
+        Elements.RichContent, Elements.Icon, Elements.Node,
+        Elements.AttributeLayout, Elements.Attribute
+    ]
+    def decode_attrib(self, src_element, dst_element_class):
+        """Replace undesired parts of attrib with desired parts.
+        specifically: look for occasional LOCALIZED_TEXT attrib which
+        is supposed to be TEXT
+        """
+        attrib = src_element.attrib
+        swapout = [('TEXT', 'LOCALIZED_TEXT')]
+        for desired, undesired in swapout:
+            if desired not in attrib and undesired in attrib:
+                attrib[desired] = attrib[undesired]
+                del attrib[undesired]
+        return super().decode_attrib(src_element, dst_element_class)
+
+
+class MapFactory(DefaultFactory):
+    decoding_element = Elements.Map
+
+    def encode_element(
+            self, parent, src_element, element_class, attrib, children):
+        element = super().encode_element(
+            parent, src_element, element_class, attrib, children)
+        comment = ET.Comment(
+            'To view this file, download free mind mapping software '
+            + 'Freeplane from http://freeplane.sourceforge.net'
+        )
+        comment.tail = '\n'
+        element.append(comment)
+        return element
+
+
+class RichContentFactory(DefaultFactory):
+    decoding_element = Elements.RichContent
+
+    def disabled_decode_element(
+            self, parent, src_element, dst_element_class, attrib, children):
+        html = ''
+        for html_element in children:
+            html_string = ET.tostring(html_element)
+            if not isinstance(html_string, str):
+                # I have once got back <class 'bytes'> when the string was a
+                # binary string. weird...
+                html_string = html_string.decode('ascii')
+            html += html_string
+        parent.text = html
+        return None
+
+    def disabled_encode_element(
+            self, parent, src_element, dst_element_class, attrib, children):
+        """until parent node creates a RichContent child, this will
+        never trigger
+        """
+        element = dst_element_class()
+        element.append(ET.fromstring(parent.text))
+        parent.append(element)
+        element.text = '\n'
+        return element
 
 
 def sanity_check(pymm_element):
@@ -73,557 +434,13 @@ def sanity_check(pymm_element):
                         break
                     # allow attribute if spec contains a function
                     if isinstance(allowed, types.BuiltinMethodType) or \
-                       isinstance(allowed, types.LambdaType) or \
-                       isinstance(allowed, types.MethodType) or \
-                       isinstance(allowed, types.FunctionType) or \
-                       isinstance(allowed, types.BuiltinFunctionType):
+                            isinstance(allowed, types.LambdaType) or \
+                            isinstance(allowed, types.MethodType) or \
+                            isinstance(allowed, types.FunctionType) or \
+                            isinstance(allowed, types.BuiltinFunctionType):
                         break
                 else:
                     warnings.warn(
                         'out-of-spec attribute "' + str(attribute) +
                         ' in element: ' + str(elem.tag)
                     )
-
-
-class BaseElementFactory:
-    ''' decode between ElementTree elements and pymm elements.
-    Conversion from ElementTree element to pymm elements is done by
-    passing the etElement to decode_from_et_element() After decoding
-    the full tree's worth of elements, re-iterate through the tree
-    (starting at top-level) and pass that element into this factory's
-    finish_decode(). For each decode / encode function,
-    decode the full xml tree before using the finish_ function.
-    Factory does not keep children. In decoding full xml-tree, you
-    will have to add the children how you see fit. Generally, it is best
-    to add the children after initial decode / encode and then
-    immediately decode / encode those children. This pattern avoids
-    recursion limits in python.
-    '''
-    element = Elements.BaseElement
-    # order in which children will be written to file
-    child_order = [
-        Elements.BaseElement, Elements.ArrowLink, Elements.Cloud,
-        Elements.Edge, Elements.Properties, Elements.MapStyles, Elements.Icon,
-        Elements.AttributeLayout, Elements.Attribute, Elements.Hook,
-        Elements.Font, Elements.StyleNode, Elements.RichContent, Elements.Node
-    ]
-    # order of nth to last for children. First node listed will be last child.
-    reverse_child_order = []
-    # if same tag can be used for different Elements, list them here, in a
-    # tuple with a dictionary of distinguishing attribute name and its
-    # expected value: (element, {attribName: attribValue})
-    typeVariants = []
-    # xml etree appears to correctly decode html-safe to ascii: &lt; = <
-
-    def __init__(self):
-        # make list instance so we don't modify class variable
-        self.child_order = self.child_order.copy()
-        self.reverse_child_order = self.reverse_child_order.copy()
-        self.typeVariants = self.typeVariants.copy()
-        # collect tags that didn't have factories and use it to send out ONE
-        # warning
-        self.noFactoryWarnings = set()
-
-    def display_any_warnings(self):
-        '''Display warnings for elements found without a specific factory.
-        Call once after full decode / encode
-        '''
-        if self.noFactoryWarnings:
-            warnings.warn(
-                'elements ' + str(self.noFactoryWarnings) +  ' do not have '
-                + 'decode factories. Elements will import and export '
-                + 'correctly, but warnings about spec will follow',
-                RuntimeWarning, stacklevel=2
-            )
-        # reset warnings so we won't display the same ones
-        self.noFactoryWarnings = set()
-
-    def compute_element_type(self, etElement):
-        '''Choose amongst several pymm elements for etree element with
-        same tag using attribute properties. Used in special cases when
-        user wants to sub-categorize elements with the same tag. For
-        example, RichContent has several different types: NODE, NOTE,
-        and DETAILS. Specify which type of element to create by adding
-        attribute distinguishers to factory.typeVariants. The same
-        factory will be used, however.
-        '''
-        otherChoices = []
-        for otherType, attribs in self.typeVariants:
-            for key, regex in attribs.items():
-                if key not in etElement.attrib:
-                    break
-                attrib = etElement.attrib[key]
-                if not re.fullmatch(regex, attrib):
-                    break  # we only accept if regex fully matches attrib
-            else:  # if all attribs match, this triggers
-                otherChoices.append(otherType)
-        if len(otherChoices) > 1:
-            warnings.warn(
-                etElement.tag + ' has 2+ possible elements with which to '
-                + 'decode with these attribs: ' + str(etElement.attrib),
-                RuntimeWarning, stacklevel=2
-            )
-        if otherChoices:
-            return otherChoices[-1]  # choose last of choices
-        return self.element  # default if no other choices found
-
-    def decode_from_etree_element(self, etElement, parent=None):
-        '''decodes an etree etElement to a pymm element
-
-        :param parent:
-        :returns mmElement or None
-        If you return None, this etElement and all its children will be
-        dropped from tree.
-        '''
-        # choose between self.element and typeVariants
-        elemClass = self.compute_element_type(etElement)
-        attrib = self.decode_attribs(elemClass, etElement.attrib)
-        mmElem = elemClass(**attrib)  # yep, we initialize it a second time,
-        mmElem.children = [c for c in etElement[:]]
-        if not mmElem.tag == etElement.tag:
-            self.noFactoryWarnings.add(etElement.tag)
-            mmElem.tag = etElement.tag
-        return mmElem
-
-    # should be called full tree decode
-    def finish_decode(self, mmElement, parent=None):
-        ''' Finishes decode of mindmap element. Call only after
-        decode_from_etree_element() has decoded tree
-
-        :return mindmap Element or None
-        if return None, it is expected that this element and all its
-        children will be dropped from tree
-        '''
-        return mmElement
-
-    def encode_to_etree_element(self, mmElement, parent=None):
-        # If you return None, this element and all its children will be
-        # dropped from tree.
-        if isinstance(mmElement, ET.Element):
-            # we expected a pymm element, not an Etree Element
-            warnings.warn(
-                'program is encoding an ET Element! ' + str(mmElement)
-                + ' which means that it will lose text and tail properties. '
-                + 'If you wish to preserve those, consider attaching ET '
-                + 'Element as child of an Element in the '
-                + '"additional_encode" function instead. This message '
-                + 'indicates that the Element was added during the '
-                + '"encode_to_etree_element" function call. See '
-                + 'RichContentFactory for an example.',
-                RuntimeWarning, stacklevel=2
-            )
-        attribs = self.encode_attribs(mmElement)
-        self.sort_element_children(mmElement)
-        # fyi: it's impossible to write attribs in specific order.
-        etElem = ET.Element(mmElement.tag, attribs)
-        etElem[:] = mmElement.children
-        etElem.text = mmElement._text
-        etElem.tail = mmElement._tail
-        return etElem
-
-    def finish_encode(self, etElement, parent=None):
-        """Call after full tree encode. If you return None, this
-        etElement and all its children will be dropped from tree.
-        """
-        # prettify file layout with newlines for readability
-        if len(etElement) > 0 and not etElement.text:
-            etElement.text = '\n'
-        if not etElement.tail:
-            etElement.tail = '\n'
-        return etElement
-
-    def sort_element_children(self, element):
-        """For encoding to etree element. Organize children as written to file
-        for file readability (by placing nodes closer to top of chilren)
-        """
-        for child_element in self.child_order:
-            tag = child_element.tag
-            children = element.findall(tag_regex=tag)
-            for e in children:
-                element.children.remove(e)
-                element.children.append(e)
-        # nodes you want to show last
-        for child_element in reversed(self.reverse_child_order):
-            tag = child_element.tag
-            children = element.findall(tag_regex=tag)
-            for e in children:
-                element.children.remove(e)
-                element.childern.append(e)
-
-    def decode_attribs(self, mmElement, attribs):
-        '''Using mmElement (class or instance) as guide, decode
-        attribs (from etree element) to match the spec in mmElement.
-        Warn (but still allow it) if attribute key/value pair is not
-        valid
-        '''
-        decoded_attribs = {}
-        # decoding from et element: assume all keys and values are strings
-        for key, value in attribs.items():
-            try:
-                if key not in mmElement.spec and mmElement.spec:
-                    raise ValueError(
-                        '"' + str(key) + '" was not found in spec'
-                    )
-                entries = mmElement.spec[key]
-                value = self.decode_attrib_value_using_spec_entries(
-                            key, value, entries
-                        )
-            except ValueError:
-                warnings.warn(
-                    'Attrib ' + key + '=' + value + ' not valid <'
-                    + mmElement.tag + '> spec', SyntaxWarning, stacklevel=2
-                )
-            finally:
-                # add attribute regardless of errors
-                decoded_attribs[key] = value
-        return decoded_attribs
-
-    def decode_attrib_value_using_spec_entries(self, key, value, entries):
-        # first verify that entries is a list
-        if not isinstance(entries, list):
-            raise ValueError('spec contained a non-list spec-value')
-        for entry in entries:
-            if isinstance(entry, type):  # bool, str, int, etc...
-                valueType = entry
-                # special handling for bool since bool('false') == True.
-                # Therefore we check if value is a false
-                if issubclass(valueType, bool):
-                    false_strings = [
-                        'false', 'False', 'FALSE', b'false', b'False',
-                        b'FALSE'
-                    ]
-                    if value in false_strings:
-                        value = False
-                        break
-                value = valueType(value)  # decode value to new type
-                break
-            elif isinstance(entry, types.LambdaType) or \
-                 isinstance(entry, types.BuiltinFunctionType) or \
-                 isinstance(entry, types.BuiltinMethodType) or \
-                 isinstance(entry, types.FunctionType) or \
-                 isinstance(entry, types.MethodType):
-                valuedecoder = entry
-                value = valuedecoder(value)  # decode value using function
-                break
-            else:
-                valueString = entry
-                if valueString == value:
-                    break
-        else:
-            value = str(value)
-            warnings.warn(
-                str(key) + ':' + value + '" not matched or converted by spec'
-            )
-        return value
-
-    def encode_attribs(self, mmElement):
-        '''
-        using mmElements' spec, encodes attribs to string instances,
-        validating that value are proper type. If a specific attribs'
-        value is None, attrib will not be included. if attrib is not
-        in spec, attrib will not be included
-
-        :param mmElement - pymm element containing attribs to be
-        encoded
-        '''
-        # drop all None-valued attribs
-        attribs = {
-            key: value for key, value in mmElement.attrib.items() if \
-            value is not None
-        }
-        encoded_attribs = {}
-        for key, value in attribs.items():
-            if key not in mmElement.spec:
-                continue  # WARNING: skip adding attrib that isn't in spec???
-            entries = mmElement.spec[key]
-            value = self.decode_attrib_value_using_spec_entries(
-                key, value, entries
-            )
-            key, value = str(key), str(value)
-            encoded_attribs[key] = value
-        return encoded_attribs
-
-
-class NodeFactory(BaseElementFactory):
-    element = Elements.Node
-    child_order = [
-        Elements.BaseElement, Elements.ArrowLink, Elements.Cloud,
-        Elements.Edge, Elements.Font, Elements.Hook, Elements.Properties,
-        Elements.RichContent, Elements.Icon, Elements.Node,
-        Elements.AttributeLayout, Elements.Attribute
-    ]
-
-    def decode_attribs(self, mmElement, attrib):
-        """Replace undesired parts of attrib with desired parts.
-        specifically: look for occasional LOCALIZED_TEXT attrib which
-        is supposed to be TEXT
-        """
-        swapout = [('TEXT', 'LOCALIZED_TEXT')]
-        for desired, undesired in swapout:
-            if desired not in attrib and undesired in attrib:
-                attrib[desired] = attrib[undesired]
-                del attrib[undesired]
-        return super().decode_attribs(mmElement, attrib)
-
-    def finish_decode(self, mmElement, parent=None):
-        super().finish_decode(mmElement, parent)
-        self.decode_node_text(mmElement)
-        return mmElement
-
-    def encode_to_etree_element(self, mmElement, parent=None):
-        self.encode_node_text(mmElement)
-        return super().encode_to_etree_element(mmElement, parent)
-
-    def encode_node_text(self, mmNode):
-        '''If node text is html, creates html child and appends to
-        node's children
-        '''
-        # developer / user NEVER needs to create his own RichContent for
-        # mmNode html
-        ntext = Elements.NodeText()
-        ntext.html = mmNode.attrib['TEXT']
-        if ntext.is_html():
-            mmNode.children.append(ntext)
-            # using richcontent, do not leave attribute 'TEXT' for mmNode
-            del mmNode.attrib['TEXT']
-
-    def decode_node_text(self, mmNode):
-        '''If node has html text, set to TEXT attribute to html object'''
-        richElements = mmNode.findall(tag_regex=r'richcontent')
-        while richElements:
-            richElem = richElements.pop(0)
-            if isinstance(richElem, Elements.NodeText):
-                mmNode.attrib['TEXT'] = richElem.html
-                # this NodeText is no longer needed
-                mmNode.children.remove(richElem)
-
-
-class MapFactory(BaseElementFactory):
-    element = Elements.Map
-
-    def finish_encode(self, etElement, parent=None):
-        etMap = super().finish_encode(etElement, parent)
-        comment = ET.Comment(
-            'To view this file, download free mind mapping software '
-            + 'Freeplane from http://freeplane.sourceforge.net'
-        )
-        comment.tail = '\n'
-        etMap[:] = [comment] + etMap[:]
-        return etMap
-
-class CloudFactory(BaseElementFactory):
-    element = Elements.Cloud
-
-class HookFactory(BaseElementFactory):
-    element = Elements.Hook
-    typeVariants = [
-        (Elements.EmbeddedImage, {'NAME': r'ExternalObject'}),
-        (Elements.MapConfig, {'NAME': r'MapStyle'}),
-        (Elements.Equation, {'NAME': r'plugins/latex/LatexNodeHook\.properties'}),
-        (Elements.AutomaticEdgeColor, {'NAME': r'AutomaticEdgeColor'})
-    ]
-
-class MapStylesFactory(BaseElementFactory):
-    element = Elements.MapStyles
-
-class StyleNodeFactory(BaseElementFactory):
-    element = Elements.StyleNode
-
-class FontFactory(BaseElementFactory):
-    element = Elements.Font
-
-class IconFactory(BaseElementFactory):
-    element = Elements.Icon
-
-class EdgeFactory(BaseElementFactory):
-    element = Elements.Edge
-
-class AttributeFactory(BaseElementFactory):
-    element = Elements.Attribute
-
-class PropertiesFactory(BaseElementFactory):
-    element = Elements.Properties
-
-class AttributeRegistryFactory(BaseElementFactory):
-    element = Elements.AttributeRegistry
-
-class RichContentFactory(BaseElementFactory):
-    element = Elements.RichContent
-    typeVariants = [
-        (Elements.NodeText, {'TYPE': r'NODE'}),
-        (Elements.NodeNote, {'TYPE': r'NOTE'}),
-        (Elements.NodeDetails, {'TYPE': r'DETAILS'})
-    ]
-
-    def decode_from_etree_element(self, etElement, parent=None):
-        mmRichC = super().decode_from_etree_element(etElement, parent)
-# this makes a critical assumption that there'll be 1 child. If not, upon
-# encode, ET may complain about "ParseError: junk after document etRichC..
-        html = ''
-        for htmlElement in mmRichC.children:
-            htmlString = ET.tostring(htmlElement)
-            if not isinstance(htmlString, str):
-                # I have once got back <class 'bytes'> when the string was a
-                # binary string. weird...
-                htmlString = htmlString.decode('ascii')
-            html += htmlString
-        mmRichC.html = html
-  # remove html children to prevent their decode.
-        mmRichC.children.clear()
-        return mmRichC
-
-    def encode_to_etree_element(self, mmElement, parent=None):
-        html = mmElement.html
-        element = super().encode_to_etree_element(mmElement, parent)
-# temporarily store html string in element.text  (will decode in
-# additional_encode)
-        element.text = html
-        return element
-
-    def finish_encode(self, etElement, parent=None):
-        html = etElement.text
-        etElement.text = '\n'
-        etRichC = super().finish_encode(etElement, parent)  # sets tail
-# this etRichC will have additional_encode() called on it. It Should
-# have no effect, however
-        etRichC.append(ET.fromstring(html))
-        return etRichC
-
-
-class MindMapConverter:
-    """Pass this converter a node to decode and it will decode by
-    choosing which factory to use in decoding a given node it is also
-    tasked with non-recursively decoding all nodes contained within
-    the first decoded node. You can add_factory(factory) if you have
-    created a new node type / new factory to handle different features
-    here
-    """
-
-    def __init__(self, **kwargs):
-        factoryClasses = [
-            BaseElementFactory, NodeFactory, MapFactory, CloudFactory,
-            HookFactory, MapStylesFactory, StyleNodeFactory, FontFactory, 
-            IconFactory, EdgeFactory, AttributeFactory, PropertiesFactory,
-            RichContentFactory, AttributeRegistryFactory
-        ]
-# get an initialized instance of all factories
-        fff = [factory() for factory in factoryClasses]
-        self.tag2factory = {}
-        # get a dictionary matches an elements tag to the factory which
-        # can handle that element
-        for f in fff:
-            self.add_factory(f)
-        self.defaultFactory = BaseElementFactory()
-
-    def add_factory(self, factory):
-        '''Add or Overwrite factory used for xml element. Specific to
-        a tag specified by the factory's element
-
-        :param factory: a pymm element factory
-        '''
-        # if we are passed a non-initialized factory, create factory instance
-        if not isinstance(factory, object):
-            factory = factory()
-        element = factory.element()
-        self.tag2factory[element.tag] = factory
-
-    def _apply_decode_fxns_to_full_tree(self, element, fxn1, fxn2):
-        firstPassRoot = self._apply_first_pass_fxn_to_full_tree(element, fxn1)
-        return self._apply_second_pass_fxn_to_full_tree(firstPassRoot, fxn2)
-
-    def _apply_first_pass_fxn_to_full_tree(self, element, fxn1):
-        first = fxn1(element, None)
-        hasUnchangedChildren = [first]
-        while hasUnchangedChildren:
-            element = hasUnchangedChildren.pop(0)
-            if isinstance(element, Elements.BaseElement):
-                # combine child w/ parent into tuple
-                unchanged = [(child, element) for child in element.children]
-            else:
-                # xml.etree format
-                unchanged = [(child, element) for child in element[:]]
-            children = []
-            while unchanged:
-                # preserve child order by popping from front of list
-                unchangedChild, parent = unchanged.pop(0)
-                child = fxn1(unchangedChild, parent)
-                if child is None:
-                    # removes element from tree being built by not adding
-                    # it to children(s) list
-                    continue
-                children.append(child)
-                hasUnchangedChildren.append(child)
-            if isinstance(element, Elements.BaseElement):
-                element.children = children  # pymm format
-            else:
-                element[:] = children  # xml.etree format
-        return first
-    
-
-    def _apply_second_pass_fxn_to_full_tree(self, element, fxn2):
-        first = element
-        notFullyChanged = [(first, None)]  # child = first. Parent = None
-        while notFullyChanged:
-            element, parent = notFullyChanged.pop(0)
-            elem = fxn2(element, parent)
-            if elem is None and parent is not None:
-                # if you return None during decode / encode, this
-                # will ensure it is fully removed from the tree by removing
-                # its reference from the parent and not allowing its children
-                # to be added
-                self._remove_child_element(elem, parent)
-                continue
-            if isinstance(elem, Elements.BaseElement):
-                children = elem.children  # pymm syntax
-            else:
-                children = list(elem)  # xml.etree.ElementTree syntax
-            parentsAndChildren = [(child, elem) for child in children]
-            notFullyChanged.extend(parentsAndChildren)
-        return first
-
-    def _remove_child_element(self, child, parent):
-        if isinstance(parent, Elements.BaseElement):
-            parent.children.remove(child)  # pymm format
-        else:
-            parent.remove(child)  # xml.etree format
-
-    def decode_etree_element_and_tree(self, etElement):
-        etElement = copy.deepcopy(etElement)
-        action1 = self.decode_etree_element
-        action2 = self.additional_decode
-        node = self._apply_decode_fxns_to_full_tree(etElement, action1, action2)
-        # finally, warn developer of any problems during decode
-        self.defaultFactory.display_any_warnings()
-        return node
-
-    def decode_etree_element(self, etElement, parent):
-        ff = self.get_decode_factory_for(etElement)
-        node = ff.decode_from_etree_element(etElement, parent)
-        return node
-
-    def additional_decode(self, mmElement, parent):
-        ff = self.get_decode_factory_for(mmElement)
-        return ff.finish_decode(mmElement, parent)
-
-    def get_decode_factory_for(self, element):
-        '''Intended for etElement or mmElement'''
-        tag = element.tag
-        if tag and tag in self.tag2factory:
-            return self.tag2factory[tag]
-        return self.defaultFactory
-
-    def encode_mm_element_and_tree(self, mmElement):
-        mmElement = copy.deepcopy(mmElement)
-        action1 = self.encode_mm_element
-        action2 = self.additional_encode
-        return self._apply_decode_fxns_to_full_tree(
-                   mmElement, action1, action2
-               )
-
-    def encode_mm_element(self, mmElement, parent):
-        ff = self.get_decode_factory_for(mmElement)
-        return ff.encode_to_etree_element(mmElement, parent)
-
-    def additional_encode(self, etElement, parent):
-        ff = self.get_decode_factory_for(etElement)
-        return ff.finish_encode(etElement, parent)
