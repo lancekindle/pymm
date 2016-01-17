@@ -72,11 +72,7 @@ def decode(et_element):
              BaseElement-inheriting element if et_element was not complete
              mindmap hierarchy.
     """
-    mmc = Factories.MindMapConverter()
-    mm_factory = Factories.MapFactory()
-    mm_factory.element = MindMap
-    mmc.add_factory(mm_factory)
-    return mmc.decode_etree_element_and_tree(et_element)
+    return Factories.decode(et_element)
 
 
 def encode(mm_element):
@@ -87,8 +83,7 @@ def encode(mm_element):
     """
     if not isinstance(mm_element, Elements.BaseElement):
         raise ValueError('cannot encode mm_element: it is not a pymm element')
-    mmc = Factories.MindMapConverter()
-    return mmc.encode_mm_element_and_tree(mm_element)
+    return Factories.encode(mm_element)
 
 
 class MindMap(Elements.Map):
@@ -123,7 +118,9 @@ class MindMap(Elements.Map):
             if 'r' in mode and 'w' in mode:
                 raise ValueError('must have exactly one of read/write mode')
             if 'r' in mode:
+                cls._load_default_mindmap_flag = False
                 self = read(filename)
+                cls._load_default_mindmap_flag = True
             elif 'w' in mode:
                 self = cls._load_default_mindmap(**attrib)
             else:
