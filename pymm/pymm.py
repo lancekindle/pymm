@@ -16,6 +16,7 @@ import xml.etree.ElementTree as ET
 import os
 import warnings
 import types
+from collections import defaultdict
 from . import Elements
 from . import Factories
 
@@ -36,9 +37,12 @@ def read(file_or_filename):
              will pass the instance of the top-level element, which could be
              BaseElement or any inheriting element in the Elements module.
     """
-    tree = ET.parse(file_or_filename)
-    et_elem = tree.getroot()
-    mm_elem = decode(et_elem)  # should return MindMap instance
+    # must lock default_mindmap_filename
+    with file_locked(file_or_filename), \
+            file_locked(MindMap.default_mindmap_filename):
+        tree = ET.parse(file_or_filename)
+        et_elem = tree.getroot()
+        mm_elem = decode(et_elem)
     return mm_elem
 
 
@@ -63,8 +67,7 @@ def write(file_or_filename, mm_element):
 
 
 def decode(et_element):
-    """decode ElementTree Element to pymm Element. Temporarily sets
-    decode factory to use MindMap instead of Elements.Map
+    """decode ElementTree Element to pymm Element.
 
     :param et_element: Element Tree Element -> generally an element from
                        python's xml.etree.ElementTree module
@@ -86,6 +89,32 @@ def encode(mm_element):
     return Factories.encode(mm_element)
 
 
+class file_locked:
+    """function-like class to allow boolean checking if a given
+    filename is locked or not. If used as a context manager, file is
+    marked as locked until context exit. This is intended to be used by
+    pymm.read to signify when reading from file, and by MindMap to load
+    it's default hierarchy only if a file is not currently loading
+    """
+    locked = defaultdict(bool)
+    file_to_lock = None
+
+    def __init__(self, file_to_lock):
+        self.file_to_lock = file_to_lock
+
+    def __bool__(self):
+        return self.locked[self.file_to_lock]
+
+    def __enter__(self, *_):
+        """set lock on file to True"""
+        self.locked[self.file_to_lock] = True
+        return self
+
+    def __exit__(self, *error):
+        """reset lock on file to False"""
+        self.locked[self.file_to_lock] = False
+
+
 class MindMap(Elements.Map):
     """Interface to Freeplane structure. Allow reading and writing of xml
     mindmap formats (.mm)
@@ -95,17 +124,30 @@ class MindMap(Elements.Map):
     """
     filename = None
     mode = 'r'
-    _load_default_mindmap_flag = True
+    # identify default mindmap filename
+    filepath = os.path.realpath(__file__)
+    path, _ = os.path.split(filepath)
+    filename = os.path.join(path, 'defaultmm')
+    default_mindmap_filename = filename
+    del _, path, filepath
 
     def __new__(cls, *args, **attrib):
         """FreeplaneFile acts as an interface to intrepret
         xml-based .mm files into a tree of Nodes.
         if MindMap is created with no arguments, a default hierarchy
-        will be loaded. Otherwise it may load the specified file
+        will be loaded. Any non-keyword arguments are assumed to be
+        filename and mode, respectively. MindMap will load the file
+        specified. If mode is 'w', A default hierarchy will be loaded.
+        Opening a file in write mode is only useful as if MindMap is
+        used as a context manager. The file will be written after
+        context manager exits, if no errors caused an early exit.
+        with MindMap(filename, 'w') as mm:
+            etc...
+        # mm written to filename
         """
         if not args:
-            if cls._load_default_mindmap_flag:
-                return cls._load_default_mindmap(**attrib)
+            if not file_locked(cls.default_mindmap_filename):
+                return cls.default_mindmap(**attrib)
         else:
             # we assume that user has passed in file-reading options
             if len(args) > 3:
@@ -113,16 +155,14 @@ class MindMap(Elements.Map):
                     'MindMap expects at most 2 arguments specifying filename' +
                     ' and mode. Got ' + str(len(args))
                 )
-            # use default filemode if none supplied
-            filename, mode, *_ = list(args) + [cls.mode]
+            # use default filemode (read) if none supplied
+            filename, mode, *_ = list(args) + ['r']
             if 'r' in mode and 'w' in mode:
                 raise ValueError('must have exactly one of read/write mode')
             if 'r' in mode:
-                cls._load_default_mindmap_flag = False
                 self = read(filename)
-                cls._load_default_mindmap_flag = True
             elif 'w' in mode:
-                self = cls._load_default_mindmap(**attrib)
+                self = cls.default_mindmap(**attrib)
             else:
                 raise ValueError('unknown mode: ' + str(mode))
             self.filename = filename
@@ -134,21 +174,12 @@ class MindMap(Elements.Map):
         super().__init__(**kwargs)
 
     @classmethod
-    def _load_default_mindmap(cls, **attrib):
-        """create default hierarchy for mindmap -- including map_styles and
-        Automatic node coloring hook
+    def default_mindmap(cls, **attrib):
+        """load default hierarchy for mindmap -- including map_styles
+        and automatic node coloring hook. Loads file by re-initiating
+        class with arguments to load default hierarchy file.
         """
-        try:
-            cls._load_default_mindmap_flag = False
-            filepath = os.path.realpath(__file__)
-            path, _ = os.path.split(filepath)
-            filename = os.path.join(path, 'defaultmm')
-            self = cls.__new__(cls, filename, **attrib)
-            cls._load_default_mindmap_flag = True
-        except:
-            cls._load_default_mindmap_flag = True
-            raise
-        return self
+        return cls.__new__(cls, cls.default_mindmap_filename, **attrib)
 
     def __enter__(self):
         """allow user to use MindMap as context-manager, in which MindMap can
