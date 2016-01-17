@@ -40,7 +40,28 @@ import types
 # http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format
 
 
-class BaseElement:
+class registry(type):
+    """Metaclass to hold all elements created. As each element class is
+    created, Registry adds it (The new element class) to its internal
+    registry, so long as an element inherits from BaseElement.
+    Factories will search through all registered elements and use the
+    newest matching element.
+    """
+    _elements = []
+
+    @classmethod
+    def get_elements(cls):
+        """Return list of all registered elements"""
+        return list(cls._elements)
+
+    def __new__(cls, clsname, bases, attr_dict):
+        """Record unaltered class"""
+        ElementClass = super().__new__(cls, clsname, bases, attr_dict)
+        cls._elements.append(ElementClass)
+        return ElementClass 
+
+
+class BaseElement(metaclass=registry):
     """pymm's Base Element. All other elements inherit from BaseElement, which
     represents an element in a similar style to xml.etree.ElementTree with
     enhancements aimed at providing faster mindmap manipulation. Each element
