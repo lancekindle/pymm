@@ -206,11 +206,35 @@ class TestIfRichContentFixedYet(unittest.TestCase):
         pymm.write('richcontent_test.mm', mind_map)
 
 
-class TestMindMapFeatures(unittest.TestCase):
+class TestMindMapSetup(unittest.TestCase):
+    """provide setUp and tearDown functions for testing MindMap.
+    Also provide shared variables for easier debugging
+    """
 
     def setUp(self):
         self.filename = 'test_context_manager.mm'
         self.text = 'testing 123'
+
+    def tearDown(self):
+        try:
+            os.remove(self.filename)
+        except FileNotFoundError:
+            pass
+
+
+class TestMindMapFeatures(TestMindMapSetup):
+
+    def test_loads_default_hierarchy(self):
+        """test that default hierarchy loads correctly.
+        Should load one MindMap with one one root node, (with text
+        "new_mindmap") and several children. If MindMap loads default
+        hierarchy each time it is instantiated, python will enter a
+        recursive loop that will end in error
+        """
+        mm = pymm.MindMap()
+        self.assertTrue(mm.children != [])
+        self.assertTrue(mm.root is not None)
+        self.assertTrue(mm.root.text == "new_mindmap")
 
     def test_context_manager_write_file(self):
         with pymm.MindMap(self.filename, 'w') as mm:
@@ -241,20 +265,7 @@ class TestMindMapFeatures(unittest.TestCase):
         self.assertTrue(mm is not None)
 
 
-    def test_loads_default_hierarchy(self):
-        """Recursion depth could be exceeded if MindMap tried to load
-        default hierarchy file and then recursively loaded default
-        hierarchy file
-        """
-        mm = pymm.MindMap()
-
-    def tearDown(self):
-        try:
-            os.remove(self.filename)
-        except FileNotFoundError:
-            pass
-
-class TestPymmModuleFeatures(TestMindMapFeatures):
+class TestPymmModuleFeatures(TestMindMapSetup):
 
     def test_write_file(self):
         pymm.write(self.filename, pymm.MindMap())
