@@ -21,6 +21,9 @@
         tag = ''
         # [OPTIONAL] pre-define default element attributes
         attrib = {}
+        # [OPTIONAL] identifying attrib that MUST be present for this element
+        # can use regex for matching both attrib key and value.
+        identifier = {}
         # [OPTIONAL] specify possible attribute types. Put any / all possible
         # attribute type (like bool, str, int, float) in a list.
         spec = {}
@@ -45,17 +48,12 @@ class BaseElement:
     is. If a specific xml element type does not have a corresponding pymm
     element, it will become a BaseElement, but the corresponding "BaseElement"
     tag will be replaced with the actual xml element's tag.
-
-    :param tag: the tag specifying type of element
-    :param parent: a link to the element's parent element
-    :param spec:
     """
     #: xml-based elements are uniquely identified by a tag. For
     #: example, a node looks like <node ... >, where the first string
     #: is the tag of the element. BaseElement's tag, however, will be
     #: overwritten
     tag = 'BaseElement'
-    parent = None
 
     #: _text and _tail are here for compatibility reasons. They correspond to
     #: xml.etree's .text and .tail, respectively. _text is the text between the
@@ -83,6 +81,13 @@ class BaseElement:
     #: will include your attrib version unless overwritten when decoding
     #: from an existing xml Element.
     attrib = {}
+
+    #: identifier holds xml attributes that are used to identify a
+    #: particular element in addition to the tag itself. Use this if an
+    #: element MUST have certain attrib present. identifier will be used
+    #: when choosing to which element to decode. All attrib listed in 
+    #: identifier should be regex or string. (see Equation for example)
+    identifier = {}
 
     #: to improve readability of interactions with pymm elements,
     #: _display_attrib may contain specific attribs that will be used in the
@@ -338,6 +343,7 @@ class EmbeddedImage(Hook):
     EmbeddedImage['URI'] = path
     """
     attrib = {'NAME': 'ExternalObject'}
+    identifier = {r'NAME': r'ExternalObject'}
     spec = {'NAME': [str], 'URI': [str], 'SIZE': [float]}
 
 
@@ -348,6 +354,7 @@ class MapConfig(Hook):
     wrapping.
     """
     attrib = {'NAME': 'MapStyle', 'zoom': 1.0}
+    identifier = {r'NAME': r'MapStyle'}
     spec = {'NAME': [str], 'max_node_width': [int], 'zoom': [float]}
 
 
@@ -356,6 +363,7 @@ class Equation(Hook):
     Node. Define the equation using Equation['EQUATION'] = latex-string
     """
     attrib = {'NAME': 'plugins/latex/LatexNodeHook.properties'}
+    identifier = {r'NAME': r'plugins/latex/LatexNodeHook.properties'}
     spec = {'NAME': [str], 'EQUATION': [str]}
 
 
@@ -366,6 +374,7 @@ class AutomaticEdgeColor(Hook):
     many edges have been automatically colored.
     """
     attrib = {'NAME': 'AutomaticEdgeColor', 'COUNTER': 0}
+    identifier = {r'NAME': r'AutomaticEdgeColor'}
     spec = {'NAME': [str], 'COUNTER': [int]}
 
 
@@ -547,6 +556,7 @@ class NodeText(RichContent):
     node itself during reversion if the nodes' html includes html tags
     """
     attrib = {'TYPE': 'NODE'}
+    identifier = {r'TYPE': r'NODE'}
 
 
 class NodeNote(RichContent):
@@ -555,7 +565,9 @@ class NodeNote(RichContent):
     the Note icon beside the Node itself. By default this is enabled
     """
     attrib = {'TYPE': 'NOTE'}
+    identifier = {r'TYPE': r'NOTE'}
 
 
 class NodeDetails(RichContent):
     attrib = {'TYPE': 'DETAILS'}
+    identifier = {r'TYPE': r'DETAILS'}

@@ -153,8 +153,9 @@ class TestMutableClassVariables(unittest.TestCase):
         self.base = pymm.Elements.BaseElement
         self.elements = get_all_pymm_element_classes()
 
-    def test_unique_mutable_vars(self, filt=None,
-                                 filter_out=['spec', '_display_attrib']):
+    def test_unique_mutable_vars(
+            self, filt=None,
+            filter_out=['spec', '_display_attrib', 'identifier']):
         """Test each element's mutable variable and confirm it does not share
         the same memory address as the element's Class
         """
