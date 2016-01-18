@@ -62,11 +62,11 @@ class ConversionHandler:
                 if convert == 'encode':
                     factory_class = self.find_encode_factory(child)
                     factory = factory_class()
-                    child, grandchildren = factory.full_encode(parent, child)
+                    child, grandchildren = factory.encode(parent, child)
                 elif convert == 'decode':
                     factory_class = self.find_decode_factory(child)
                     factory = factory_class()
-                    child, grandchildren = factory.full_decode(parent, child)
+                    child, grandchildren = factory.decode(parent, child)
                 else:
                     raise ValueError('pass in "decode" or "encode"')
                 # if convert fxn returns no decoded child, drop from hierarchy
@@ -181,12 +181,11 @@ class DefaultElementFactory:
 class DefaultAttribFactory:
     """expose methods to encode/decode attrib"""
 
-    def decode_attrib(self, src_element, dst_element_class):
+    def decode_attrib(self, attrib, src_element, dst_element_class):
         """Decode attrib (from etree element) to match the spec in
         pymm element. Warn user (but still allow attrib) if attrib
         key/value pair is not valid.
         """
-        attrib = src_element.attrib
         spec = dst_element_class.spec
         decoded_attrib = {}
         # decoding from et element: assume all keys and values are strings
@@ -232,7 +231,7 @@ class DefaultAttribFactory:
             warnings.warn(key + ': ' + value + ' does not match spec')
         return value
 
-    def encode_attrib(self, src_element, dst_element_class):
+    def encode_attrib(self, attrib, src_element, dst_element_class):
         """using src_element (pymm element) spec, decode (again)
         attrib to expected type. Then cast each key: value pair to
         string. If a particular value in spec is None, the key: value
@@ -242,7 +241,7 @@ class DefaultAttribFactory:
         encoded
         """
         attrib = {
-            key: value for key, value in src_element.attrib.items() if \
+            key: value for key, value in attrib.items() if \
             value is not None
         }
         spec = src_element.spec
@@ -265,17 +264,11 @@ class DefaultAttribFactory:
             return str(arg)
 
 
-class DefaultChildFactory:
-    """expose methods for retrieving list of children to encode/decode"""
-    # order in which children will be written to file
-    child_order = [
-        Elements.BaseElement, Elements.ArrowLink, Elements.Cloud,
-        Elements.Edge, Elements.Properties, Elements.MapStyles, Elements.Icon,
-        Elements.AttributeLayout, Elements.Attribute, Elements.Hook,
-        Elements.Font, Elements.StyleNode, Elements.RichContent, Elements.Node
-    ]
-    # order of nth to last for children. First node listed will be last child.
-    reverse_child_order = []
+class DefaultGetAttributesFactory:
+    """expose methods to get attrib and children from elements. This
+    does NOT encode or decode the attrib or children, but instead
+    simply returns the unaltered attribute (attrib or children)
+    """
 
     def decode_getchildren(self, element):
         """return list of children from xml.etree element"""
@@ -288,37 +281,61 @@ class DefaultChildFactory:
         """
         return list(element.children)
 
+    def decode_getattrib(self, element):
+        """return attrib dict from xml.etree element"""
+        return dict(element.attrib)
 
+    def encode_getattrib(self, element):
+        """return attrib dict from pymm element"""
+        return dict(element.attrib)
+
+
+
+class DefaultChildFactory:
+    """expose methods for retrieving list of children to encode/decode"""
+    # order in which children will be written to file
+    child_order = [
+        Elements.BaseElement, Elements.ArrowLink, Elements.Cloud,
+        Elements.Edge, Elements.Properties, Elements.MapStyles, Elements.Icon,
+        Elements.AttributeLayout, Elements.Attribute, Elements.Hook,
+        Elements.Font, Elements.StyleNode, Elements.RichContent, Elements.Node
+    ]
+    # order of nth to last for children. First node listed will be last child.
+    reverse_child_order = []
+
+    
 class DefaultFactory(
-        DefaultAttribFactory, DefaultElementFactory, DefaultChildFactory,
-        metaclass=registry):
+        DefaultAttribFactory, DefaultElementFactory,
+        DefaultGetAttributesFactory, metaclass=registry):
     """Factory with default methods for encoding and decoding between
     xml.ElementTree and pymm
     """
     decoding_element = Elements.BaseElement
     encoding_element = ET.Element
 
-    def full_decode(self, parent, src_element):
-        """decode ElementTree element to pymm element by calling
-        decoding functions for attrib, children, and element
-        itself. Override this function if you wish to change the
-        order of decoding calls
+    def decode(self, parent, src_element):
+        """control decode order from from xml.etree element to pymm
+        element. Typical decoding order looks like:
+        get_attrib, decode_attrib, get_children, decode_element
         """
         dst_element = self.decoding_element
-        attrib = self.decode_attrib(src_element, dst_element)
+        unaltered_attrib = self.decode_getattrib(src_element)
+        attrib = self.decode_attrib(unaltered_attrib, src_element, dst_element)
         children = self.decode_getchildren(src_element)
         element = self.decode_element(
             parent, src_element, dst_element, attrib, children
         )
         return element, children
 
-    def full_encode(self, parent, src_element):
-        """encode from pymm element to ElementTree element. Override
-        this to change order or encoding
+    def encode(self, parent, src_element):
+        """control encode order from pymm element to xml.etree element.
+        Typical encoding order looks like:
+        get_children, get_attrib, encode_attrib, decode_element
         """
         dst_element = self.encoding_element
         children = self.encode_getchildren(src_element)
-        attrib = self.encode_attrib(src_element, dst_element)
+        unaltered_attrib = self.encode_getattrib(src_element)
+        attrib = self.encode_attrib(unaltered_attrib, src_element, dst_element)
         element = self.encode_element(
             parent, src_element, dst_element, attrib, children
         )
@@ -350,7 +367,6 @@ class DefaultFactory(
         return False
 
 
-
 class NodeFactory(DefaultFactory):
     decoding_element = Elements.Node
     child_order = [
@@ -359,18 +375,17 @@ class NodeFactory(DefaultFactory):
         Elements.RichContent, Elements.Icon, Elements.Node,
         Elements.AttributeLayout, Elements.Attribute
     ]
-    def decode_attrib(self, src_element, dst_element_class):
+    def decode_attrib(self, attrib, src_element, dst_element_class):
         """Replace undesired parts of attrib with desired parts.
         specifically: look for occasional LOCALIZED_TEXT attrib which
         is supposed to be TEXT
         """
-        attrib = src_element.attrib
         swapout = [('TEXT', 'LOCALIZED_TEXT')]
         for desired, undesired in swapout:
             if desired not in attrib and undesired in attrib:
                 attrib[desired] = attrib[undesired]
                 del attrib[undesired]
-        return super().decode_attrib(src_element, dst_element_class)
+        return super().decode_attrib(attrib, src_element, dst_element_class)
 
 
 class MapFactory(DefaultFactory):
