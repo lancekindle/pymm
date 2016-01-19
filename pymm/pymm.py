@@ -189,9 +189,8 @@ class MindMap(Elements.Map):
         return self
 
     def __exit__(self, *error):
-        """on context-manager exit, write to file IF no errors occurred and
-        mode is 'w'
+        """on context-manager exit, write to file REGARDLESS of errors
+        if mode is 'w'
         """
-        if error == (None, None, None):
-            if 'w' in self.mode:
-                write(self.filename, self)
+        if 'w' in self.mode:
+            write(self.filename, self)
