@@ -348,6 +348,37 @@ class TestPymmModuleFeatures(TestMindMapSetup):
         self.assertTrue(mm.root.text == self.text)
 
 
+class TestFileLocked(TestMindMapSetup):
+    """file_locked is a special function-like class to handle marking a
+    file as "locked" when being read. It is only used by pymm.decode
+    and pymm.MindMap to ensure that MindMap does not recursively load
+    its default hierarchy
+    """
+
+    def test_lock_context(self):
+        """verify file stays "locked" only as long as within context
+        """
+        self.assertFalse(pymm.file_locked(self.filename))
+        with pymm.file_locked(self.filename) as file_lock:
+            self.assertTrue(file_lock)
+            self.assertTrue(pymm.file_locked(self.filename))
+        self.assertFalse(pymm.file_locked(self.filename))
+
+    def test_no_locked_files(self):
+        """verify no files are currently locked"""
+        for filename, status in pymm.file_locked.locked.items():
+            if status == True:
+                self.fail(filename + ' marked as locked')
+
+    def test_lock_boolean(self):
+        """file_locked can also act a boolean, returning true or false
+        if a file is locked or not.
+        """
+        self.assertFalse(pymm.file_locked(self.filename))
+        mm = pymm.MindMap(self.filename, 'w')
+        self.assertFalse(pymm.file_locked(self.filename))
+
+
 class TestTypeVariants(unittest.TestCase):
     """ test typeVariant attribute of factory to load different objects given
     the same tag. (special attrib values are given that differentiate them)
