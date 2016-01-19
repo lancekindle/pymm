@@ -60,6 +60,74 @@ def get_all_pymm_element_classes(*namespaces):
     return list(elements)
 
 
+
+class TestElementRegistry(unittest.TestCase):
+    """Element registry keeps track of all element classes defined
+    within the pymm module.
+    """
+
+    def test_register_new_class(self):
+        """This tests that Elements.registry registers a new
+        element class when created (it must inherit from BaseElement).
+        Order of elements also matters, so this verifies that newly
+        created test class is the last one in the list.
+        """
+        before = pymm.Elements.registry.get_elements()
+        class TestElementClass0x123(pymm.Elements.BaseElement):
+            pass
+        test_class = TestElementClass0x123
+        after = pymm.Elements.registry.get_elements()
+        self.assertTrue(test_class not in before)
+        self.assertTrue(test_class in after)
+        self.assertTrue(test_class == after[-1])
+
+    def test_elements_order(self):
+        """order of elements matters. Older elements (as far as when
+        they were created) should be first in list, with newer-defined
+        classes being at the end of the list. Verify BaseElement is first
+        """
+        factories = pymm.Elements.registry.get_elements()
+        self.assertTrue(pymm.Elements.BaseElement == factories[0])
+
+
+class TestFactoryRegistry(unittest.TestCase):
+    """Factory registry keeps track of all new factories created. Prior
+    to encoding/decoding, all factories are noted, and compared with
+    elements registry. Any elements that do not have a corresponding
+    factory are "unclaimed". Factories are then generated for each
+    unclaimed element, in order of oldest to newest unclaimed elements
+    """
+
+    def test_factory_exists_for_each_element(self):
+        """when calling get_factories(), the existing list of factories
+        are returned PLUS a generated list of factories for unclaimed
+        elements. The factories are generated in the order that the
+        unclaimed factories were created
+        """
+        elements = pymm.Elements.registry.get_elements()
+        factories = pymm.Factories.registry.get_factories()
+        for element in elements:
+            for factory in factories:
+                if factory.decoding_element == element:
+                    break
+            else:
+                self.fail('no factory for element: ' + str(element))
+
+    def test_register_new_factory(self):
+        """verify that new factory created is registered and is last in
+        list of non-generated factories
+        """
+        class TestFactory0x123(pymm.Factories.DefaultFactory):
+            pass
+        test_class = TestFactory0x123
+        self.assertTrue(test_class == pymm.Factories.registry._factories[-1])
+
+    def test_factories_order(self):
+        """test that oldest factory is first in list"""
+        factories = pymm.Factories.registry.get_factories()
+        self.assertTrue(pymm.Factories.DefaultFactory == factories[0])
+
+
 class TestAttribspec(unittest.TestCase):
     """Element.spec contains a key/value pair that describes an attribute
     (key) and a list of alloweable values. These allowable values can be
