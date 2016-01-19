@@ -366,7 +366,7 @@ class DefaultFactory(
 
     @classmethod
     def can_encode(cls, element):
-        if isinstance(element, cls.decoding_element):
+        if element.__class__ == cls.decoding_element:
             return True
         return False
 
