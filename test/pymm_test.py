@@ -166,10 +166,14 @@ class TestNodeImplicitAttributes(unittest.TestCase):
     """Nodes have attributes that are a name, value pair visually
     stored beneath the node in freeplane. They are implemented as a dictionary
     within Node, such that node[key] = value is a valid assignment.
+    During reading of a file, "Attribute" Element removes itself from
+    the hierarchy and adds itself to the node's implicit attribute
+    dictionary.
     """
 
     def setUp(self):
         self.attributes = {'requires': 'maintenance', 'serial#': 'XJ3V2'}
+        self.filename = 'test_attributes.mm'
         self.node = mme.Node()
         for key, val in self.attributes.items():
             self.node[key] = val
@@ -199,6 +203,19 @@ class TestNodeImplicitAttributes(unittest.TestCase):
             self.assertFalse((key, value) in self.node.items())
             self.assertTrue(count - 1 == len(self.node.items()))
             break
+
+    def test_attribute_from_file(self):
+        """verify that attribute saves to file, and is loaded
+        back into node
+        """
+        with pymm.MindMap(self.filename, 'w') as mm:
+            for key, val in self.attributes.items():
+                mm.root[key] = val
+            self.assertTrue(mm.root.items() == self.attributes.items())
+        mm = None
+        mm = pymm.MindMap(self.filename)
+        self.assertTrue(mm.root.items() == self.attributes.items())
+
 
 
 class TestMutableClassVariables(unittest.TestCase):

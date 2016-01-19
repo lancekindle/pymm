@@ -375,6 +375,7 @@ class NodeFactory(DefaultFactory):
         Elements.RichContent, Elements.Icon, Elements.Node,
         Elements.AttributeLayout, Elements.Attribute
     ]
+
     def decode_attrib(self, attrib, src_element, dst_element_class):
         """Replace undesired parts of attrib with desired parts.
         specifically: look for occasional LOCALIZED_TEXT attrib which
@@ -386,6 +387,14 @@ class NodeFactory(DefaultFactory):
                 attrib[desired] = attrib[undesired]
                 del attrib[undesired]
         return super().decode_attrib(attrib, src_element, dst_element_class)
+
+    def encode_getchildren(self, element):
+        """add attributes into children"""
+        children = super().encode_getchildren(element)
+        for name, value in element.items():
+            child = Elements.Attribute(NAME=name, VALUE=value)
+            children.append(child)
+        return children
 
 
 class MapFactory(DefaultFactory):
@@ -402,6 +411,24 @@ class MapFactory(DefaultFactory):
         comment.tail = '\n'
         element.append(comment)
         return element
+
+class AttributeFactory(DefaultFactory):
+    """Attribute is a visual 2-wide cell beneath a node. It has a name
+    and value. We want to instead push this into the parent node as if
+    it were a dictionary: parent[name] = value
+    """
+    decoding_element = Elements.Attribute
+
+    def decode_element(
+            self, parent, src_element, element_class, attrib, children):
+        if not isinstance(parent, Elements.Node):
+            return super().encode_element(
+                parent, src_element, element_class, attrib, children)
+        if 'NAME' in attrib and 'VALUE' in attrib:
+            name = attrib['NAME']
+            value = attrib['VALUE']
+            parent[name] = value
+        return None  # stop decoding this element and its children
 
 
 class RichContentFactory(DefaultFactory):
