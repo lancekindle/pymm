@@ -321,16 +321,19 @@ class TestMindMapFeatures(TestMindMapSetup):
             self.assertTrue(mm.root.text == self.text)
 
     def test_context_manager_abort_on_error(self):
-        """Test that context manager does NOT write to file if an error occurs.
-        Verify that context-manager does not handle error, either
+        """Test that context manager writes to file even if an error
+        occurs. Also verify that context-manager does not handle error
         """
         mm = None
+        self.assertFalse(os.path.exists(self.filename))
         with self.assertRaises(TypeError):
             with pymm.MindMap(self.filename, 'w') as mm:
                 mm.root.text = self.text
                 mm.root.children.append(3, 3)  # triggers TypeError
-        self.assertFalse(os.path.exists(self.filename))
+        self.assertTrue(os.path.exists(self.filename))
         self.assertTrue(mm is not None)
+        with pymm.MindMap(self.filename) as mm:
+            self.assertTrue(mm.root.text == self.text)
 
 
 class TestPymmModuleFeatures(TestMindMapSetup):
