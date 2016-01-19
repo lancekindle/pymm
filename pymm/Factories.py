@@ -217,7 +217,7 @@ class DefaultAttribFactory:
         for entry in entries:
             if entry == value:
                 break
-            if isinstance(entry, type):  # bool, str, int, etc...
+            if isinstance(entry, type):  # bool, str, int, custom class, etc...
                 # special handling for finding false bool
                 if issubclass(entry, bool):
                     if value in ['0', 'false', 'False', 'FALSE']:
@@ -263,7 +263,7 @@ class DefaultAttribFactory:
         if isinstance(arg, str):
             return arg
         try:
-            return arg.decode()
+            return arg.decode('utf-8')
         except:
             return str(arg)
 
