@@ -228,7 +228,7 @@ class DefaultAttribFactory:
                     break
                 except:
                     warnings.warn(
-                        key + ': ' + value + 'not of type ' + str(entry)
+                        key + ': ' + value + ' not of type ' + str(entry)
                     )
                     continue  # try next entry
         else:
