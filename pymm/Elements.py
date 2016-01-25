@@ -292,6 +292,7 @@ class Node(ImplicitNodeAttributes, BaseElement):
     #: tables. But may be safely treated as a simple string. (any string method
     #: called on this will return a plaintext string
     text = property(*_elementAccess.Text.setup(ImplicitNodeText))
+    link = property(*_elementAccess.Link.setup(BaseElement))
     spec = {
         'BACKGROUND_COLOR': [str], 'COLOR': [str], 'FOLDED': [bool],
         'ID': [str], 'LINK': [str], 'POSITION': ['left', 'right'],

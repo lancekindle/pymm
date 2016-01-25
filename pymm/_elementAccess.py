@@ -241,3 +241,25 @@ class Text:
 
         return getter, setter, deleter
 
+
+class Link:
+    """link for a node. Sets and gets attrib['LINK'] for attached node.
+    If user links a node, set attrib['LINK'] = node.attrib['ID']
+    """
+
+    @classmethod
+    def setup(cls, BaseElement):
+
+        def getter(parent):
+            return parent.attrib.get('LINK')
+
+        def setter(parent, url):
+            if isinstance(url, BaseElement):
+                url = url.attrib.get('ID')
+            parent.attrib['LINK'] = url
+
+        def deleter(parent):
+            parent.attrib['LINK'] = None
+            del parent.attrib['LINK']
+
+        return getter, setter, deleter
