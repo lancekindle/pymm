@@ -128,7 +128,7 @@ class TestFactoryRegistry(unittest.TestCase):
         self.assertTrue(pymm.Factories.DefaultFactory == factories[0])
 
 
-class TestAttribspec(unittest.TestCase):
+class TestAttribSpec(unittest.TestCase):
     """Element.spec contains a key/value pair that describes an attribute
     (key) and a list of alloweable values. These allowable values can be
     specific elements (like a 1, or '1') or a class (like str, int) or a
@@ -164,11 +164,12 @@ class TestAttribspec(unittest.TestCase):
 
 class TestNodeImplicitAttributes(unittest.TestCase):
     """Nodes have attributes that are a name, value pair visually
-    stored beneath the node in freeplane. They are implemented as a dictionary
-    within Node, such that node[key] = value is a valid assignment.
-    During reading of a file, "Attribute" Element removes itself from
-    the hierarchy and adds itself to the node's implicit attribute
-    dictionary.
+    stored beneath the node in freeplane. They are implemented as a
+    dictionary within Node, such that node[key] = value is a valid
+    assignment. During reading of a file, "Attribute" Element removes
+    itself from the hierarchy and adds itself to the node's implicit
+    attribute dictionary. Test that decode and encode correctly removes
+    and adds Attribute to hierarchy.
     """
 
     def setUp(self):
@@ -204,7 +205,7 @@ class TestNodeImplicitAttributes(unittest.TestCase):
             self.assertTrue(count - 1 == len(self.node.items()))
             break
 
-    def test_attribute_from_file(self):
+    def test_encode_decode(self):
         """verify that attribute saves to file, and is loaded
         back into node
         """
@@ -220,17 +221,18 @@ class TestNodeImplicitAttributes(unittest.TestCase):
 
 class TestMutableClassVariables(unittest.TestCase):
     """BaseElement and some inheriting elements define some mutable
-    variables in their class definition (such as children). This is done for
-    clarity as to what data-structure the user should expect. However, this
-    presents the danger that an instance of BaseElement may share the same
-    "children" list with its instances. Were this the case, appending a
-    child to one element would also append a child to the class itself and
-    to all other instances that share the same "children" variable.
-    Test that mutable variables are not shared by verifying that a
-    class's instance holds different mutable variables than the class
-    itself. Specifically, verify that all dicts and lists defined in
-    BaseElement and any inheriting class does not share that dict/list with its
-    instances, with a few exceptions (noteably spec and _display_attrib)
+    variables in their class definition (such as children). This is
+    done for clarity as to what data-structure the user should expect.
+    However, this presents the danger that an instance of BaseElement
+    may share the same "children" list with its instances. Were this
+    the case, appending a child to one element would also append a
+    child to the class itself and to all other instances that share the
+    same "children" variable. Test that mutable variables are not
+    shared by verifying that a class's instance holds different mutable
+    variables than the class itself. Specifically, verify that all
+    dicts and lists defined in BaseElement and any inheriting class
+    does not share that dict/list with its instances, with a few
+    exceptions (noteably spec and _display_attrib)
     """
 
     def setUp(self):
@@ -241,8 +243,8 @@ class TestMutableClassVariables(unittest.TestCase):
     def test_unique_mutable_vars(
             self, filt=None,
             filter_out=['spec', '_display_attrib', 'identifier']):
-        """Test each element's mutable variable and confirm it does not share
-        the same memory address as the element's Class
+        """Test each element's mutable variable and confirm it does not
+        share the same memory address as the element's Class
         """
         is_mutable = lambda k, v: (isinstance(v, dict) or
                                    isinstance(v, list)) and \
@@ -268,12 +270,12 @@ class TestMutableClassVariables(unittest.TestCase):
                     self.fail(str(elem_class) + ' does not copy ' + key)
 
     def test_specific_nonduplicates(self):
-        """ test that children, attrib, _display_attrib, and spec are all
-        copied to a new list/dict instance in every element when instantiated
-        as an instance. This, for example, tests that an instance of Mindmap
-        would not add children to the Mindmap class accidentally, because the
-        class attribute children is a different from the instance attribute
-        children.
+        """ test that children, attrib, _display_attrib, and spec are
+        all copied to a new list/dict instance in every element when
+        instantiated as an instance. This, for example, tests that an
+        instance of Mindmap would not add children to the Mindmap class
+        accidentally, because the class attribute children is a
+        different from the instance attribute children.
         """
         filt = ['children', 'attrib',]
         self.test_unique_mutable_vars(filt)
@@ -400,8 +402,9 @@ class TestFileLocked(TestMindmapSetup):
 
 
 class TestTypeVariants(unittest.TestCase):
-    """ test typeVariant attribute of factory to load different objects given
-    the same tag. (special attrib values are given that differentiate them)
+    """test typeVariant attribute of factory to load different objects
+    given the same tag. (special attrib values are given that
+    differentiate them)
     """
 
     def setUp(self):
@@ -427,8 +430,8 @@ class TestTypeVariants(unittest.TestCase):
         os.remove(self.filename)
 
     def test_for_variants(self):
-        """Check that the root contains at least one child for each variant
-        element type
+        """Check that the root contains at least one child for each
+        variant element type
         """
         root = self.second_mind_map.root
         variants = self.variants.copy()
@@ -521,9 +524,9 @@ class TestNativeChildIndexing(unittest.TestCase):
 class TestChildSubset(unittest.TestCase):
 
     def setUp(self):
-        """self.element will have childsubsets nodes, clouds. self.element will
-        also have singlechild property: firstnode, which will grab first node
-        in children list
+        """self.element will have childsubsets nodes, clouds.
+        self.element will also have singlechild property: firstnode,
+        which will grab first node in children list
         """
         self.element = mme.BaseElement()
         self.node = mme.Node()
@@ -560,7 +563,9 @@ class TestChildSubset(unittest.TestCase):
         self.assertTrue(len(colored) == colored_count)
 
     def test_constructor_empty_attrib(self):
-        """Test that a child subset cannot be created given an empty regex"""
+        """Test that a child subset cannot be created given an empty
+        regex
+        """
         elem = self.element
         empties = [[], (), {}, '']
         for empty in empties:
@@ -570,14 +575,17 @@ class TestChildSubset(unittest.TestCase):
                           elem, tag_regex='', attrib_regex={})
 
     def test_constructor_bad_attrib(self):
-        """Test that child subset cannot be created with non-regex attribute"""
+        """Test that child subset cannot be created with non-regex
+        attribute
+        """
         self.assertRaises(ValueError, ChildSubset, self.element,
                           attrib_regex=[2, 3])
         self.assertRaises(ValueError, ChildSubset, self.element,
                           tag_regex=r'node', attrib_regex=('sf', 'as'))
 
     def test_constructor_bad_tag(self):
-        """Test that child subset cannot be created with non-regex tag"""
+        """Test that child subset cannot be created with non-regex tag
+        """
         self.assertRaises(ValueError, ChildSubset, self.element,
                           tag_regex=['node'])
         self.assertRaises(ValueError, ChildSubset, self.element, tag_regex=5,
@@ -593,7 +601,8 @@ class TestChildSubset(unittest.TestCase):
         self.assertIsInstance(elem.nodes, ChildSubset)
 
     def test_node_added_element_nodes(self):
-        """Test that a node added to elem nodes is properly accessible"""
+        """Test that a node added to elem nodes is properly accessible
+        """
         elem = self.element
         node = self.node
         elem.nodes.append(node)
@@ -633,8 +642,8 @@ class TestChildSubset(unittest.TestCase):
         self.assertFalse(elem in node.nodes)
 
     def test_nodes_length_post_addition(self):
-        """Test that the length of nodes of an element increases after adding a
-        node to that element.
+        """Test that the length of nodes of an element increases after
+        adding a node to that element.
         """
         before = len(self.element.nodes)
         self.element.nodes.append(self.node)
@@ -642,18 +651,20 @@ class TestChildSubset(unittest.TestCase):
         self.assertTrue(before + 1 == after)
 
     def test_cloud_not_nodes(self):
-        """Test that adding a cloud to element doesn't expose cloud in nodes"""
+        """Test that adding a cloud to element doesn't expose cloud in
+        nodes
+        """
         self.element.children.append(self.cloud)
         self.assertTrue(self.cloud not in self.element.nodes)
 
 
 class TestSingleChild(unittest.TestCase):
-    """ Test Element Accessor """
+    """Test Element Accessor"""
 
     def setUp(self):
-        """self.element will have childsubsets nodes, clouds. self.element will
-        also have singlechild property: firstnode, which will grab first node
-        in children list
+        """self.element will have childsubsets nodes, clouds.
+        self.element will also have singlechild property: firstnode,
+        which will grab first node in children list
         """
         mme.BaseElement.firstchild = property(
             *SingleChild.setup(tag_regex=r'node')
@@ -725,7 +736,9 @@ class TestBaseElement(unittest.TestCase):
         self.assertTrue(key in elem.attrib.keys())
 
     def test_dictionary_inspec_attr(self):
-        """Test that dict won't raise error for inspec attribute assignment"""
+        """Test that dict won't raise error for inspec attribute
+        assignment
+        """
         elem = self.element
         elem.spec['string'] = [str]
         elem.spec['integer'] = [int]
