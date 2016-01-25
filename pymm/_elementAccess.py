@@ -230,8 +230,7 @@ class Text:
     def setup(cls, TextClass):
 
         def getter(parent):
-            text = parent.attrib['TEXT']
-            return text
+            return parent.attrib.get('TEXT', '')
 
         def setter(parent, text):
             parent.attrib['TEXT'] = text
