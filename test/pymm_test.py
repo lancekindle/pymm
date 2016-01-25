@@ -161,6 +161,44 @@ class TestAttribSpec(unittest.TestCase):
                         str(element) + ' has non-str spec key: ' + str(key)
                     )
 
+#TODO: add test for node.note, node.cloud
+class TestNodeProperties(unittest.TestCase):
+    """Node has a large number of properties that act as a quick
+    shortcut to attrib or children. For example, Node.cloud gets/sets a
+    cloud. Node.text gets/sets Node.attrib['TEXT'], etc.
+    This is to verify these different properties work as expected
+    """
+
+    def setUp(self):
+        self.node = pymm.Elements.Node()
+
+    def test_text(self):
+        """test node.text sets node.attrib['TEXT']"""
+        text = 'abc123'
+        default = ''
+        node = self.node
+        self.assertTrue(node.text == default)
+        node.attrib['TEXT'] = text
+        self.assertTrue(node.text == text)
+        del node.text
+        self.assertTrue(node.text == default)
+
+    def test_link(self):
+        """test node.link sets node.attrib['LINK']. However, if
+        node.link is set to another node, instead it copies the 'ID'
+        attrib from linked node
+        """
+        url = 'http://github.com/lancekindle'
+        default = None
+        node = self.node
+        self.assertTrue(node.link == default)
+        node.link = url
+        self.assertTrue(node.attrib['LINK'] == url)
+        node2 = pymm.Elements.Node()
+        node.link = node2
+        link_id = node2.attrib['ID']
+        self.assertTrue(node.attrib['LINK'] == link_id)
+
 
 class TestNodeImplicitAttributes(unittest.TestCase):
     """Nodes have attributes that are a name, value pair visually
