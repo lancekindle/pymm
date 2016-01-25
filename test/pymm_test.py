@@ -14,7 +14,7 @@ import os
 try:
     import pymm
     from pymm import Elements as mme
-    from pymm import MindMap
+    from pymm import Mindmap
     from pymm._elementAccess import ChildSubset, SingleChild
 except ImportError:
     print('Error: I think you are editting file NOT from the test directory')
@@ -208,12 +208,12 @@ class TestNodeImplicitAttributes(unittest.TestCase):
         """verify that attribute saves to file, and is loaded
         back into node
         """
-        with pymm.MindMap(self.filename, 'w') as mm:
+        with pymm.Mindmap(self.filename, 'w') as mm:
             for key, val in self.attributes.items():
                 mm.root[key] = val
             self.assertTrue(mm.root.items() == self.attributes.items())
         mm = None
-        mm = pymm.MindMap(self.filename)
+        mm = pymm.Mindmap(self.filename)
         self.assertTrue(mm.root.items() == self.attributes.items())
 
 
@@ -270,8 +270,8 @@ class TestMutableClassVariables(unittest.TestCase):
     def test_specific_nonduplicates(self):
         """ test that children, attrib, _display_attrib, and spec are all
         copied to a new list/dict instance in every element when instantiated
-        as an instance. This, for example, tests that an instance of MindMap
-        would not add children to the MindMap class accidentally, because the
+        as an instance. This, for example, tests that an instance of Mindmap
+        would not add children to the Mindmap class accidentally, because the
         class attribute children is a different from the instance attribute
         children.
         """
@@ -286,13 +286,13 @@ class TestIfRichContentFixedYet(unittest.TestCase):
     def test_convert_and_write(self):
         """Test that a RichContent object will convert and write"""
         rich_content = mme.RichContent()
-        mind_map = pymm.MindMap()
+        mind_map = pymm.Mindmap()
         mind_map.nodes[0].children.append(rich_content)
         pymm.write('richcontent_test.mm', mind_map)
 
 
-class TestMindMapSetup(unittest.TestCase):
-    """provide setUp and tearDown functions for testing MindMap.
+class TestMindmapSetup(unittest.TestCase):
+    """provide setUp and tearDown functions for testing Mindmap.
     Also provide shared variables for easier debugging
     """
 
@@ -307,34 +307,34 @@ class TestMindMapSetup(unittest.TestCase):
             pass
 
 
-class TestMindMapFeatures(TestMindMapSetup):
+class TestMindmapFeatures(TestMindmapSetup):
 
     def test_loads_default_hierarchy(self):
         """test that default hierarchy loads correctly.
-        Should load one MindMap with one one root node, (with text
-        "new_mindmap") and several children. If MindMap loads default
+        Should load one Mindmap with one one root node, (with text
+        "new_mindmap") and several children. If Mindmap loads default
         hierarchy each time it is instantiated, python will enter a
         recursive loop that will end in error
         """
-        mm = pymm.MindMap()
+        mm = pymm.Mindmap()
         self.assertTrue(mm.children != [])
         self.assertTrue(mm.root is not None)
         self.assertTrue(mm.root.text == "new_mindmap")
 
     def test_context_manager_write_file(self):
-        with pymm.MindMap(self.filename, 'w') as mm:
+        with pymm.Mindmap(self.filename, 'w') as mm:
             mm.root.text = self.text
         if not os.path.exists(self.filename):
-            self.fail('MindMap did not create file ' + str(self.filename))
+            self.fail('Mindmap did not create file ' + str(self.filename))
 
     def test_error_on_read_only_nonexistant_file(self):
-        self.assertRaises(FileNotFoundError, pymm.MindMap, self.filename, 'r')
-        self.assertRaises(FileNotFoundError, pymm.MindMap, self.filename)
+        self.assertRaises(FileNotFoundError, pymm.Mindmap, self.filename, 'r')
+        self.assertRaises(FileNotFoundError, pymm.Mindmap, self.filename)
 
     def test_context_manager_read_file(self):
-        with pymm.MindMap(self.filename, 'w') as mm:
+        with pymm.Mindmap(self.filename, 'w') as mm:
             mm.root.text = self.text
-        with pymm.MindMap(self.filename, 'r') as mm:
+        with pymm.Mindmap(self.filename, 'r') as mm:
             self.assertTrue(mm.root.text == self.text)
 
     def test_context_manager_abort_on_error(self):
@@ -344,34 +344,34 @@ class TestMindMapFeatures(TestMindMapSetup):
         mm = None
         self.assertFalse(os.path.exists(self.filename))
         with self.assertRaises(TypeError):
-            with pymm.MindMap(self.filename, 'w') as mm:
+            with pymm.Mindmap(self.filename, 'w') as mm:
                 mm.root.text = self.text
                 mm.root.children.append(3, 3)  # triggers TypeError
         self.assertTrue(os.path.exists(self.filename))
         self.assertTrue(mm is not None)
-        with pymm.MindMap(self.filename) as mm:
+        with pymm.Mindmap(self.filename) as mm:
             self.assertTrue(mm.root.text == self.text)
 
 
-class TestPymmModuleFeatures(TestMindMapSetup):
+class TestPymmModuleFeatures(TestMindmapSetup):
 
     def test_write_file(self):
-        pymm.write(self.filename, pymm.MindMap())
+        pymm.write(self.filename, pymm.Mindmap())
         if not os.path.exists(self.filename):
-            self.fail('MindMap did not create file ' + str(self.filename))
+            self.fail('Mindmap did not create file ' + str(self.filename))
 
     def test_read_file(self):
-        mm = pymm.MindMap()
+        mm = pymm.Mindmap()
         mm.root.text = self.text
         pymm.write(self.filename, mm)
         mm = pymm.read(self.filename)
         self.assertTrue(mm.root.text == self.text)
 
 
-class TestFileLocked(TestMindMapSetup):
+class TestFileLocked(TestMindmapSetup):
     """file_locked is a special function-like class to handle marking a
     file as "locked" when being read. It is only used by pymm.decode
-    and pymm.MindMap to ensure that MindMap does not recursively load
+    and pymm.Mindmap to ensure that Mindmap does not recursively load
     its default hierarchy
     """
 
@@ -395,7 +395,7 @@ class TestFileLocked(TestMindMapSetup):
         if a file is locked or not.
         """
         self.assertFalse(pymm.file_locked(self.filename))
-        mm = pymm.MindMap(self.filename, 'w')
+        mm = pymm.Mindmap(self.filename, 'w')
         self.assertFalse(pymm.file_locked(self.filename))
 
 
@@ -410,7 +410,7 @@ class TestTypeVariants(unittest.TestCase):
         self.variants = [mme.Hook,
                          mme.EmbeddedImage, mme.MapConfig, mme.Equation,
                          mme.AutomaticEdgeColor]
-        self.mind_map = MindMap()
+        self.mind_map = Mindmap()
         root = self.mind_map.root
         # clear out children of root
         root.children = []
@@ -463,7 +463,7 @@ class TestReadWriteExample(unittest.TestCase):
 
     def test_write_file(self):
         """Test the writing of a mind map"""
-        mind_map = MindMap()
+        mind_map = Mindmap()
         # just test that no errors are thrown
         pymm.write('write_test.mm', mind_map)
         os.remove('write_test.mm')
@@ -743,3 +743,4 @@ class TestBaseElement(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+    #mm = pymm.Mindmap('../docs/input.mm')

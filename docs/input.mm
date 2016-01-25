@@ -1,7 +1,7 @@
 <map version="freeplane 1.3.0">
 <!--To view this file, download free mind mapping software Freeplane from http://freeplane.sourceforge.net -->
 <attribute_registry SHOW_ATTRIBUTES="selected"/>
-<node ID="ID_1723255651" CREATED="1283093380553" MODIFIED="1423285548039"><richcontent TYPE="NODE">
+<node ID="ID_1723255651" CREATED="1283093380553" MODIFIED="1453697180839"><richcontent TYPE="NODE">
 
 <html>
   <head>
@@ -11,19 +11,19 @@
     <p>
       Root Node, <b>Bold Node!&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;haha! </b>
     </p>
-    <table border="0" style="border-style: solid; border-left-width: 0; border-bottom-width: 0; width: 80%; border-right-width: 0; border-top-width: 0">
+    <table border="0" style="border-top-style: solid; border-right-style: solid; border-bottom-style: solid; border-left-style: solid; border-left-width: 0; border-bottom-width: 0; width: 80%; border-right-width: 0; border-top-width: 0">
       <tr>
-        <td style="border-style: solid; border-bottom-width: 1; border-left-width: 1; width: 33%; border-right-width: 1; border-top-width: 1" valign="top">
+        <td valign="top" style="border-top-style: solid; border-right-style: solid; border-bottom-style: solid; border-left-style: solid; border-bottom-width: 1; border-left-width: 1; width: 33%; border-right-width: 1; border-top-width: 1">
           <p style="margin-left: 1; margin-bottom: 1; margin-top: 1; margin-right: 1">
             
           </p>
         </td>
-        <td style="border-style: solid; border-bottom-width: 1; border-left-width: 1; width: 33%; border-right-width: 1; border-top-width: 1" valign="top">
+        <td valign="top" style="border-top-style: solid; border-right-style: solid; border-bottom-style: solid; border-left-style: solid; border-bottom-width: 1; border-left-width: 1; width: 33%; border-right-width: 1; border-top-width: 1">
           <p style="margin-left: 1; margin-bottom: 1; margin-top: 1; margin-right: 1">
             
           </p>
         </td>
-        <td style="border-style: solid; border-bottom-width: 1; border-left-width: 1; width: 33%; border-right-width: 1; border-top-width: 1" valign="top">
+        <td valign="top" style="border-top-style: solid; border-right-style: solid; border-bottom-style: solid; border-left-style: solid; border-bottom-width: 1; border-left-width: 1; width: 33%; border-right-width: 1; border-top-width: 1">
           <p style="margin-left: 1; margin-bottom: 1; margin-top: 1; margin-right: 1">
             
           </p>
@@ -35,6 +35,7 @@
     </p>
   </body>
 </html>
+
 </richcontent>
 <hook NAME="MapStyle" zoom="1.1">
     <properties show_icon_for_attributes="false" show_note_icons="true" show_notes_in_map="true"/>
@@ -86,7 +87,7 @@
 </stylenode>
 </map_styles>
 </hook>
-<hook NAME="AutomaticEdgeColor" COUNTER="7"/>
+<hook NAME="AutomaticEdgeColor" COUNTER="2"/>
 <hook NAME="accessories/plugins/HierarchicalIcons2.properties"/>
 <richcontent TYPE="NOTE">
 
@@ -136,7 +137,7 @@
 <node TEXT="Child Node 3 w/ colored edge and thick line and horizontal style" POSITION="right" ID="ID_721787619" CREATED="1421461049972" MODIFIED="1421461123315">
 <edge STYLE="horizontal" COLOR="#3333ff" WIDTH="4"/>
 </node>
-<node TEXT="" POSITION="right" ID="ID_233410359" CREATED="1422119552579" MODIFIED="1423120621444">
+<node TEXT="a summary node" POSITION="right" ID="ID_233410359" CREATED="1422119552579" MODIFIED="1453695125062">
 <edge COLOR="#ff0000"/>
 <attribute NAME="blank text" VALUE="this has blank text"/>
 <hook NAME="SummaryNode"/>
@@ -144,10 +145,11 @@
 <node TEXT="" POSITION="left" ID="ID_24706037" CREATED="1422912661004" MODIFIED="1422912672207">
 <edge STYLE="linear" COLOR="#ff0000"/>
 </node>
-<node TEXT="" POSITION="left" ID="ID_69893373" CREATED="1422912663523" MODIFIED="1422912677375">
-<edge STYLE="bezier" COLOR="#0000ff"/>
+<node TEXT="cojoined node1" POSITION="left" ID="ID_69893373" CREATED="1422912663523" MODIFIED="1453697034298">
+<edge STYLE="bezier" COLOR="#ff0000"/>
+<arrowlink SHAPE="CUBIC_CURVE" COLOR="#000000" WIDTH="2" TRANSPARENCY="80" FONT_SIZE="9" FONT_FAMILY="SansSerif" DESTINATION="ID_818221677" STARTINCLINATION="40;0;" ENDINCLINATION="40;0;" STARTARROW="NONE" ENDARROW="DEFAULT"/>
 </node>
-<node TEXT="" POSITION="left" ID="ID_818221677" CREATED="1422912664392" MODIFIED="1422912682543">
+<node TEXT="cojoined node2" POSITION="left" ID="ID_818221677" CREATED="1422912664392" MODIFIED="1453695231184">
 <edge STYLE="sharp_linear" COLOR="#00ff00"/>
 </node>
 <node POSITION="left" ID="ID_1388445466" CREATED="1422912665061" MODIFIED="1422988979210"><richcontent TYPE="NODE">
@@ -165,11 +167,14 @@
 </richcontent>
 <edge STYLE="sharp_bezier" COLOR="#ff00ff"/>
 </node>
-<node TEXT="" POSITION="left" ID="ID_1466334443" CREATED="1422912665737" MODIFIED="1422988948507">
+<node TEXT="some cooler edges here" POSITION="left" ID="ID_1466334443" CREATED="1422912665737" MODIFIED="1453697153933">
 <edge STYLE="horizontal" COLOR="#00ffff"/>
 </node>
 <node TEXT="&amp; floats" POSITION="left" ID="ID_1965736443" CREATED="1422912666979" MODIFIED="1422914604780">
 <edge STYLE="hide_edge" COLOR="#ffff00"/>
+</node>
+<node TEXT="this one links to root" POSITION="left" ID="ID_438584984" CREATED="1453697157261" MODIFIED="1453697176682" LINK="#ID_1723255651">
+<edge COLOR="#0000ff"/>
 </node>
 </node>
 </map>
