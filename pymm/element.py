@@ -35,7 +35,7 @@ import warnings
 import re
 import copy
 from html.parser import HTMLParser
-from . import _elementAccess
+from . import access
 import types
 # http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format
 
@@ -191,7 +191,7 @@ class BaseElement(metaclass=registry):
                              e.g. {r'COLOR': r'ff[0-9a-f]{4}'}
         :return: list of matching children. Return empty list if none found.
         """
-        subset = _elementAccess.ChildSubset(self, **identifier)
+        subset = access.ChildSubset(self, **identifier)
         return list(subset)
 
     def find(self, **identifier):
@@ -200,7 +200,7 @@ class BaseElement(metaclass=registry):
 
         :Return: first child found matching keyword criteria, else None
         """
-        subset = _elementAccess.ChildSubset(self, **identifier)
+        subset = access.ChildSubset(self, **identifier)
         try:
             return subset[0]
         except IndexError:
@@ -277,22 +277,22 @@ class Node(ImplicitNodeAttributes, BaseElement):
     A Node contains an ID and text by default
     """
     tag = 'node'
-    nodes = property(*_elementAccess.ChildSubset.setup(tag_regex=r'node'))
+    nodes = property(*access.ChildSubset.setup(tag_regex=r'node'))
     attrib = {'ID': 'random#', 'TEXT': ''}
     # _attribute is node-specific, excel-like tables underneath a node that
     # have key/value pairs
     _attribute = {}
     # cloud automatically gets/sets a cloud within children
-    cloud = property(*_elementAccess.SingleChild.setup(tag_regex=r'cloud'))
+    cloud = property(*access.SingleChild.setup(tag_regex=r'cloud'))
     # note automaticaly gets/sets a note within children
-    note = property(*_elementAccess.SingleChild.setup(tag_regex=r'hook',
+    note = property(*access.SingleChild.setup(tag_regex=r'hook',
                     attrib_regex={r'STYLE': r'NOTE'}))
     #: text can be used interchangeably with attrib['TEXT']. Node text may
     #: contain formatted (e.g. bold) text or html/non-textual elements such as
     #: tables. But may be safely treated as a simple string. (any string method
     #: called on this will return a plaintext string
-    text = property(*_elementAccess.Text.setup(ImplicitNodeText))
-    link = property(*_elementAccess.Link.setup(BaseElement))
+    text = property(*access.Text.setup(ImplicitNodeText))
+    link = property(*access.Link.setup(BaseElement))
     spec = {
         'BACKGROUND_COLOR': [str], 'COLOR': [str], 'FOLDED': [bool],
         'ID': [str], 'LINK': [str], 'POSITION': ['left', 'right'],
@@ -323,8 +323,8 @@ class Map(BaseElement):
     tag = 'map'
     attrib = {'version': 'freeplane 1.3.0'}
     spec = {'version': [str]}
-    nodes = property(*_elementAccess.ChildSubset.setup(tag_regex=r'node'))
-    root = property(*_elementAccess.SingleChild.setup(tag_regex=r'node'))
+    nodes = property(*access.ChildSubset.setup(tag_regex=r'node'))
+    root = property(*access.SingleChild.setup(tag_regex=r'node'))
 
     def __init__(self, **attrib):
         super().__init__(**attrib)

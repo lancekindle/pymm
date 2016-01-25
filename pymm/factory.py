@@ -9,7 +9,7 @@ import copy
 import re
 import types
 from uuid import uuid4
-from . import Elements
+from . import element
 
 
 def decode(element):
@@ -111,7 +111,7 @@ class registry(type):
         Return list of all factories created in this way
         """
         generated = []
-        for element in Elements.registry.get_elements():
+        for element in element.registry.get_elements():
             closest_match = DefaultFactory
             for factory in factories:
                 if issubclass(element, factory.decoding_element):
@@ -299,10 +299,10 @@ class DefaultChildFactory:
     """expose methods for retrieving list of children to encode/decode"""
     # order in which children will be written to file
     child_order = [
-        Elements.BaseElement, Elements.Arrow, Elements.Cloud,
-        Elements.Edge, Elements.Properties, Elements.MapStyles, Elements.Icon,
-        Elements.AttributeLayout, Elements.Attribute, Elements.Hook,
-        Elements.Font, Elements.StyleNode, Elements.RichContent, Elements.Node
+        element.BaseElement, element.Arrow, element.Cloud,
+        element.Edge, element.Properties, element.MapStyles, element.Icon,
+        element.AttributeLayout, element.Attribute, element.Hook,
+        element.Font, element.StyleNode, element.RichContent, element.Node
     ]
     # order of nth to last for children. First node listed will be last child.
     reverse_child_order = []
@@ -314,7 +314,7 @@ class DefaultFactory(
     """Factory with default methods for encoding and decoding between
     xml.ElementTree and pymm
     """
-    decoding_element = Elements.BaseElement
+    decoding_element = element.BaseElement
     encoding_element = ET.Element
 
     def decode(self, parent, src_element):
@@ -372,12 +372,12 @@ class DefaultFactory(
 
 
 class NodeFactory(DefaultFactory):
-    decoding_element = Elements.Node
+    decoding_element = element.Node
     child_order = [
-        Elements.BaseElement, Elements.Arrow, Elements.Cloud,
-        Elements.Edge, Elements.Font, Elements.Hook, Elements.Properties,
-        Elements.RichContent, Elements.Icon, Elements.Node,
-        Elements.AttributeLayout, Elements.Attribute
+        element.BaseElement, element.Arrow, element.Cloud,
+        element.Edge, element.Font, element.Hook, element.Properties,
+        element.RichContent, element.Icon, element.Node,
+        element.AttributeLayout, element.Attribute
     ]
 
     def decode_attrib(self, attrib, src_element, dst_element_class):
@@ -396,13 +396,13 @@ class NodeFactory(DefaultFactory):
         """add attributes into children"""
         children = super().encode_getchildren(element)
         for name, value in element.items():
-            child = Elements.Attribute(NAME=name, VALUE=value)
+            child = element.Attribute(NAME=name, VALUE=value)
             children.append(child)
         return children
 
 
 class MapFactory(DefaultFactory):
-    decoding_element = Elements.Map
+    decoding_element = element.Map
 
     def encode_element(
             self, parent, src_element, element_class, attrib, children):
@@ -421,11 +421,11 @@ class AttributeFactory(DefaultFactory):
     and value. We want to instead push this into the parent node as if
     it were a dictionary: parent[name] = value
     """
-    decoding_element = Elements.Attribute
+    decoding_element = element.Attribute
 
     def decode_element(
             self, parent, src_element, element_class, attrib, children):
-        if not isinstance(parent, Elements.Node):
+        if not isinstance(parent, element.Node):
             return super().encode_element(
                 parent, src_element, element_class, attrib, children)
         if 'NAME' in attrib and 'VALUE' in attrib:
@@ -436,7 +436,7 @@ class AttributeFactory(DefaultFactory):
 
 
 class RichContentFactory(DefaultFactory):
-    decoding_element = Elements.RichContent
+    decoding_element = element.RichContent
 
     def disabled_decode_element(
             self, parent, src_element, dst_element_class, attrib, children):

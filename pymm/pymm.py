@@ -17,11 +17,11 @@ import os
 import warnings
 import types
 from collections import defaultdict
-from . import Elements
-from . import Factories
+from . import element
+from . import factory
 
 # import most-likely to be used Elements
-from .Elements import Node, Cloud, Icon, Edge, Arrow
+from .element import Node, Cloud, Icon, Edge, Arrow
 
 
 def read(file_or_filename):
@@ -57,7 +57,7 @@ def write(file_or_filename, mm_element):
         of mindmap (.mm)
     :return:
     """
-    if not isinstance(mm_element, Elements.BaseElement):
+    if not isinstance(mm_element, element.BaseElement):
         raise ValueError(
             'pymm.write requires file/filename, then pymm element'
         )
@@ -75,7 +75,7 @@ def decode(et_element):
              BaseElement-inheriting element if et_element was not complete
              mindmap hierarchy.
     """
-    return Factories.decode(et_element)
+    return factory.decode(et_element)
 
 
 def encode(mm_element):
@@ -84,9 +84,9 @@ def encode(mm_element):
     :param mm_element: pymm Element from pymm.Elements module
     :return: xml.etree version of passed pymm tree
     """
-    if not isinstance(mm_element, Elements.BaseElement):
+    if not isinstance(mm_element, element.BaseElement):
         raise ValueError('cannot encode mm_element: it is not a pymm element')
-    return Factories.encode(mm_element)
+    return factory.encode(mm_element)
 
 
 class file_locked:
@@ -115,7 +115,7 @@ class file_locked:
         self.locked[self.file_to_lock] = False
 
 
-class Mindmap(Elements.Map):
+class Mindmap(element.Map):
     """Interface to Freeplane structure. Allow reading and writing of xml
     mindmap formats (.mm)
 

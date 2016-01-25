@@ -13,9 +13,9 @@ import inspect
 import os
 try:
     import pymm
-    from pymm import Elements as mme
+    from pymm import element as mme
     from pymm import Mindmap
-    from pymm._elementAccess import ChildSubset, SingleChild
+    from pymm.access import ChildSubset, SingleChild
 except ImportError:
     print('Error: I think you are editting file NOT from the test directory')
     print('please cd to test/ and rerun tests.py')
@@ -43,7 +43,7 @@ def is_pymm_element_class(cls):
     """Checks that cls is an object representing a class which inherits
     from BaseElement
     """
-    return inspect.isclass(cls) and issubclass(cls, pymm.Elements.BaseElement)
+    return inspect.isclass(cls) and issubclass(cls, pymm.element.BaseElement)
 
 
 def get_all_pymm_element_classes(*namespaces):
@@ -52,7 +52,7 @@ def get_all_pymm_element_classes(*namespaces):
     namespaces/modules passed as an argument to this function will also be
     searched, and any elements found will be including in returned list.
     """
-    modules = [pymm, pymm.Elements] + list(namespaces)
+    modules = [pymm, pymm.element] + list(namespaces)
     elements = set()
     for module in modules:
         for _, cls in inspect.getmembers(module, is_pymm_element_class):
@@ -72,11 +72,11 @@ class TestElementRegistry(unittest.TestCase):
         Order of elements also matters, so this verifies that newly
         created test class is the last one in the list.
         """
-        before = pymm.Elements.registry.get_elements()
-        class TestElementClass0x123(pymm.Elements.BaseElement):
+        before = pymm.element.registry.get_elements()
+        class TestElementClass0x123(pymm.element.BaseElement):
             pass
         test_class = TestElementClass0x123
-        after = pymm.Elements.registry.get_elements()
+        after = pymm.element.registry.get_elements()
         self.assertTrue(test_class not in before)
         self.assertTrue(test_class in after)
         self.assertTrue(test_class == after[-1])
@@ -86,8 +86,8 @@ class TestElementRegistry(unittest.TestCase):
         they were created) should be first in list, with newer-defined
         classes being at the end of the list. Verify BaseElement is first
         """
-        factories = pymm.Elements.registry.get_elements()
-        self.assertTrue(pymm.Elements.BaseElement == factories[0])
+        factories = pymm.element.registry.get_elements()
+        self.assertTrue(pymm.element.BaseElement == factories[0])
 
 
 class TestFactoryRegistry(unittest.TestCase):
@@ -104,8 +104,8 @@ class TestFactoryRegistry(unittest.TestCase):
         elements. The factories are generated in the order that the
         unclaimed factories were created
         """
-        elements = pymm.Elements.registry.get_elements()
-        factories = pymm.Factories.registry.get_factories()
+        elements = pymm.element.registry.get_elements()
+        factories = pymm.factory.registry.get_factories()
         for element in elements:
             for factory in factories:
                 if factory.decoding_element == element:
@@ -117,15 +117,15 @@ class TestFactoryRegistry(unittest.TestCase):
         """verify that new factory created is registered and is last in
         list of non-generated factories
         """
-        class TestFactory0x123(pymm.Factories.DefaultFactory):
+        class TestFactory0x123(pymm.factory.DefaultFactory):
             pass
         test_class = TestFactory0x123
-        self.assertTrue(test_class == pymm.Factories.registry._factories[-1])
+        self.assertTrue(test_class == pymm.factory.registry._factories[-1])
 
     def test_factories_order(self):
         """test that oldest factory is first in list"""
-        factories = pymm.Factories.registry.get_factories()
-        self.assertTrue(pymm.Factories.DefaultFactory == factories[0])
+        factories = pymm.factory.registry.get_factories()
+        self.assertTrue(pymm.factory.DefaultFactory == factories[0])
 
 
 class TestAttribSpec(unittest.TestCase):
@@ -170,7 +170,7 @@ class TestNodeProperties(unittest.TestCase):
     """
 
     def setUp(self):
-        self.node = pymm.Elements.Node()
+        self.node = pymm.element.Node()
 
     def test_text(self):
         """test node.text sets node.attrib['TEXT']"""
@@ -194,7 +194,7 @@ class TestNodeProperties(unittest.TestCase):
         self.assertTrue(node.link == default)
         node.link = url
         self.assertTrue(node.attrib['LINK'] == url)
-        node2 = pymm.Elements.Node()
+        node2 = pymm.element.Node()
         node.link = node2
         link_id = node2.attrib['ID']
         self.assertTrue(node.attrib['LINK'] == link_id)
@@ -275,7 +275,7 @@ class TestMutableClassVariables(unittest.TestCase):
 
     def setUp(self):
         """Gather all the `element` classes into `self.elements`"""
-        self.base = pymm.Elements.BaseElement
+        self.base = pymm.element.BaseElement
         self.elements = get_all_pymm_element_classes()
 
     def test_unique_mutable_vars(
@@ -785,11 +785,11 @@ class TestBaseElement(unittest.TestCase):
         elem.attrib['integer'] = 42
         elem.attrib['one_or_two'] = 1
         try:
-            pymm.Factories.sanity_check(elem)
+            pymm.factory.sanity_check(elem)
         except Warning:
             self.fail('in-spec attributes raised warning')
         elem.attrib['string'] = 5
-        self.assertWarns(Warning, pymm.Factories.sanity_check, elem)
+        self.assertWarns(Warning, pymm.factory.sanity_check, elem)
 
 
 if __name__ == '__main__':
