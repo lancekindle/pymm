@@ -527,18 +527,25 @@ class Properties(BaseElement):
     }
 
 
-class ArrowLink(BaseElement):
-    """ ArrowLink is a visual green/red arrow at the beginning of a node which
-    can be clicked on to navigate to the embedded URL. ArrowLink can point to
-    either a web address (URL) or to another node.
+class Arrow(BaseElement):
+    """ Arrow is a visual arrow pointing from one node to another.
+    It CANNOT link to a web address (that is Node's "LINK" attribute)
+    In Freeplane it is constructed by selecting multiple nodes at once,
+    right-clicking, and selecting "Connect". An arrow will appear from each
+    selected node, pointing towards the LAST selected node.
+    An Arrow can be customized with line width, color, style, labels, etc.
     """
     tag = 'arrowlink'
     attrib = {'DESTINATION': ''}
     spec = {
-        'COLOR': [str], 'DESTINATION': [str], 'ENDARROW': [str],
-        'ENDINCLINATION': [str], 'ID': [str], 'STARTARROW': [str],
-        'STARTINCLINATION': [str], 'SOURCE_LABEL': [str],
-        'MIDDLE_LABEL': [str], 'TARGET_LABEL': [str], 'EDGE_LIKE': [bool],
+        'COLOR': [str], 'DESTINATION': [str],
+        'STARTARROW': [str], 'ENDARROW': [str],
+        'STARTINCLINATION': [str], 'ENDINCLINATION': [str],
+        'SOURCE_LABEL': [str], 'MIDDLE_LABEL': [str], 'TARGET_LABEL': [str],
+        'EDGE_LIKE': [bool], 'ID': [str],
+        'WIDTH': [int], 'TRANSPARENCY': [int],
+        'SHAPE': ['CUBIC_CURVE', 'LINE', 'LINEAR_PATH', 'EDGE_LIKE'],
+        'FONT_SIZE': [int], 'FONT_FAMILY': [str],
     }
 
 

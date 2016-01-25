@@ -21,25 +21,25 @@ from . import Elements
 from . import Factories
 
 # import most-likely to be used Elements
-from .Elements import Node, Cloud, Icon, Edge, ArrowLink
+from .Elements import Node, Cloud, Icon, Edge, Arrow
 
 
 def read(file_or_filename):
     """decode the file/filename into a pymm tree. User should expect to use
     this module-wide function to decode a freeplane file (.mm) into a pymm
     tree. If file specified is a fully-formed mindmap, the user should expect
-    to receive a MindMap instance. Calling .getroot() on that should get
+    to receive a Mindmap instance. Calling .getroot() on that should get
     the user the first node in the tree structure.
 
     :param file_or_filename: string path to file or file instance of mindmap
-    :return: If the file passed was a full mindmap, will return MindMap
+    :return: If the file passed was a full mindmap, will return Mindmap
              instance, otherwise if file represents an incomplete mindmap, it
              will pass the instance of the top-level element, which could be
              BaseElement or any inheriting element in the Elements module.
     """
     # must lock default_mindmap_filename
     with file_locked(file_or_filename), \
-            file_locked(MindMap.default_mindmap_filename):
+            file_locked(Mindmap.default_mindmap_filename):
         tree = ET.parse(file_or_filename)
         et_elem = tree.getroot()
         mm_elem = decode(et_elem)
@@ -50,9 +50,9 @@ def write(file_or_filename, mm_element):
     """Writes mindmap/element to file. Element must be pymm element.
     Will write element and children hierarchy to file.
     Writing any element to file works, but in order to be opened
-    in Freeplane, the MindMap element should be passed.
+    in Freeplane, the Mindmap element should be passed.
 
-    :param mm_element: MindMap or other pymm element
+    :param mm_element: Mindmap or other pymm element
     :param file_or_filename: string path to file or file instance
         of mindmap (.mm)
     :return:
@@ -71,7 +71,7 @@ def decode(et_element):
 
     :param et_element: Element Tree Element -> generally an element from
                        python's xml.etree.ElementTree module
-    :return: Pymm hierarchical tree. Usually MindMap instance but may return
+    :return: Pymm hierarchical tree. Usually Mindmap instance but may return
              BaseElement-inheriting element if et_element was not complete
              mindmap hierarchy.
     """
@@ -93,7 +93,7 @@ class file_locked:
     """function-like class to allow boolean checking if a given
     filename is locked or not. If used as a context manager, file is
     marked as locked until context exit. This is intended to be used by
-    pymm.read to signify when reading from file, and by MindMap to load
+    pymm.read to signify when reading from file, and by Mindmap to load
     it's default hierarchy only if a file is not currently loading
     """
     locked = defaultdict(bool)
@@ -115,12 +115,12 @@ class file_locked:
         self.locked[self.file_to_lock] = False
 
 
-class MindMap(Elements.Map):
+class Mindmap(Elements.Map):
     """Interface to Freeplane structure. Allow reading and writing of xml
     mindmap formats (.mm)
 
     some properties inherited from Elements.Map that will prove useful:
-    root - set/get the MindMap's only child node
+    root - set/get the Mindmap's only child node
     """
     filename = None
     mode = 'r'
@@ -134,14 +134,14 @@ class MindMap(Elements.Map):
     def __new__(cls, *args, **attrib):
         """FreeplaneFile acts as an interface to intrepret
         xml-based .mm files into a tree of Nodes.
-        if MindMap is created with no arguments, a default hierarchy
+        if Mindmap is created with no arguments, a default hierarchy
         will be loaded. Any non-keyword arguments are assumed to be
-        filename and mode, respectively. MindMap will load the file
+        filename and mode, respectively. Mindmap will load the file
         specified. If mode is 'w', A default hierarchy will be loaded.
-        Opening a file in write mode is only useful as if MindMap is
+        Opening a file in write mode is only useful as if Mindmap is
         used as a context manager. The file will be written after
         context manager exits, if no errors caused an early exit.
-        with MindMap(filename, 'w') as mm:
+        with Mindmap(filename, 'w') as mm:
             etc...
         # mm written to filename
         """
@@ -152,7 +152,7 @@ class MindMap(Elements.Map):
             # we assume that user has passed in file-reading options
             if len(args) > 3:
                 raise ValueError(
-                    'MindMap expects at most 2 arguments specifying filename' +
+                    'Mindmap expects at most 2 arguments specifying filename' +
                     ' and mode. Got ' + str(len(args))
                 )
             # use default filemode (read) if none supplied
@@ -182,9 +182,9 @@ class MindMap(Elements.Map):
         return cls.__new__(cls, cls.default_mindmap_filename, **attrib)
 
     def __enter__(self):
-        """allow user to use MindMap as context-manager, in which MindMap can
+        """allow user to use Mindmap as context-manager, in which Mindmap can
         take filename and a mode as seen in __init__. If set to write mode 'w',
-        then upon exit MindMap will write to file given
+        then upon exit Mindmap will write to file given
         """
         return self
 

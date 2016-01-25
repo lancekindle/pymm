@@ -299,7 +299,7 @@ class DefaultChildFactory:
     """expose methods for retrieving list of children to encode/decode"""
     # order in which children will be written to file
     child_order = [
-        Elements.BaseElement, Elements.ArrowLink, Elements.Cloud,
+        Elements.BaseElement, Elements.Arrow, Elements.Cloud,
         Elements.Edge, Elements.Properties, Elements.MapStyles, Elements.Icon,
         Elements.AttributeLayout, Elements.Attribute, Elements.Hook,
         Elements.Font, Elements.StyleNode, Elements.RichContent, Elements.Node
@@ -374,7 +374,7 @@ class DefaultFactory(
 class NodeFactory(DefaultFactory):
     decoding_element = Elements.Node
     child_order = [
-        Elements.BaseElement, Elements.ArrowLink, Elements.Cloud,
+        Elements.BaseElement, Elements.Arrow, Elements.Cloud,
         Elements.Edge, Elements.Font, Elements.Hook, Elements.Properties,
         Elements.RichContent, Elements.Icon, Elements.Node,
         Elements.AttributeLayout, Elements.Attribute
