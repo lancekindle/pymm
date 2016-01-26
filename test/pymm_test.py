@@ -331,7 +331,7 @@ class TestIfRichContentFixedYet(unittest.TestCase):
         pymm.write('richcontent_test.mm', mind_map)
 
 
-class TestMindmapSetup(unittest.TestCase):
+class MindmapSetup(unittest.TestCase):
     """provide setUp and tearDown functions for testing Mindmap.
     Also provide shared variables for easier debugging
     """
@@ -347,7 +347,7 @@ class TestMindmapSetup(unittest.TestCase):
             pass
 
 
-class TestMindmapFeatures(TestMindmapSetup):
+class TestMindmapFeatures(MindmapSetup):
 
     def test_loads_default_hierarchy(self):
         """test that default hierarchy loads correctly.
@@ -393,7 +393,7 @@ class TestMindmapFeatures(TestMindmapSetup):
             self.assertTrue(mm.root.text == self.text)
 
 
-class TestPymmModuleFeatures(TestMindmapSetup):
+class TestPymmModuleFeatures(MindmapSetup):
 
     def test_write_file(self):
         pymm.write(self.filename, pymm.Mindmap())
@@ -408,7 +408,7 @@ class TestPymmModuleFeatures(TestMindmapSetup):
         self.assertTrue(mm.root.text == self.text)
 
 
-class TestFileLocked(TestMindmapSetup):
+class TestFileLocked(MindmapSetup):
     """file_locked is a special function-like class to handle marking a
     file as "locked" when being read. It is only used by pymm.decode
     and pymm.Mindmap to ensure that Mindmap does not recursively load
