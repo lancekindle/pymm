@@ -106,12 +106,12 @@ class TestFactoryRegistry(unittest.TestCase):
         """
         elements = pymm.element.registry.get_elements()
         factories = pymm.factory.registry.get_factories()
-        for element in elements:
+        for elem in elements:
             for factory in factories:
-                if factory.decoding_element == element:
+                if factory.decoding_element == elem:
                     break
             else:
-                self.fail('no factory for element: ' + str(element))
+                self.fail('no factory for element: ' + str(elem))
 
     def test_register_new_factory(self):
         """verify that new factory created is registered and is last in
@@ -143,22 +143,22 @@ class TestAttribSpec(unittest.TestCase):
         """Each element has a spec dictionary. For each key/value pair,
         verify that the value is a list
         """
-        for element in self.elements:
-            for val in element.spec.values():
+        for elem in self.elements:
+            for val in elem.spec.values():
                 if not isinstance(val, list):
                     self.fail(
-                        str(element) + ' has non-list spec value: ' + str(val)
+                        str(elem) + ' has non-list spec value: ' + str(val)
                     )
 
     def test_spec_keys_are_strings(self):
         """Each element has a spec dictionary. For each key/value pair,
         verify that the key is a string
         """
-        for element in self.elements:
-            for key in element.spec.keys():
+        for elem in self.elements:
+            for key in elem.spec.keys():
                 if not isinstance(key, str):
                     self.fail(
-                        str(element) + ' has non-str spec key: ' + str(key)
+                        str(elem) + ' has non-str spec key: ' + str(key)
                     )
 
 #TODO: add test for node.note, node.cloud
@@ -300,11 +300,11 @@ class TestMutableClassVariables(unittest.TestCase):
             # optional filter to remove known attributes (they are OK to share)
             if filter_out:
                 mutables = [m for m in mutables if m not in filter_out]
-            element = elem_class()
+            elem = elem_class()
 
             # check if vars have same memory address
             for key in mutables:
-                if id(getattr(element, key)) == id(getattr(elem_class, key)):
+                if id(getattr(elem, key)) == id(getattr(elem_class, key)):
                     self.fail(str(elem_class) + ' does not copy ' + key)
 
     def test_specific_nonduplicates(self):

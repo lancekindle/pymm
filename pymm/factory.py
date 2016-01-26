@@ -12,14 +12,14 @@ from uuid import uuid4
 from . import element
 
 
-def decode(element):
+def decode(elem):
     converter = ConversionHandler()
-    return converter.convert_element_hierarchy(element, 'decode')
+    return converter.convert_element_hierarchy(elem, 'decode')
 
 
-def encode(element):
+def encode(elem):
     converter = ConversionHandler()
-    return converter.convert_element_hierarchy(element, 'encode')
+    return converter.convert_element_hierarchy(elem, 'encode')
 
 
 class ConversionHandler:
@@ -32,27 +32,27 @@ class ConversionHandler:
         """
         self.factories = registry.get_factories()
 
-    def find_encode_factory(self, element):
+    def find_encode_factory(self, elem):
         for factory in reversed(self.factories):
-            if factory.can_encode(element):
+            if factory.can_encode(elem):
                 return factory
         return DefaultFactory
 
-    def find_decode_factory(self, element):
+    def find_decode_factory(self, elem):
         """Return factory that can handle given element.
         Default to DefaultFactory
         """
         for factory in reversed(self.factories):
-            if factory.can_decode(element):
+            if factory.can_decode(elem):
                 return factory
         return DefaultFactory
 
-    def convert_element_hierarchy(self, element, convert):
+    def convert_element_hierarchy(self, elem, convert):
         """encode or decode element and its hierarchy. Each element
         will be completely converted before its children begin the
         process
         """
-        queue = [(None, [element])]  # parent, children
+        queue = [(None, [elem])]  # parent, children
         root = None
         while queue:
             parent, children = queue.pop(0)
@@ -111,26 +111,26 @@ class registry(type):
         Return list of all factories created in this way
         """
         generated = []
-        for element in element.registry.get_elements():
+        for elem in element.registry.get_elements():
             closest_match = DefaultFactory
             for factory in factories:
-                if issubclass(element, factory.decoding_element):
+                if issubclass(elem, factory.decoding_element):
                     closest_match = factory
-                if factory.decoding_element == element:
+                if factory.decoding_element == elem:
                     break
             else:
                 # create factory for unclaimed element
                 if cls.verbose:
                     print(
-                        'unclaimed element:', element,
-                        '\n\t tag:', element.tag,
-                        '\n\t identifier:', element.identifier,
+                        'unclaimed element:', elem,
+                        '\n\t tag:', elem.tag,
+                        '\n\t identifier:', elem.identifier,
                         '\n\t closest matching factory:', closest_match,
                     )
-                element_name = getattr(element, '__name__', element.tag)
+                element_name = getattr(elem, '__name__', elem.tag)
                 name = element_name + '-Factory@' + uuid4().hex
                 inherit_from = (closest_match,)
-                variables = {'decoding_element': element}
+                variables = {'decoding_element': elem}
                 cls._skip_registration = name
                 new_factory = type(name, inherit_from, variables)
                 generated.append(new_factory)
@@ -153,13 +153,13 @@ class DefaultElementFactory:
         decoded. Instead you should add the newly instantiated element
         to the parent's children list
         """
-        element = element_class(**attrib)
+        elem = element_class(**attrib)
         if parent is not None:
-            parent.children.append(element)
-        element.tag = getattr(src_element, 'tag', element_class.tag)
-        element._text = getattr(src_element, 'text', '')
-        element._tail = getattr(src_element, 'tail', '\n')
-        return element
+            parent.children.append(elem)
+        elem.tag = getattr(src_element, 'tag', element_class.tag)
+        elem._text = getattr(src_element, 'text', '')
+        elem._tail = getattr(src_element, 'tail', '\n')
+        return elem
 
     def encode_element(
             self, parent, src_element, element_class, attrib, children):
@@ -171,15 +171,15 @@ class DefaultElementFactory:
         child to the parent
         """
         tag = getattr(src_element, 'tag', 'unknown_element')
-        element = element_class(tag, **attrib)
+        elem = element_class(tag, **attrib)
         if parent is not None:
-            parent.append(element)
-        element.text = getattr(src_element, '_text', '')
-        element.tail = getattr(src_element, '_tail', '\n')
+            parent.append(elem)
+        elem.text = getattr(src_element, '_text', '')
+        elem.tail = getattr(src_element, '_tail', '\n')
         # add spacing if element has child (makes file more readable)
-        if len(element) and not element.text:
-            element.text = '\n'
-        return element
+        if len(elem) and not elem.text:
+            elem.text = '\n'
+        return elem
 
 
 class DefaultAttribFactory:
@@ -274,24 +274,24 @@ class DefaultGetAttributesFactory:
     simply returns the unaltered attribute (attrib or children)
     """
 
-    def decode_getchildren(self, element):
+    def decode_getchildren(self, elem):
         """return list of children from xml.etree element"""
-        return list(element)
+        return list(elem)
 
-    def encode_getchildren(self, element):
+    def encode_getchildren(self, elem):
         """return list of children from pymm element. It is recommended
         to return a copied list of children, so that any modification
         to the list does not change the original element's children
         """
-        return list(element.children)
+        return list(elem.children)
 
-    def decode_getattrib(self, element):
+    def decode_getattrib(self, elem):
         """return attrib dict from xml.etree element"""
-        return dict(element.attrib)
+        return dict(elem.attrib)
 
-    def encode_getattrib(self, element):
+    def encode_getattrib(self, elem):
         """return attrib dict from pymm element"""
-        return dict(element.attrib)
+        return dict(elem.attrib)
 
 
 
@@ -326,10 +326,10 @@ class DefaultFactory(
         unaltered_attrib = self.decode_getattrib(src_element)
         attrib = self.decode_attrib(unaltered_attrib, src_element, dst_element)
         children = self.decode_getchildren(src_element)
-        element = self.decode_element(
+        elem = self.decode_element(
             parent, src_element, dst_element, attrib, children
         )
-        return element, children
+        return elem, children
 
     def encode(self, parent, src_element):
         """control encode order from pymm element to xml.etree element.
@@ -340,24 +340,24 @@ class DefaultFactory(
         children = self.encode_getchildren(src_element)
         unaltered_attrib = self.encode_getattrib(src_element)
         attrib = self.encode_attrib(unaltered_attrib, src_element, dst_element)
-        element = self.encode_element(
+        elem = self.encode_element(
             parent, src_element, dst_element, attrib, children
         )
-        return element, children
+        return elem, children
 
     @classmethod
-    def can_decode(cls, element):
+    def can_decode(cls, elem):
         """return False is element.tag does not equal decoding
         element's tag.
         If decoding_element has identifier, only
         return True if all key/value pairs of identifier regex match
         attrib key/value pair
         """
-        if element.tag != cls.decoding_element.tag:
+        if elem.tag != cls.decoding_element.tag:
             return False
         for key_id, val_id in cls.decoding_element.identifier.items():
             # return False if identifying key/val is not found in attrib
-            for key, val in element.attrib.items():
+            for key, val in elem.attrib.items():
                 if re.fullmatch(key_id, key) and re.fullmatch(val_id, val):
                     break
             else:
@@ -365,8 +365,8 @@ class DefaultFactory(
         return True
 
     @classmethod
-    def can_encode(cls, element):
-        if element.__class__ == cls.decoding_element:
+    def can_encode(cls, elem):
+        if elem.__class__ == cls.decoding_element:
             return True
         return False
 
@@ -392,10 +392,10 @@ class NodeFactory(DefaultFactory):
                 del attrib[undesired]
         return super().decode_attrib(attrib, src_element, dst_element_class)
 
-    def encode_getchildren(self, element):
+    def encode_getchildren(self, elem):
         """add attributes into children"""
-        children = super().encode_getchildren(element)
-        for name, value in element.items():
+        children = super().encode_getchildren(elem)
+        for name, value in elem.items():
             child = element.Attribute(NAME=name, VALUE=value)
             children.append(child)
         return children
@@ -406,15 +406,15 @@ class MapFactory(DefaultFactory):
 
     def encode_element(
             self, parent, src_element, element_class, attrib, children):
-        element = super().encode_element(
+        elem = super().encode_element(
             parent, src_element, element_class, attrib, children)
         comment = ET.Comment(
             'To view this file, download free mind mapping software '
             + 'Freeplane from http://freeplane.sourceforge.net'
         )
         comment.tail = '\n'
-        element.append(comment)
-        return element
+        elem.append(comment)
+        return elem
 
 class AttributeFactory(DefaultFactory):
     """Attribute is a visual 2-wide cell beneath a node. It has a name
@@ -456,11 +456,11 @@ class RichContentFactory(DefaultFactory):
         """until parent node creates a RichContent child, this will
         never trigger
         """
-        element = dst_element_class()
-        element.append(ET.fromstring(parent.text))
-        parent.append(element)
-        element.text = '\n'
-        return element
+        elem = dst_element_class()
+        elem.append(ET.fromstring(parent.text))
+        parent.append(elem)
+        elem.text = '\n'
+        return elem
 
 
 def sanity_check(pymm_element):
