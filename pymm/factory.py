@@ -444,7 +444,7 @@ class AttributeFactory(DefaultFactory):
     def decode_element(
             self, parent, src_element, element_class, attrib, children):
         if not isinstance(parent, element.Node):
-            return super().encode_element(
+            return super().decode_element(
                 parent, src_element, element_class, attrib, children)
         if 'NAME' in attrib and 'VALUE' in attrib:
             name = attrib['NAME']
