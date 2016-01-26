@@ -485,13 +485,19 @@ class TestTypeVariants(unittest.TestCase):
 
 
 class TestReadWriteExample(unittest.TestCase):
-    """Test full import export functionality"""
+    """Test full import and export functionality"""
 
     def setUp(self):
-        pass
+        self.filename = 'export_test_0x123'
 
-    def test_read_file(self):
-        """Test the reading and writing of a mind map"""
+    def tearDown(self):
+        os.remove(self.filename)
+
+    def test_read_and_write_file(self):
+        """Test the reading and writing of a mind map. Also (important)
+        verify that order and number of factories used is same (or
+        nearly so)
+        """
         # Since this test could be run outside of it's directory, derive the
         # path to the doc file in a more portable way.
         this_path = os.path.dirname(os.path.realpath(__file__))
@@ -499,15 +505,24 @@ class TestReadWriteExample(unittest.TestCase):
         mind_map = pymm.read(mm_path)
         self.assertTrue(mind_map)
         self.assertTrue(mind_map.root)
-        pymm.write('input_2.mm', mind_map)
-        os.remove('input_2.mm')
+        pymm.write(self.filename, mind_map)
+        self.verify_encode_decode_traces_match()
+
+    def verify_encode_decode_traces_match(self):
+        encode_trace = pymm.factory.ConversionHandler.last_encode
+        decode_trace = pymm.factory.ConversionHandler.last_decode
+        print(encode_trace[:10])
+        print()
+        print(decode_trace[:10])
+        print(encode_trace[0] == decode_trace[0])
+        self.assertTrue(encode_trace == decode_trace)
+
 
     def test_write_file(self):
         """Test the writing of a mind map"""
         mind_map = Mindmap()
         # just test that no errors are thrown
-        pymm.write('write_test.mm', mind_map)
-        os.remove('write_test.mm')
+        pymm.write(self.filename, mind_map)
 
 
 class TestNativeChildIndexing(unittest.TestCase):

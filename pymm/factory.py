@@ -41,6 +41,8 @@ class ConversionHandler:
     last-used factory-classes during encode/decode so that conversion
     errors may be noticeable.
     """
+    last_encode = []
+    last_decode = []
 
     def __init__(self):
         """Lock in set of factories for handling elements. If you
@@ -70,6 +72,10 @@ class ConversionHandler:
         will be completely converted before its children begin the
         process
         """
+        if convert == 'encode':
+            self.last_encode.clear()
+        if convert == 'decode':
+            self.last_decode.clear()
         queue = [(None, [elem])]  # parent, children
         root = None
         while queue:
@@ -81,10 +87,12 @@ class ConversionHandler:
                     factory_class = self.find_encode_factory(child)
                     factory = factory_class()
                     child, grandchildren = factory.encode(parent, child)
+                    self.last_encode.append(factory_class)
                 elif convert == 'decode':
                     factory_class = self.find_decode_factory(child)
                     factory = factory_class()
                     child, grandchildren = factory.decode(parent, child)
+                    self.last_decode.append(factory_class)
                 else:
                     raise ValueError('pass in "decode" or "encode"')
                 # if convert fxn returns no decoded child, drop from hierarchy
