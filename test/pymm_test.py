@@ -121,6 +121,7 @@ class TestFactoryRegistry(unittest.TestCase):
             pass
         test_class = TestFactory0x123
         self.assertTrue(test_class == pymm.factory.registry._factories[-1])
+        del pymm.factory.registry._factories[-1]
 
     def test_factories_order(self):
         """test that oldest factory is first in list"""
@@ -250,7 +251,7 @@ class TestNodeImplicitAttributes(unittest.TestCase):
         with pymm.Mindmap(self.filename, 'w') as mm:
             for key, val in self.attributes.items():
                 mm.root[key] = val
-            self.assertTrue(mm.root.items() == self.attributes.items())
+        self.assertTrue(mm.root.items() == self.attributes.items())
         mm = None
         mm = pymm.Mindmap(self.filename)
         self.assertTrue(mm.root.items() == self.attributes.items())
