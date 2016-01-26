@@ -223,6 +223,30 @@ class SingleChild:
         return getter, setter, deleter
 
 
+class SingleAttrib:
+    """property-instantiated class to provide get/set/del access for a
+    single attrib value within an element. For example, Node provides a
+    .text property which accesses its .attrib['TEXT']. If del node.text
+    were called, it would replace the attrib value an empty string: ''.
+    In this example, attrib_name = 'TEXT', and default_value = ''
+    Init this within a class as a property like:
+    text = property(*SingleAttrib(attrib_name, default_value))
+    """
+
+    def __new__(cls, attrib_name, default_value):
+
+        def getter(element):
+            return element.attrib.get(attrib_name, default_value)
+
+        def setter(element, value):
+            element.attrib[attrib_name] = value
+
+        def deleter(element):
+            element.attrib[attrib_name] = default_value
+
+        return getter, setter, deleter
+
+
 class Text:
     """text for a node. Sets and gets attrib['TEXT'] for attached node """
 

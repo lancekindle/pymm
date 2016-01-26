@@ -291,7 +291,7 @@ class Node(ImplicitNodeAttributes, BaseElement):
     #: contain formatted (e.g. bold) text or html/non-textual elements such as
     #: tables. But may be safely treated as a simple string. (any string method
     #: called on this will return a plaintext string
-    text = property(*access.Text.setup(ImplicitNodeText))
+    text = property(*access.SingleAttrib('TEXT', ''))
     link = property(*access.Link.setup(BaseElement))
     spec = {
         'BACKGROUND_COLOR': [str], 'COLOR': [str], 'FOLDED': [bool],
