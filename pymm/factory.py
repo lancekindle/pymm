@@ -13,16 +13,34 @@ from . import element
 
 
 def decode(elem):
+    """This is the general function to call when you wish to decode an
+    element and all its children and sub-children.
+    Decode in this context means to convert from xml.etree.ElementTree
+    elements to pymm elements.
+    Typically this is called by pymm.read()
+    """
     converter = ConversionHandler()
     return converter.convert_element_hierarchy(elem, 'decode')
 
 
 def encode(elem):
+    """This is the general function to call when you wish to encode an
+    element and all its children and sub-children.
+    Encode in this context means to convert from pymm elements to
+    xml.etree.ElementTree elements.
+    Typically this is called by pymm.write()
+    """
     converter = ConversionHandler()
     return converter.convert_element_hierarchy(elem, 'encode')
 
 
 class ConversionHandler:
+    """Handle conversion of element and its children hierarchy. Will
+    fully encode or decode a hierarchical tree of elements in a non-
+    recursive manner (to avoid python recursion limits). Keep track of
+    last-used factory-classes during encode/decode so that conversion
+    errors may be noticeable.
+    """
 
     def __init__(self):
         """Lock in set of factories for handling elements. If you

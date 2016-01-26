@@ -529,12 +529,15 @@ class Properties(BaseElement):
 
 
 class Arrow(BaseElement):
-    """ Arrow is a visual arrow pointing from one node to another.
+    """Arrow is a visual arrow pointing from one node to another.
     It CANNOT link to a web address (that is Node's "LINK" attribute)
     In Freeplane it is constructed by selecting multiple nodes at once,
-    right-clicking, and selecting "Connect". An arrow will appear from each
-    selected node, pointing towards the LAST selected node.
-    An Arrow can be customized with line width, color, style, labels, etc.
+    right-clicking, and selecting "Connect". An arrow will appear from
+    each selected node, pointing towards the LAST selected node.
+    An Arrow can be customized with line width, color, style, labels,
+    etc. In Freeplane an Arrow will be a child of the node from which
+    the arrow appears. It will point towards the node identified by the
+    arrow's 'DESTINATION' attrib.
     """
     tag = 'arrowlink'
     attrib = {'DESTINATION': ''}
