@@ -140,21 +140,7 @@ class BaseElement(metaclass=registry):
         self = super().__new__(cls)
         self.children = copy.copy(self.children)
         self.attrib = copy.deepcopy(self.attrib)
-        self._init_all_preconstructed_element_accessors()
         return self
-
-    def _init_all_preconstructed_element_accessors(self):
-        """locate all preconstructed child access functions and run them:
-        get back child access object, and set using same attribute name.
-        things like self.nodes. Makes sure that this is a new, separate
-        instance from the class itself. This feels computationally heavy tho...
-        basically a catch-all version of self.nodes = self.nodes()
-        """
-        for var_name in dir(self):
-            func = getattr(self, var_name)
-            if type(func) == types.MethodType and func.__name__ == 'this_function_gets_automatically_run_inside_elements__new__':
-                child_accessor = func()
-                setattr(self, var_name, child_accessor)
 
     def __init__(self, **attrib):
         for key, val in attrib.items():
