@@ -53,6 +53,14 @@ class ConversionHandler:
         self.factories = registry.get_factories()
 
     def find_encode_factory(self, elem):
+        """return factory to handle given element. Since at init time
+        of ConversionHandler, a factory is made for each pymm element,
+        DefaultFactory will only be returned if there is an unhandled
+        etree element, or a new pymm element is created after init-ing
+        ConversionHandler. Factories is iterated from last to first,
+        because the last factory is the newest and usually more
+        specific factory.
+        """
         for factory in reversed(self.factories):
             if factory.can_encode(elem):
                 return factory
@@ -396,6 +404,10 @@ class DefaultFactory(
 
     @classmethod
     def can_encode(cls, elem):
+        """return whether the factory can encode a given pymm element.
+        Since there is always a factory made for each pymm element, we
+        check that the factory exactly specifies the given element type
+        """
         if elem.__class__ == cls.decoding_element:
             return True
         return False
