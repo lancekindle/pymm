@@ -150,7 +150,7 @@ class Mindmap(element.Map):
                 return cls.default_mindmap(**attrib)
         else:
             # we assume that user has passed in file-reading options
-            if len(args) > 3:
+            if len(args) > 2:
                 raise ValueError(
                     'Mindmap expects at most 2 arguments specifying filename' +
                     ' and mode. Got ' + str(len(args))
