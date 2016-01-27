@@ -3,4 +3,5 @@
 *.pyc
 .idea
 .swp
+.coverage
 dist/
