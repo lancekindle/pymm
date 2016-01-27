@@ -129,6 +129,54 @@ class TestFactoryRegistry(unittest.TestCase):
         self.assertTrue(pymm.factory.DefaultFactory == factories[0])
 
 
+class TestConversionHandler(unittest.TestCase):
+    """ConversionHandler is responsible for non-recursively encoding or
+    decoding an element and its tree hierarchy (all its children and
+    children's children, etc.).
+    """
+
+    def setUp(self):
+        self.ch = pymm.factory.ConversionHandler()
+        class FakeNode0x123(pymm.element.Node):
+            pass
+        self.fake_element = FakeNode0x123
+
+    def tearDown(self):
+        pymm.element.registry._elements.remove(self.fake_element)
+
+    def test_unknown_element(self):
+        """test that AFTER a ConversionHandler instance is made,
+        a new pymm element will still be matched to a factory
+        (specifically DefaultFactory) when encoding.
+        Verify that during decoding, new pymm element will be matched
+        to factory for inherited class.
+        """
+        fake = self.fake_element()
+        self.assertTrue(
+            self.ch.find_encode_factory(fake) == pymm.factory.DefaultFactory
+        )
+        self.assertTrue(self.ch.find_decode_factory(fake) == pymm.factory.Node)
+
+    def test_convert_keyword(self):
+        """test that any convert keyword not "encode" or "decode" raises
+        ValueError
+        """
+        fake = self.fake_element()
+        self.ch.convert_element_hierarchy(fake, 'encode')
+        self.ch.convert_element_hierarchy(pymm.ET.Element('d'), 'decode')
+        self.assertRaises(
+            ValueError, self.ch.convert_element_hierarchy, fake, 'debug'
+        )
+
+    def test_wrong_element_conversion(self):
+        """verify that decoding a pymm element raises TypeError.
+        Verify that encoding a non-pymm element raises TypeError
+        (because you decode other -> pymm, and encode pymm -> other
+        """
+        self.assertRaises(TypeError, pymm.factory.decode, self.fake_element())
+        self.assertRaises(TypeError, pymm.factory.encode, pymm.ET.Element('d'))
+
+
 class TestAttribSpec(unittest.TestCase):
     """Element.spec contains a key/value pair that describes an attribute
     (key) and a list of alloweable values. These allowable values can be
