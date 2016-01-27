@@ -397,7 +397,7 @@ class DefaultFactory(
         return False
 
 
-class NodeFactory(DefaultFactory):
+class Node(DefaultFactory):
     decoding_element = element.Node
     child_order = [
         element.BaseElement, element.Arrow, element.Cloud,
@@ -427,7 +427,7 @@ class NodeFactory(DefaultFactory):
         return children
 
 
-class MapFactory(DefaultFactory):
+class Map(DefaultFactory):
     decoding_element = element.Map
 
     def encode_element(
@@ -442,7 +442,7 @@ class MapFactory(DefaultFactory):
         elem.append(comment)
         return elem
 
-class AttributeFactory(DefaultFactory):
+class Attribute(DefaultFactory):
     """Attribute is a visual 2-wide cell beneath a node. It has a name
     and value. We want to instead push this into the parent node as if
     it were a dictionary: parent[name] = value
@@ -461,7 +461,7 @@ class AttributeFactory(DefaultFactory):
         return None  # stop decoding this element and its children
 
 
-class RichContentFactory(DefaultFactory):
+class RichContent(DefaultFactory):
     decoding_element = element.RichContent
 
     def disabled_decode_element(
