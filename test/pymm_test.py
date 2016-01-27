@@ -399,6 +399,20 @@ class MindmapSetup(unittest.TestCase):
 class TestMindmapFeatures(MindmapSetup):
     """test context manager. Test loading-default hierarchy"""
 
+    def test_max_arg_error(self):
+        """verify that arguments in excess of 2 (filename and mode) to
+        mindmap result in an error
+        """
+        self.assertRaises(ValueError, pymm.Mindmap, self.filename, 'r', 'r')
+
+    def test_mode_error(self):
+        """verify that a mode of both read and write raises error.
+        Also verify that any mode aside from 'r' or 'w' raises error
+        """
+        self.assertRaises(ValueError, pymm.Mindmap, self.filename, 'rw')
+        for mode in 'abcdefghijklmnopqstuvxyz':  # missing r and w
+            self.assertRaises(ValueError, pymm.Mindmap, self.filename, mode)
+
     def test_loads_default_hierarchy(self):
         """test that default hierarchy loads correctly.
         Should load one Mindmap with one one root node, (with text
@@ -457,6 +471,14 @@ class TestPymmModuleFeatures(MindmapSetup):
         """Test that a "blank" mindmap can be written to file"""
         pymm.write(self.filename, pymm.Mindmap())
         self.assertTrue(os.path.exists(self.filename))
+
+    def test_write_args_error(self):
+        """verify that an 2nd argument must be pymm element"""
+        self.assertRaises(ValueError, pymm.write, self.filename, [])
+
+    def test_encode_args_error(self):
+        """verify that 2nd arg must be a pymm element"""
+        self.assertRaises(ValueError, pymm.encode, [])
 
 
 class TestFileLocked(MindmapSetup):
