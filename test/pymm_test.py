@@ -413,13 +413,6 @@ class TestPymmModuleFeatures(MindmapSetup):
         if not os.path.exists(self.filename):
             self.fail('Mindmap did not create file ' + str(self.filename))
 
-    def test_read_file(self):
-        mm = pymm.Mindmap()
-        mm.root.text = self.text
-        pymm.write(self.filename, mm)
-        mm = pymm.read(self.filename)
-        self.assertTrue(mm.root.text == self.text)
-
 
 class TestFileLocked(MindmapSetup):
     """file_locked is a special function-like class to handle marking a
@@ -616,6 +609,7 @@ class TestChildSubset(unittest.TestCase):
     def test_specificity(self):
         """test that ChildSubset only returns matching children"""
         self.assertTrue(self.element.clouds[:] == [self.cloud])
+        self.assertTrue(self.element.nodes[:] == [self.node, self.node2])
 
     def test_setup(self):
         """Test that ChildSubset.setup can be applied to existing
@@ -785,10 +779,12 @@ class TestSingleChild(unittest.TestCase):
         """test that SingleChild.setup can be applied to an existing
         element class
         """
-        mme.BaseElement.root = property(*SingleChild.setup(tag_regex=r'node'))
+        mme.BaseElement.rootx = property(*SingleChild.setup(tag_regex=r'node'))
         elem = mme.BaseElement()
-        self.assertTrue(hasattr(elem, 'root'))
-        del mme.BaseElement.root  # cleanup
+        self.assertTrue(hasattr(elem, 'rootx'))
+        self.assertTrue(elem.rootx is None)
+        del mme.BaseElement.rootx  # cleanup
+        self.assertFalse(hasattr(elem, 'rootx'))
 
 
 class TestBaseElement(unittest.TestCase):
