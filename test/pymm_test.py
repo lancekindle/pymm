@@ -350,6 +350,7 @@ class MindmapSetup(unittest.TestCase):
 
 
 class TestMindmapFeatures(MindmapSetup):
+    """test context manager. Test loading-default hierarchy"""
 
     def test_loads_default_hierarchy(self):
         """test that default hierarchy loads correctly.
@@ -363,25 +364,31 @@ class TestMindmapFeatures(MindmapSetup):
         self.assertTrue(mm.root is not None)
         self.assertTrue(mm.root.text == "new_mindmap")
 
-    def test_context_manager_write_file(self):
+    def test_context_manager_write(self):
+        """verify that mindmap context manager writes to file"""
         with pymm.Mindmap(self.filename, 'w') as mm:
             mm.root.text = self.text
         if not os.path.exists(self.filename):
             self.fail('Mindmap did not create file ' + str(self.filename))
 
-    def test_error_on_read_only_nonexistant_file(self):
+    def test_read_error(self):
+        """Verify that attempting to read from a non-existant file
+        raises a FileNotFoundError
+        """
         self.assertRaises(FileNotFoundError, pymm.Mindmap, self.filename, 'r')
         self.assertRaises(FileNotFoundError, pymm.Mindmap, self.filename)
 
-    def test_context_manager_read_file(self):
+    def test_context_manager_read(self):
+        """context manager should be able to read a file"""
         with pymm.Mindmap(self.filename, 'w') as mm:
             mm.root.text = self.text
         with pymm.Mindmap(self.filename, 'r') as mm:
             self.assertTrue(mm.root.text == self.text)
 
-    def test_context_manager_abort_on_error(self):
+    def test_context_manager_abort(self):
         """Test that context manager writes to file even if an error
-        occurs. Also verify that context-manager does not handle error
+        occurs. Also verify that context-manager does not handle error,
+        instead allowing error to propagate
         """
         mm = None
         self.assertFalse(os.path.exists(self.filename))
@@ -396,8 +403,12 @@ class TestMindmapFeatures(MindmapSetup):
 
 
 class TestPymmModuleFeatures(MindmapSetup):
+    """Test various top-level features within the pymm module such as
+    read, write, encode, decode
+    """
 
     def test_write_file(self):
+        """Test that a "blank" mindmap can be written to file"""
         pymm.write(self.filename, pymm.Mindmap())
         if not os.path.exists(self.filename):
             self.fail('Mindmap did not create file ' + str(self.filename))
@@ -429,7 +440,7 @@ class TestFileLocked(MindmapSetup):
     def test_no_locked_files(self):
         """verify no files are currently locked"""
         for filename, status in pymm.file_locked.locked.items():
-            if status == True:
+            if status:
                 self.fail(filename + ' marked as locked')
 
     def test_lock_boolean(self):
@@ -475,6 +486,7 @@ class TestTypeVariants(unittest.TestCase):
         """
         root = self.second_mind_map.root
         variants = self.variants.copy()
+        child = None
         for variant in variants:
             for child in root.children:
                 if isinstance(child, variant):
@@ -601,7 +613,8 @@ class TestChildSubset(unittest.TestCase):
             self.element.children, self.node, self.node2, self.cloud
         )
 
-    def test_clouds_holds_only_clouds(self):
+    def test_specificity(self):
+        """test that ChildSubset only returns matching children"""
         self.assertTrue(self.element.clouds[:] == [self.cloud])
 
     def test_setup(self):
@@ -737,31 +750,41 @@ class TestSingleChild(unittest.TestCase):
     def tearDown(self):
         del mme.BaseElement.firstchild
 
-    def test_singlechild_returns_none_when_empty(self):
+    def test_singlechild_when_empty(self):
+        """test that None is returned when no matches are found"""
         self.element.children.clear()
         self.assertTrue(self.element.firstchild is None)
 
-    def test_singlechild_returns_first_match(self):
+    def test_return_first_match(self):
+        """test that first matching child is returned"""
         self.assertTrue(self.element.firstchild is self.node)
 
-    def test_singlechild_deletes_first_match(self):
+    def test_delete_first_match(self):
+        """test that first matching child is deleted"""
         self.assertTrue(self.element.firstchild is self.node)
         del self.element.firstchild
         self.assertTrue(self.element.firstchild is self.node2)
         del self.element.firstchild
         self.assertTrue(self.element.firstchild is None)
 
-    def test_singlechild_replaces_child(self):
+    def test_replace_first_match(self):
+        """test that setting to another node replaces first matching
+        child
+        """
         self.element.firstchild = self.node2
         self.assertTrue(self.element.children[:2] == [self.node2, self.node2])
 
-    def test_set_singlechild_to_none_deletes_first_match(self):
+    def test_set_to_none(self):
+        """test that setting to None deletes first matching child"""
         self.assertTrue(len(self.element.children) == 3)
         self.element.firstchild = None
         self.assertTrue(len(self.element.children) == 2)
         self.assertTrue(self.element.firstchild == self.node2)
 
-    def test_add_preconstructed_singlechild(self):
+    def test_setup(self):
+        """test that SingleChild.setup can be applied to an existing
+        element class
+        """
         mme.BaseElement.root = property(*SingleChild.setup(tag_regex=r'node'))
         elem = mme.BaseElement()
         self.assertTrue(hasattr(elem, 'root'))
@@ -769,7 +792,8 @@ class TestSingleChild(unittest.TestCase):
 
 
 class TestBaseElement(unittest.TestCase):
-    """Test BaseElement"""
+    """Test BaseElement functions"""
+
     def setUp(self):
         """Add generic elements for tests"""
         self.element = mme.BaseElement()
