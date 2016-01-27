@@ -108,14 +108,13 @@ class TestFactoryRegistry(unittest.TestCase):
         elements = pymm.element.registry.get_elements()
         factories = pymm.factory.registry.get_factories()
         for elem in elements:
-            for factory in factories:
-                if factory.decoding_element == elem:
-                    break
-            else:
-                self.fail('no factory for element: ' + str(elem))
+            decoding_elements = (f.decoding_element for f in factories)
+            self.assertIn(
+                elem, decoding_elements, 'no factory for element: ' + str(elem)
+            )
 
     def test_register_new_factory(self):
-        """verify that new factory created is registered and is last in
+        """verify that new factory created is registered last in
         list of non-generated factories
         """
         class TestFactory0x123(pymm.factory.DefaultFactory):
@@ -147,10 +146,10 @@ class TestAttribSpec(unittest.TestCase):
         """
         for elem in self.elements:
             for val in elem.spec.values():
-                if not isinstance(val, list):
-                    self.fail(
-                        str(elem) + ' has non-list spec value: ' + str(val)
-                    )
+                self.assertTrue(
+                    isinstance(val, list),
+                    str(elem) + ' has non-list spec value: ' + str(val)
+                )
 
     def test_spec_keys_are_strings(self):
         """Each element has a spec dictionary. For each key/value pair,
@@ -158,10 +157,10 @@ class TestAttribSpec(unittest.TestCase):
         """
         for elem in self.elements:
             for key in elem.spec.keys():
-                if not isinstance(key, str):
-                    self.fail(
-                        str(elem) + ' has non-str spec key: ' + str(key)
-                    )
+                self.assertTrue(
+                    isinstance(key, str),
+                    str(elem) + ' has non-str spec key: ' + str(key)
+                )
 
 #TODO: add test for node.note, node.cloud
 class TestNodeProperties(unittest.TestCase):
@@ -368,8 +367,7 @@ class TestMindmapFeatures(MindmapSetup):
         """verify that mindmap context manager writes to file"""
         with pymm.Mindmap(self.filename, 'w') as mm:
             mm.root.text = self.text
-        if not os.path.exists(self.filename):
-            self.fail('Mindmap did not create file ' + str(self.filename))
+        self.assertTrue(os.path.exists(self.filename))
 
     def test_read_error(self):
         """Verify that attempting to read from a non-existant file
@@ -410,8 +408,7 @@ class TestPymmModuleFeatures(MindmapSetup):
     def test_write_file(self):
         """Test that a "blank" mindmap can be written to file"""
         pymm.write(self.filename, pymm.Mindmap())
-        if not os.path.exists(self.filename):
-            self.fail('Mindmap did not create file ' + str(self.filename))
+        self.assertTrue(os.path.exists(self.filename))
 
 
 class TestFileLocked(MindmapSetup):
@@ -433,8 +430,7 @@ class TestFileLocked(MindmapSetup):
     def test_no_locked_files(self):
         """verify no files are currently locked"""
         for filename, status in pymm.file_locked.locked.items():
-            if status:
-                self.fail(filename + ' marked as locked')
+            self.assertFalse(status, str(filename) + ' marked as locked')
 
     def test_lock_boolean(self):
         """file_locked can also act a boolean, returning true or false
