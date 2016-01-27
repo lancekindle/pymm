@@ -84,11 +84,15 @@ class ConversionHandler:
                 root = parent
             for child in children:
                 if convert == 'encode':
+                    if not isinstance(child, element.BaseElement):
+                        raise TypeError('cannot encode non-pymm element')
                     factory_class = self.find_encode_factory(child)
                     factory = factory_class()
                     child, grandchildren = factory.encode(parent, child)
                     self.last_encode.append(factory_class)
                 elif convert == 'decode':
+                    if isinstance(child, element.BaseElement):
+                        raise TypeError('cannot decode pymm element')
                     factory_class = self.find_decode_factory(child)
                     factory = factory_class()
                     child, grandchildren = factory.decode(parent, child)
