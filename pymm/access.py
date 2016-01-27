@@ -3,12 +3,12 @@ import copy
 import re
 
 class ChildSubsetSimplified:
-    ''' Provide simplified access to specific child elements through regex 
+    ''' Provide simplified access to specific child elements through regex
     matching of descriptors such as tag, attributes, or a combination thereof.
     For example, if you want to simply match a tag (or tags), pass in a regular
     expression string that will fully match the desired tag(s).
-    e.g. 'node|cloud'  # matches any 
-    If you want to match a set of attributes, pass in a dictionary containing 
+    e.g. 'node|cloud'  # matches any
+    If you want to match a set of attributes, pass in a dictionary containing
     regexes to fully match the key(s) and value(s) of the element's attributes
     e.g. {'TEXT':'.*'}  # matches any element with a 'TEXT' attribute
     e.g. {'.*': '.*flag.*'}  # matches any element with a 'flag' in its value
@@ -25,24 +25,26 @@ class ChildSubsetSimplified:
         provide access to.
     '''
     def __init__(self, elementInstance, **identifier):
-        if not 'pre_verified' in identifier:
-            self._verify_arguments(identifier)
-        self._TAG = identifier.get('tag', None)
-        self._TAG_REGEX = identifier.get('tag_regex', None)
-        self._ATTRIB_REGEX = identifier.get('attrib_regex', {})
-        self._parent = elementInstance
+        self._verify_arguments(identifier)
+        self.TAG = identifier.get('tag', None)
+        self.TAG_REGEX = identifier.get('tag_regex', None)
+        self.ATTRIB_REGEX = identifier.get('attrib_regex', {})
+        self.parent = elementInstance
 
     @classmethod
     def _verify_arguments(cls, identifier):
-        keysExpected = set(('tag', 'tag_regex', 'attrib_regex'))
-        keysGot = set(identifier.keys())
-        unexpectedKeys = keysGot.difference(keysExpected)
-        if not keysGot:
-            raise ValueError('Must pass in either/both tag_regex and ' + 
-                            'attrib_regex')
-        if unexpectedKeys:
+        """verify that identifier dict keys contain valid (and only
+        valid) entries, and that values are strings for regex searching
+        """
+        keys_expected = set(('tag', 'tag_regex', 'attrib_regex'))
+        keys_got = set(identifier.keys())
+        unexpected = keys_got.difference(keys_expected)
+        if not keys_got:
+            raise ValueError('Must pass in either/both tag_regex and ' +
+                             'attrib_regex')
+        if unexpected:
             raise KeyError('Unexpected keys found in subset init: ' +
-                            str(unexpectedKeys))
+                           str(unexpected))
         tagr = identifier.get('tag_regex', None)
         if not tagr:
             tagr = None
@@ -55,57 +57,39 @@ class ChildSubsetSimplified:
         if not tagr and not attribr and not tag:
             raise ValueError(
                 'Must define either tag, tag_regex or attribregex. Got ' +
-                    str(tagr) + str(attribr)
+                str(tagr) + str(attribr)
             )
         if tag and tagr:
             raise ValueError('cannot specify both tag and tag_regex matching')
 
     @classmethod
-    def class_preconstructor(cls, **identifier):
-        """return a function that, when run, will return an instance of
-        ChildSubset with the identifier previously passed into
-        class_preconstructor. Useful for predefining childsubset in a class
-        definition. Any element inheriting from BaseElement will automatically
-        call the object-instantiating function returned by this classmethod.
-        However, it is recommended to use property(x) within a class
-        definition, where x = ChildSubset.setup(), which does almost the same
-        thing but is cleaner code-wise and easier to understand
-        """
-        cls._verify_arguments(identifier)
-        identifier = copy.deepcopy(identifier)
-        def this_function_gets_automatically_run_inside_elements__new__(elementInstance):
-            return cls(elementInstance, **identifier) 
-        return this_function_gets_automatically_run_inside_elements__new__ 
-
-    @classmethod
     def setup(cls, **regexes):
-        cls._verify_arguments(regexes)
-        regexes['pre_verified'] = True
+        self = cls(None, **regexes)
 
         def getter(parent):
-            return cls(parent, **regexes)
+            self.parent = parent
+            return self
 
         def setter(parent, iterable):
-            self = cls(parent, **regexes)
+            self.parent = parent
             self[:] = iterable
 
         return getter, setter
 
 
     def append(self, element):
-        self._parent.children.append(element)
+        self.parent.children.append(element)
 
     def remove(self, element):
-        self._parent.chilren.remove(element)
+        self.parent.chilren.remove(element)
 
     def __len__(self):
         return len(self[:])
 
     def __getitem__(self, index):
         if index == 0:  # speed shortcut
-            for e in self:
-                return e
-            raise IndexError('Index out of bounds')
+            for elem in self:
+                return elem
         elements = [e for e in self]
         return elements[index]
 
@@ -113,15 +97,15 @@ class ChildSubsetSimplified:
         """Iterate through _parent's children, yielding children when they
         match tag_regex and/or attrib_regex
         """
-        for elem in self._parent.children:
-            if self._TAG_REGEX:
-                if not re.fullmatch(self._TAG_REGEX, elem.tag):
+        for elem in self.parent.children:
+            if self.TAG_REGEX:
+                if not re.fullmatch(self.TAG_REGEX, elem.tag):
                     continue
-            if self._TAG:
-                if not self._TAG == elem.tag:
+            if self.TAG:
+                if self.TAG != elem.tag:
                     continue
             matches = lambda x, y, rx, ry: re.fullmatch(rx, x) and re.fullmatch(ry, y)
-            for regK, regV in self._ATTRIB_REGEX.items():
+            for regK, regV in self.ATTRIB_REGEX.items():
                 match = [k for k, v in elem.attrib.items() if matches(k, v, regK, regV)]
                 if not match:
                     break
@@ -139,20 +123,20 @@ class ChildSubsetSimplified:
         # check for index == 0, can use shortcut in that case
         if index == 0:
             e = self[index]
-            i = self._parent.children.index(e)
-            self._parent.children[i] = elem
+            i = self.parent.children.index(e)
+            self.parent.children[i] = elem
             return
         subchildren = self[:]
         for element in subchildren:
-            self._parent.children.remove(element)
+            self.parent.children.remove(element)
         subchildren[index] = elem
         for element in subchildren:
-            self._parent.children.append(element)
+            self.parent.children.append(element)
 
     def __delitem__(self, index):
         element = self[index]
-        i = self._parent.children.index(element)
-        del self._parent[i]
+        i = self.parent.children.index(element)
+        del self.parent[i]
 
 
 class ChildSubset(ChildSubsetSimplified):
@@ -169,11 +153,11 @@ class ChildSubset(ChildSubsetSimplified):
     def pop(self, index=-1):
         """ Remove and return element in children list """
         elem = self[index]
-        self._parent.children.remove(elem)
+        self.parent.children.remove(elem)
         return elem
 
     def extend(self, elements):
-        self._parent.children.extend(elements)
+        self.parent.children.extend(elements)
 
     def __contains__(self, element):
         return element in self[:]

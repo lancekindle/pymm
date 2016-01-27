@@ -595,13 +595,16 @@ class TestChildSubset(unittest.TestCase):
     def test_clouds_holds_only_clouds(self):
         self.assertTrue(self.element.clouds[:] == [self.cloud])
 
-    def test_add_preconstructed_subset(self):
-        """Test that BaseElement properly handles addition of subset"""
-        mme.BaseElement.nodes = ChildSubset\
-                .class_preconstructor(tag='node')
+    def test_setup(self):
+        """Test that ChildSubset.setup can be applied to existing
+        element classes
+        """
+        mme.BaseElement.nodes = property(*ChildSubset.setup(tag='node'))
         elem = mme.BaseElement()
         self.assertTrue(hasattr(elem, 'nodes'))
+        self.assertTrue(elem.nodes[:] == [])
         del mme.BaseElement.nodes  # cleanup
+        self.assertFalse(hasattr(elem, 'nodes'))
 
     def test_attrib_regex(self):
         """Test to ensure proper matching of child elements by regex"""
@@ -644,15 +647,6 @@ class TestChildSubset(unittest.TestCase):
                           tag_regex=['node'])
         self.assertRaises(ValueError, ChildSubset, self.element, tag_regex=5,
                           attrib_regex={'TEXT': '.*'})
-
-    def test_alternative_constructor(self):
-        """Test alternative child subset constructor"""
-        elem = self.element
-        elem.nodes = ChildSubset.class_preconstructor(tag_regex=r'node')
-        # why doesn't this work? it should just work w/ elem.nodes(). It works
-        # ..inside.. the instance, but not outside?
-        elem.nodes = elem.nodes(elem)
-        self.assertIsInstance(elem.nodes, ChildSubset)
 
     def test_node_added_element_nodes(self):
         """Test that a node added to elem nodes is properly accessible
