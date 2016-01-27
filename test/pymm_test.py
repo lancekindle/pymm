@@ -11,6 +11,7 @@ from uuid import uuid4
 import unittest
 import inspect
 import os
+import collections
 try:
     import pymm
     from pymm import element as mme
@@ -507,16 +508,24 @@ class TestReadWriteExample(unittest.TestCase):
         self.assertTrue(mind_map)
         self.assertTrue(mind_map.root)
         pymm.write(self.filename, mind_map)
-        self.verify_encode_decode_traces_match()
+        self.verify_conversion_traces_match()
 
-    def verify_encode_decode_traces_match(self):
+    def verify_conversion_traces_match(self):
+        """pymm.factory.ConversionHandler contains a trace of factory
+        classes used in the last encode and decode operation. Call this
+        after reading and then writing to file without modification.
+        The two traces should be very similar or else something is
+        wrong with a factory. Since dynamically-generated factories are
+        part of both traces, the easiest way to compare is with
+        factory.decoding_element (which is the pymm element)
+        """
         encode_trace = pymm.factory.ConversionHandler.last_encode
         decode_trace = pymm.factory.ConversionHandler.last_decode
-        print(encode_trace[:10])
-        print()
-        print(decode_trace[:10])
-        print(encode_trace[0] == decode_trace[0])
-        self.assertTrue(encode_trace == decode_trace)
+        encoded = (factory.decoding_element for factory in encode_trace)
+        decoded = (factory.decoding_element for factory in decode_trace)
+        encode_count = collections.Counter(encoded)
+        decode_count = collections.Counter(decoded)
+        self.assertTrue(encode_count == decode_count)
 
 
     def test_write_file(self):
