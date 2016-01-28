@@ -213,7 +213,7 @@ class ImplicitNodeAttributes:
         return iter(self._attribute)
 
     def __contains__(self, key):
-        return self._attribute.__contains__(self, key)
+        return self._attribute.__contains__(key)
 
     def __delitem__(self, key):
         del self._attribute[key]
