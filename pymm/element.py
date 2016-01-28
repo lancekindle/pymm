@@ -229,29 +229,6 @@ class ImplicitNodeAttributes:
         return self._attribute
 
 
-class ImplicitNodeText(str):
-    _is_html = False
-
-    def __init__(self, s, is_html=False, **kwargs):
-        if isinstance(s, self.__class__):
-            self = s
-        else:
-            super().__new__(s, **kwargs)
-            self._is_html = is_html
-
-    def __str__(self):
-        if self._is_html:
-            plaintext = []
-            parser = HTMLParser()
-            parser.handle_data = plaintext.append
-            parser.feed(repr(self))
-            parser.close()
-            plaintext = ''.join(plaintext)
-        else:
-            plaintext = super().__str__(self)
-        return plaintext
-
-
 class Node(ImplicitNodeAttributes, BaseElement):
     """The most common element in a mindmap. The Node is the visual
     circle in freeplane with an expandable branch of children. A Node
