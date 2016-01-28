@@ -231,24 +231,6 @@ class SingleAttrib:
         return getter, setter, deleter
 
 
-class Text:
-    """text for a node. Sets and gets attrib['TEXT'] for attached node """
-
-    @classmethod
-    def setup(cls, TextClass):
-
-        def getter(parent):
-            return parent.attrib.get('TEXT', '')
-
-        def setter(parent, text):
-            parent.attrib['TEXT'] = text
-
-        def deleter(parent):
-            parent.attrib['TEXT'] = ''
-
-        return getter, setter, deleter
-
-
 class Link:
     """link for a node. Sets and gets attrib['LINK'] for attached node.
     If user links a node, set attrib['LINK'] = node.attrib['ID']
