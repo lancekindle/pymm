@@ -235,7 +235,8 @@ class TestNodeProperties(unittest.TestCase):
     def test_link(self):
         """test node.link sets node.attrib['LINK']. However, if
         node.link is set to another node, instead it copies the 'ID'
-        attrib from linked node
+        attrib from linked node. If it does not exist, or is deleted,
+        return or set the link to None
         """
         url = 'http://github.com/lancekindle'
         default = None
@@ -247,6 +248,8 @@ class TestNodeProperties(unittest.TestCase):
         node.link = node2
         link_id = node2.attrib['ID']
         self.assertTrue(node.attrib['LINK'] == link_id)
+        del node.link
+        self.assertTrue(node.link == default)
 
 
 class TestNodeImplicitAttributes(unittest.TestCase):
@@ -291,6 +294,23 @@ class TestNodeImplicitAttributes(unittest.TestCase):
             self.assertFalse((key, value) in self.node.items())
             self.assertTrue(count - 1 == len(self.node.items()))
             break
+
+    def test_iter(self):
+        """Test that attributes can be iterated from node"""
+        for attr in self.node:
+            self.assertIn(attr, self.attributes)
+
+    def test_contains(self):
+        """Test that attributes can be checked if IN node"""
+        for attr in self.attributes:
+            self.assertTrue(attr in self.node)
+
+    def test_getattributes(self):
+        """test get_attributes returns node attributes dict
+        Verify the two attributes match, but are different dicts
+        """
+        self.assertEqual(self.attributes, self.node.get_attributes())
+        self.assertIsNot(self.attributes, self.node.get_attributes())
 
     def test_encode_decode(self):
         """verify that attribute saves to file, and is loaded
@@ -658,10 +678,7 @@ class TestNativeChildIndexing(unittest.TestCase):
 class TestChildSubset(unittest.TestCase):
 
     def setUp(self):
-        """self.element will have childsubsets nodes, clouds.
-        self.element will also have singlechild property: firstnode,
-        which will grab first node in children list
-        """
+        """self.element will have childsubsets nodes, clouds."""
         self.element = mme.BaseElement()
         self.node = mme.Node()
         self.node2 = mme.Node()
@@ -792,8 +809,7 @@ class TestSingleChild(unittest.TestCase):
     """Test Element Accessor"""
 
     def setUp(self):
-        """self.element will have childsubsets nodes, clouds.
-        self.element will also have singlechild property: firstnode,
+        """self.element will have singlechild property: firstchild
         which will grab first node in children list
         """
         mme.BaseElement.firstchild = property(
@@ -810,10 +826,19 @@ class TestSingleChild(unittest.TestCase):
     def tearDown(self):
         del mme.BaseElement.firstchild
 
+    def test_setup_error(self):
+        """verify ValueError is raised if no regexes are passed into
+        SingleChild.setup
+        """
+        self.assertRaises(ValueError, SingleChild.setup)
+
     def test_singlechild_when_empty(self):
-        """test that None is returned when no matches are found"""
+        """test that None is returned when no matches are found.
+        Verify that setting child when children list is empty works
+        """
         self.element.children.clear()
         self.assertTrue(self.element.firstchild is None)
+        self.element.firstchild = self.node
 
     def test_return_first_match(self):
         """test that first matching child is returned"""
@@ -853,6 +878,19 @@ class TestSingleChild(unittest.TestCase):
         self.assertFalse(hasattr(elem, 'rootx'))
 
 
+class TestIconElement(unittest.TestCase):
+    """test Icon-specific features"""
+
+    def test_set_icon(self):
+        """verify that set_icon set's correct attrib and that warning
+        is generated for out-of-spec icon
+        """
+        icon = pymm.element.Icon()
+        icon.set_icon('yes')
+        self.assertTrue(icon.attrib['BUILTIN'] == 'yes')
+        self.assertWarns(SyntaxWarning, icon.set_icon, '0x123BAD')
+
+
 class TestBaseElement(unittest.TestCase):
     """Test BaseElement functions"""
 
@@ -860,6 +898,32 @@ class TestBaseElement(unittest.TestCase):
         """Add generic elements for tests"""
         self.element = mme.BaseElement()
         self.node = mme.Node()
+
+    def test_element_to_string(self):
+        """test that str(element) returns string representation,
+        including any _display_attrib
+        """
+        string = '0x103'
+        self.node.text = string
+        self.assertIn(string, str(self.node))
+        self.element._display_attrib.append('A')
+        self.element.attrib['xA'] = 'xC'
+        self.element.attrib['A'] = 'B'
+        self.assertIn('B', str(self.element))
+        self.assertIn('A', str(self.element))
+        self.assertNotIn('xA', str(self.element))
+        self.assertNotIn('xC', str(self.element))
+        self.element._display_attrib.remove('A')  # cleanup
+
+    def test_element_repr(self):
+        """verify that a small portion of string is used in making
+        representation (repr) of element
+        """
+        self.node.text = '3433'
+        string = str(self.node)[:8]
+        self.assertIn(string, repr(self.node))
+        string = str(self.element)[:8]
+        self.assertIn(string, repr(self.element))
 
     def test_element_length_post_append(self):
         """Test length of element increments after adding node"""
