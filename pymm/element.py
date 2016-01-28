@@ -539,11 +539,6 @@ class RichContent(BaseElement):
     tag = 'richcontent'
     _display_attrib = ['TYPE']
     spec = {'TYPE': [str]}
-    html = ''
-
-    def is_html(self):
-        """ return boolean if richcontent is html-like or not """
-        return bool(re.findall(r'<[^>]+>', self.html))
 
 
 class NodeText(RichContent):
