@@ -34,7 +34,7 @@ from uuid import uuid4
 import warnings
 import re
 import copy
-from html.parser import HTMLParser
+import html
 from . import access
 import types
 # http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format
@@ -145,6 +145,22 @@ class BaseElement(metaclass=registry):
     def __init__(self, **attrib):
         for key, val in attrib.items():
             self.attrib[key] = val
+
+    def tostring(self):
+        """cast element to full string. html-safe attrib, and
+        include all subchildren. Will raise recursion error if
+        subchildren levels > 1024 levels deep. (VERY unlikely)
+        """
+        children = (child.tostring() for child in self.children)
+        end = '/>'
+        if self.children:
+            end = '>' + ''.join(children) + '\n</' + self.tag + '>'
+        htmlsafe = lambda x: html.escape(str(x))
+        attrib = (
+            htmlsafe(k) + '="' + htmlsafe(v) + '"' \
+            for k, v in self.attrib.items()
+        )
+        return '\n<' + self.tag + ' ' + ', '.join(attrib) + end
 
     def __str__(self):
         """Construct string representation of self. Configured to display
