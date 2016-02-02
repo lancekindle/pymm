@@ -613,6 +613,13 @@ class TestReadWriteExample(unittest.TestCase):
         wrong with a factory. Since dynamically-generated factories are
         part of both traces, the easiest way to compare is with
         factory.decoding_element (which is the pymm element)
+
+        In the past, these have mismatched when an element modifies the
+        tree prior to encoding. For example, AutomaticEdgeColor colored
+        one previously un-colored child of root (which is good, but
+        since it added an Edge child to a node, the encode/decode count
+        was off by one). To prevent this error from showing up, I
+        modified the mindmap to include the missing colored-edge.
         """
         encode_trace = pymm.factory.ConversionHandler.last_encode
         decode_trace = pymm.factory.ConversionHandler.last_decode
@@ -621,7 +628,6 @@ class TestReadWriteExample(unittest.TestCase):
         encode_count = collections.Counter(encoded)
         decode_count = collections.Counter(decoded)
         self.assertTrue(encode_count == decode_count)
-
 
     def test_write_file(self):
         """Test the writing of a mind map"""

@@ -35,7 +35,6 @@
     </p>
   </body>
 </html>
-
 </richcontent>
 <hook NAME="MapStyle" zoom="1.1">
     <properties show_icon_for_attributes="false" show_note_icons="true" show_notes_in_map="true"/>
@@ -103,7 +102,7 @@
 </html>
 </richcontent>
 <attribute NAME="blah" VALUE="2" OBJECT="org.freeplane.features.format.FormattedNumber|2"/>
-<node TEXT="Child Node 1" POSITION="right" ID="ID_1707799934" CREATED="1421458652275" MODIFIED="1423120002131"><richcontent TYPE="NOTE">
+<node TEXT="Child Node 1" POSITION="right" ID="ID_1707799934" CREATED="1421458652275" MODIFIED="1454451386686"><richcontent TYPE="NOTE">
 
 <html>
   <head>
@@ -116,6 +115,7 @@
   </body>
 </html>
 </richcontent>
+<edge COLOR="#ff0000"/>
 <node TEXT="Subchild 1 w/ arc cloud" ID="ID_1244434831" CREATED="1421458663887" MODIFIED="1421461041155">
 <cloud COLOR="#3333ff" SHAPE="ARC"/>
 <node TEXT="sub-subchild w/ star cloud" ID="ID_1458322322" CREATED="1421458700021" MODIFIED="1421461002737">
