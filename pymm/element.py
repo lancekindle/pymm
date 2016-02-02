@@ -35,8 +35,11 @@ import warnings
 import re
 import copy
 import html
-from . import access
 import types
+import collections
+from . import access
+from . import decode
+from . import encode
 # http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format
 
 
@@ -48,15 +51,37 @@ class registry(type):
     newest matching element.
     """
     _elements = []
+    _decorated_fxns = collections.defaultdict(dict)
 
     @classmethod
     def get_elements(cls):
         """Return list of all registered elements"""
         return list(cls._elements)
 
+    @classmethod
+    def get_decorated_fxns(cls):
+        """Return dict of encode/decode-decorated fxns"""
+        return dict(cls._decorated_fxns)
+
     def __new__(cls, clsname, bases, attr_dict):
-        """Record unaltered class"""
+        """Record unaltered class. In addition, identify encode/decode
+        decorated functions within the element and organize as
+        class: {fxn: 'event_name'}. The decorated function is kept here
+        and added to the Element's factory during creation. It is then
+        called with the proper arguments during encode/decode.
+        """
         ElementClass = super().__new__(cls, clsname, bases, attr_dict)
+        decorated = dict(decode.decorated)
+        decorated.update(encode.decorated)
+        for fxn_name, fxn in attr_dict.items():
+            try:
+                hash(fxn)
+            except TypeError:
+                continue
+            if fxn in decorated:
+                event_name = decorated[fxn]
+                class_decorated = cls._decorated_fxns[ElementClass]
+                class_decorated[event_name] = fxn
         cls._elements.append(ElementClass)
         return ElementClass 
 
@@ -293,6 +318,30 @@ class Node(ImplicitNodeAttributes, BaseElement):
     def __str__(self):
         return self.tag + ': ' + self.text.replace('\n', '')
 
+    @decode.post_decode
+    def _standardize_attrib(self, parent):
+        """root node may have a LOCALIZED_TEXT attrib, rather than
+        the standard TEXT attrib. Replace LOCALIZED_TEXT with TEXT
+        for standar behavior before user sees incorrect style
+        """
+        attrib = self.attrib
+        swapout = [('LOCALIZED_TEXT', 'TEXT')]
+        for undesired, replacement in swapout:
+            if undesired in attrib:
+                attrib[replacement] = attrib[undesired]
+                del attrib[undesired]
+
+    @encode.get_children
+    def _add_attribute_to_children(self):
+        """Node has an Attribute dictionary that represents Attribute
+        children. So here we add those missing Attribute children
+        """
+        children = list(self.children)  # copy so self.children is unmodified
+        for name, value in self.items():
+            child = Attribute(NAME=name, VALUE=value)
+            children.append(child)
+        return children
+
 
 class Map(BaseElement):
     """Map is the first element of any mindmap. It is the highest-level
@@ -377,6 +426,36 @@ class AutomaticEdgeColor(Hook):
     attrib = {'NAME': 'AutomaticEdgeColor', 'COUNTER': 0}
     identifier = {r'NAME': r'AutomaticEdgeColor'}
     spec = {'NAME': [str], 'COUNTER': [int]}
+    color_rotation = [
+        "#ff0000", "#0000ff", "#00ff00", "#ff00ff", "#00ffff", "#ffff00"
+        "#7c0000", "#00007c", "#007c00", "#7c007c", "#007c7c", "#7c7c00"
+    ]
+    count = property(*access.SingleAttrib('COUNTER', 0))
+
+    @encode.pre_encode
+    def colorize_sibling_nodes(self, parent):
+        """anywhere that an AutomaticEdgeColor exists, before encoding,
+        it adds a newly-colored edge to each of it's sibling nodes.
+        Generally, this element is a child of the Root Node. Each node
+        child of the root is colored a new color based on self's
+        COUNTER attrib. To accomplish this, add a colored Edge to each
+        node-sibling of this element.
+        """
+        if not isinstance(parent, Node):
+            return
+        if parent.find(tag='edge'):
+            return  # a root node does not have an edge child
+        colors = self.color_rotation
+        siblings = parent.nodes[:]
+        for node in siblings:
+            # only create an edge if node does not have one already
+            if node.find(tag='edge') is None:
+                color = colors[self.count]
+                edge = Edge(COLOR=color)
+                node.children.append(edge)
+                self.count += 1
+                self.count %= len(colors)
+
 
 
 class MapStyles(BaseElement):
@@ -486,6 +565,21 @@ class Attribute(BaseElement):
     tag = 'attribute'
     attrib = {'NAME': '', 'VALUE': ''}
     spec = {'NAME': [str], 'VALUE': [str], 'OBJECT': [str]}
+
+    @decode.post_decode
+    def _add_self_to_parent(self, parent):
+        """Attribute is an implicit dict value of parent node. To that
+        end, remove self from parent's children, and add self's value
+        to parent node
+        """
+        if not isinstance(parent, Node):
+            return  # do nothing if parent is not an expected Node
+        parent.children.remove(self)
+        attrib = self.attrib
+        if 'NAME' in attrib and 'VALUE' in attrib:
+            name = attrib['NAME']
+            value = attrib['VALUE']
+            parent[name] = value
 
 
 class Properties(BaseElement):
