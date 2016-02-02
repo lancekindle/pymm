@@ -155,7 +155,10 @@ class TestConversionHandler(unittest.TestCase):
         self.assertTrue(
             self.ch.find_encode_factory(fake) == pymm.factory.DefaultFactory
         )
-        self.assertTrue(self.ch.find_decode_factory(fake) == pymm.factory.Node)
+        factory = self.ch.find_decode_factory(fake)
+        self.assertTrue(isinstance(fake, factory.decoding_element))
+        node_factory = self.ch.find_decode_factory(pymm.Node())
+        self.assertTrue(factory == node_factory)
 
     def test_convert_keyword(self):
         """test that any convert keyword not "encode" or "decode" raises
@@ -325,7 +328,6 @@ class TestNodeImplicitAttributes(unittest.TestCase):
         self.assertTrue(mm.root.items() == self.attributes.items())
 
 
-
 class TestMutableClassVariables(unittest.TestCase):
     """BaseElement and some inheriting elements define some mutable
     variables in their class definition (such as children). This is
@@ -349,7 +351,9 @@ class TestMutableClassVariables(unittest.TestCase):
 
     def test_unique_mutable_vars(
             self, filt=None,
-            filter_out=['spec', '_display_attrib', 'identifier']):
+            filter_out=[
+                'spec', '_display_attrib', 'identifier', 'color_rotation'
+            ]):
         """Test each element's mutable variable and confirm it does not
         share the same memory address as the element's Class
         """
@@ -377,7 +381,7 @@ class TestMutableClassVariables(unittest.TestCase):
                     self.fail(str(elem_class) + ' does not copy ' + key)
 
     def test_specific_nonduplicates(self):
-        """ test that children, attrib, _display_attrib, and spec are
+        """test that children, attrib, _display_attrib, and spec are
         all copied to a new list/dict instance in every element when
         instantiated as an instance. This, for example, tests that an
         instance of Mindmap would not add children to the Mindmap class
