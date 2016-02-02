@@ -116,7 +116,8 @@ class ConversionHandler:
 class registry(type):
     """Metaclass to register all Factories created, and assist in
     creating new factories for unclaimed elements (elements without a
-    corresponding factory
+    corresponding factory). In addition, collect encode/decode
+    decorated functions and apply them to the correct factory.
     """
     _factories = []
     verbose = False
@@ -149,6 +150,8 @@ class registry(type):
         Return list of all factories created in this way
         """
         generated = []
+        factories = [DefaultFactory]  # TODO: remove this with other factories
+        convert_fxns = element.registry.get_decorated_fxns()
         for elem in element.registry.get_elements():
             closest_match = DefaultFactory
             for factory in factories:
@@ -157,22 +160,34 @@ class registry(type):
                 if factory.decoding_element == elem:
                     break
             else:
-                # create factory for unclaimed element
-                if cls.verbose:
-                    print(
-                        'unclaimed element:', elem,
-                        '\n\t tag:', elem.tag,
-                        '\n\t identifier:', elem.identifier,
-                        '\n\t closest matching factory:', closest_match,
-                    )
-                element_name = getattr(elem, '__name__', elem.tag)
-                name = element_name + '-Factory@' + uuid4().hex
-                inherit_from = (closest_match,)
-                variables = {'decoding_element': elem}
-                cls._skip_registration = name
-                new_factory = type(name, inherit_from, variables)
-                generated.append(new_factory)
+                factory = cls.create_factory(elem, closest_match, convert_fxns)
+                generated.append(factory)
         return generated
+
+    @classmethod
+    def create_factory(cls, elem, closest_matching_factory, convert_fxns):
+        """creat factory for given element, inheriting from closest
+        matching factory, and include any functions decorated by
+        encode.* or decode.*
+        """
+        if cls.verbose:
+            print(
+                'unclaimed element:', elem,
+                '\n\t tag:', elem.tag,
+                '\n\t identifier:', elem.identifier,
+                '\n\t closest matching factory:', closest_matching_factory,
+            )
+        element_name = getattr(elem, '__name__', elem.tag)
+        name = element_name + '-Factory@' + uuid4().hex
+        cls._skip_registration = name
+        inherit_from = (closest_matching_factory,)
+        variables = {'decoding_element': elem}
+        convert_events = convert_fxns.get(elem, {})
+        for event_name, event_fxn in convert_events.items():
+            wrapped_event = lambda factory, *args: event_fxn(*args)
+            variables[event_name] = wrapped_event
+        new_factory = type(name, inherit_from, variables)
+        return new_factory
 
 
 class DefaultElementFactory:
