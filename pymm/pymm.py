@@ -44,11 +44,11 @@ def read(file_or_filename):
             file_locked(Mindmap.default_mindmap_filename):
         tree = ET.parse(file_or_filename)
         et_elem = tree.getroot()
-        mm_elem = decode(et_elem)
-    return mm_elem
+        pymm_elem = decode(et_elem)
+    return pymm_elem
 
 
-def write(file_or_filename, mm_element):
+def write(file_or_filename, pymm_element):
     """Writes mindmap/element to file. Element must be pymm element.
     Will write element and children hierarchy to file.
     Writing any element to file works, but in order to be opened
@@ -59,11 +59,11 @@ def write(file_or_filename, mm_element):
         of mindmap (.mm)
     :return:
     """
-    if not isinstance(mm_element, element.BaseElement):
+    if not isinstance(pymm_element, element.BaseElement):
         raise ValueError(
             'pymm.write requires file/filename, then pymm element'
         )
-    et_elem = encode(mm_element)
+    et_elem = encode(pymm_element)
     xmltree = ET.ElementTree(et_elem)
     xmltree.write(file_or_filename)
 
