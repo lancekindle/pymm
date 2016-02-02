@@ -19,6 +19,8 @@ import types
 from collections import defaultdict
 from . import element
 from . import factory
+from . import decode as _decode
+from . import encode as _encode
 
 # import most-likely to be used Elements
 from .element import Node, Cloud, Icon, Edge, Arrow
@@ -65,28 +67,61 @@ def write(file_or_filename, mm_element):
     xmltree = ET.ElementTree(et_elem)
     xmltree.write(file_or_filename)
 
-
-def decode(et_element):
-    """decode ElementTree Element to pymm Element.
-
-    :param et_element: Element Tree Element -> generally an element from
-                       python's xml.etree.ElementTree module
-    :return: Pymm hierarchical tree. Usually Mindmap instance but may return
-             BaseElement-inheriting element if et_element was not complete
-             mindmap hierarchy.
+class decode:
+    """function-like class that allows decorating of functions to
+    configure a pymm element post-decode. If called with an element, instead
+    decode the supplied element and return it's decoded state
     """
-    return factory.decode(et_element)
+
+    def __new__(cls, et_element):
+        """decode ElementTree Element to pymm Element.
+
+        :param et_element: Element Tree Element -> generally an element from
+                           python's xml.etree.ElementTree module
+        :return: Pymm hierarchical tree. Usually Mindmap instance but may return
+                 BaseElement-inheriting element if et_element was not complete
+                 mindmap hierarchy.
+        """
+        if isinstance(et_element, element.BaseElement):
+            raise ValueError('cannot decode a pymm element')
+        return factory.decode(et_element)
+
+    @classmethod
+    def post_decode(cls, fxn):
+        _decode.post_decode(fxn)
 
 
-def encode(mm_element):
-    """encode pymm Element to ElementTree Element
-
-    :param mm_element: pymm Element from pymm.Elements module
-    :return: xml.etree version of passed pymm tree
+class encode:
+    """function-like class that allows decorating of functions to
+    configure a pymm element post-decode. If called with an element, instead
+    decode the supplied element and return it's decoded state
     """
-    if not isinstance(mm_element, element.BaseElement):
-        raise ValueError('cannot encode mm_element: it is not a pymm element')
-    return factory.encode(mm_element)
+
+    def __new__(cls, pymm_element):
+        """encode pymm Element to ElementTree Element
+
+        :param mm_element: pymm Element from pymm.Elements module
+        :return: xml.etree version of passed pymm tree
+        """
+        if not isinstance(pymm_element, element.BaseElement):
+            raise ValueError('encoding requires a pymm element')
+        return factory.encode(pymm_element)
+    
+    @classmethod
+    def pre_encode(cls, fxn):
+        return _encode.pre_encode(fxn)
+
+    @classmethod
+    def post_encode(cls, fxn):
+        return _encode.post_encode(fxn)
+
+    @classmethod
+    def get_attrib(cls, fxn):
+        return _encode.get_attrib(fxn)
+
+    @classmethod
+    def get_children(cls, fxn):
+        return _encode.get_children(fxn)
 
 
 class file_locked:
