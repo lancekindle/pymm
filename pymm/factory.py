@@ -39,7 +39,7 @@ class ConversionHandler:
     fully encode or decode a hierarchical tree of elements in a non-
     recursive manner (to avoid python recursion limits). Keep track of
     last-used factory-classes during encode/decode so that conversion
-    errors may be noticeable.
+    errors may be traceable
     """
     last_encode = []
     last_decode = []
@@ -80,10 +80,18 @@ class ConversionHandler:
         will be completely converted before its children begin the
         process
         """
+        is_encoding = False
         if convert == 'encode':
+            if not isinstance(elem, element.BaseElement):
+                raise TypeError('cannot encode non-pymm element')
+            is_encoding = True
             self.last_encode.clear()
-        if convert == 'decode':
+        elif convert == 'decode':
+            if isinstance(elem, element.BaseElement):
+                raise TypeError('cannot decode pymm element')
             self.last_decode.clear()
+        else:
+            raise ValueError('pass in "decode" or "encode"')
         queue = [(None, [elem])]  # parent, children
         root = None
         while queue:
@@ -91,22 +99,20 @@ class ConversionHandler:
             if root is None and parent is not None:
                 root = parent
             for child in children:
-                if convert == 'encode':
+                if is_encoding:
                     if not isinstance(child, element.BaseElement):
                         raise TypeError('cannot encode non-pymm element')
                     factory_class = self.find_encode_factory(child)
                     factory = factory_class()
                     child, grandchildren = factory.encode(parent, child)
                     self.last_encode.append(factory_class)
-                elif convert == 'decode':
+                else:
                     if isinstance(child, element.BaseElement):
                         raise TypeError('cannot decode pymm element')
                     factory_class = self.find_decode_factory(child)
                     factory = factory_class()
                     child, grandchildren = factory.decode(parent, child)
                     self.last_decode.append(factory_class)
-                else:
-                    raise ValueError('pass in "decode" or "encode"')
                 # if convert fxn returns no decoded child, drop from hierarchy
                 if child is not None:
                     queue.append((child, grandchildren))
