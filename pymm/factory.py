@@ -145,23 +145,30 @@ class registry(type):
         to handle it, inheriting from closest-matching factory.
         Closest-matching factory is determined as the newest factory to
         use a decoding-element of which the unclaimed element is a
-        subclass.
+        subclass AND which inherits from the previous closest-matching
+        factory. (this second part ensures that a DefaultFactory-clone
+        will not become the closest-match
 
         Return list of all factories created in this way
         """
         generated = []
+        factories = list(factories)
         factories = [DefaultFactory]  # TODO: remove this with other factories
         convert_fxns = element.registry.get_decorated_fxns()
         for elem in element.registry.get_elements():
             closest_match = DefaultFactory
             for factory in factories:
-                if issubclass(elem, factory.decoding_element):
+                if issubclass(elem, factory.decoding_element) and \
+                        issubclass(factory, closest_match):
                     closest_match = factory
                 if factory.decoding_element == elem:
                     break
             else:
                 factory = cls.create_factory(elem, closest_match, convert_fxns)
                 generated.append(factory)
+                # allow generated factories to inherit from generated
+                factories.append(factory)
+        cls.verbose = False
         return generated
 
     @classmethod
