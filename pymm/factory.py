@@ -86,6 +86,7 @@ class ConversionHandler:
                 raise TypeError('cannot encode non-pymm element')
             is_encoding = True
             self.last_encode.clear()
+            self.convert_notify(elem, 'pre_encode')
         elif convert == 'decode':
             if isinstance(elem, element.BaseElement):
                 raise TypeError('cannot decode pymm element')
@@ -116,7 +117,32 @@ class ConversionHandler:
                 # if convert fxn returns no decoded child, drop from hierarchy
                 if child is not None:
                     queue.append((child, grandchildren))
+        if is_encoding:
+            self.convert_notify(elem, 'post_encode')
+        else:
+            self.convert_notify(root, 'post_decode')
         return root
+
+    def convert_notify(self, elem, alert_type):
+        """alert element and all its children about impending
+        conversion. Will trigger pre_encode, post_encode, or
+        post_decode on elem and hierarchy, in breadth-first-search
+        style. All alerts will be done on pymm elements
+        """
+        if alert_type == 'pre_encode' or alert_type == 'post_encode' or \
+                alert_type == 'post_decode':
+            pass
+        else:
+            raise ValueError('must give a post-or-pre encode/decode string')
+        queue = [(None, [elem])]
+        while queue:
+            parent, children = queue.pop(0)
+            for child in children:
+                factory_class = self.find_encode_factory(child)
+                factory = factory_class()
+                default = lambda *x: None
+                grandchildren = child.children
+                queue.append((child, grandchildren))
 
 
 class registry(type):
