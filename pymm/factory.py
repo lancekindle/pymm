@@ -189,9 +189,16 @@ class registry(type):
         cls._skip_registration = name
         inherit_from = (closest_matching_factory,)
         variables = {'decoding_element': elem}
+        def simulate_bound_method(event_fxn):
+            """wrap function to discard the first argument, thereby
+            simulating a method call for the 2nd argument, the element.
+            Wrapping a fxn through this helps create a permanent scope
+            for wrapping a function as well.
+            """
+            return lambda factory, *args: event_fxn(*args)
         convert_events = convert_fxns.get(elem, {})
         for event_name, event_fxn in convert_events.items():
-            wrapped_event = lambda factory, *args: event_fxn(*args)
+            wrapped_event = simulate_bound_method(event_fxn)
             variables[event_name] = wrapped_event
         new_factory = type(name, inherit_from, variables)
         return new_factory
