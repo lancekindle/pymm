@@ -141,7 +141,12 @@ class ConversionHandler:
                 factory_class = self.find_encode_factory(child)
                 factory = factory_class()
                 default = lambda *x: None
-                grandchildren = child.children
+                conversion_notify = getattr(factory, alert_type, default)
+                conversion_notify(child, parent)
+                # copy prevents .children manipulation from ruining iteration
+                # if child removed itself from .children list, the above
+                # iteration would abort prematurely
+                grandchildren = list(child.children)
                 queue.append((child, grandchildren))
 
 
