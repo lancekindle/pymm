@@ -116,6 +116,7 @@ class ConversionHandler:
                     self.last_decode.append(factory_class)
                 # if convert fxn returns no decoded child, drop from hierarchy
                 if child is not None:
+                    grandchildren = list(grandchildren)
                     queue.append((child, grandchildren))
         if is_encoding:
             self.convert_notify(elem, 'post_encode')
