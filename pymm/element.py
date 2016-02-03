@@ -680,5 +680,10 @@ class NodeNote(RichContent):
 
 
 class NodeDetails(RichContent):
+    """Node-details is text attached to the node which can be revealed
+    by hovering the mouse over the node OR clicking on a small dropdown
+    arrow slightly beneath the node. Details should be used like a
+    small, short note or tip for the node.
+    """
     attrib = {'TYPE': 'DETAILS'}
     identifier = {r'TYPE': r'DETAILS'}
