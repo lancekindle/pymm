@@ -14,7 +14,7 @@ classifiers = [
     'Topic :: Text Processing :: Markup :: XML'  # interpret xml-based mindmaps
 ]
 descr = (
-    'python module to read / write Mind Map (.mm) files built with',
+    'python module to read / write Mindmap (.mm) files built with',
     'Freemind and Freeplane',
 )
 long_descr = """\
