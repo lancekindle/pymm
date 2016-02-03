@@ -61,7 +61,6 @@ def get_all_pymm_element_classes(*namespaces):
     return list(elements)
 
 
-
 class TestElementRegistry(unittest.TestCase):
     """Element registry keeps track of all element classes defined
     within the pymm module.
@@ -584,6 +583,86 @@ class TestFileLocked(MindmapSetup):
         self.assertFalse(pymm.file_locked(self.filename))
         mm = pymm.Mindmap(self.filename, 'w')
         self.assertFalse(pymm.file_locked(self.filename))
+
+
+class TestConversionProcess(MindmapSetup):
+    """test that the conversion process does not skip elements if an
+    element removes itself during the conversion process
+    """
+
+    def test_pre_encode_removal(self):
+        """create an element that removes itself from the hierarchy
+        before encoding. Verify that multiple of these elements in
+        a row are removed. This indicates no skipping of elemets.
+        """
+        class Fake(pymm.element.BaseElement):
+            @pymm.encode.pre_encode
+            def remove_self(self, parent):
+                parent.children.remove(self)
+
+        with pymm.Mindmap(self.filename, 'w') as mm:
+            mm.root.children = [Fake() for i in range(11)]
+            self.assertTrue(mm.root.children)
+        self.assertFalse(mm.root.children)
+        # verify written file is affected
+        with pymm.Mindmap(self.filename, 'r') as mm:
+            self.assertFalse(mm.root.children)
+
+    def test_post_encode_removal(self):
+        """create an element that removes itself from hierarchy
+        after encoding. Verify that multiple of thes elements in a row
+        are removed which indicates no skipping of elements
+        """
+        class Fake(pymm.element.BaseElement):
+            @pymm.encode.post_encode
+            def remove_self(self, parent):
+                parent.children.remove(self)
+
+        with pymm.Mindmap(self.filename, 'w') as mm:
+            mm.root.children = [Fake() for i in range(11)]
+            self.assertTrue(mm.root.children)
+        self.assertFalse(mm.root.children)
+        ch = pymm.factory.ConversionHandler()
+        factory = ch.find_encode_factory(Fake())
+        # verify written file is NOT affected
+        with pymm.Mindmap(self.filename) as mm:
+            self.assertTrue(mm.root.children)
+            for child in mm.root.children:
+                self.assertTrue(isinstance(child, Fake))
+
+    def test_post_decode_removal(self):
+        """test that elements remove themselves from hierarchy after
+        decoding. Verify that before self-removing-element is created,
+        mindmap looks normal. After self-removing-element is created,
+        mindmap should have removed children
+        """
+        self.test_post_encode_removal()
+        with pymm.Mindmap(self.filename) as mm:
+            self.assertTrue(mm.root.children)
+
+        class Fake(pymm.element.BaseElement):
+            @pymm.decode.post_decode
+            def remove_self(self, parent):
+                parent.children.remove(self)
+
+        with pymm.Mindmap(self.filename) as mm:
+            self.assertFalse(mm.root.children)
+
+    def tearDown(self):
+        """create a new class that inherits from BaseElement so that
+        previous "bad" elements created do not interfere with other
+        tests (all elements created are stored in an internal
+        registry. Newer elements are used in place of old ones). So this
+        ensures that the newer used element does contain destructive
+        encoding / decoding behavior
+        """
+        class A(pymm.element.BaseElement):
+            """create a non-destructive element for pymm to prefer"""
+            pass
+        class B(pymm.Node):
+            """create a non-destructive Node for pymm to prefer"""
+            pass
+        super().tearDown()
 
 
 class TestTypeVariants(unittest.TestCase):
