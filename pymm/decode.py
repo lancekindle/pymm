@@ -10,8 +10,9 @@
 
 # decorated is the dictionary of functions decorated, and their
 # keyword-used in decorating them. For example, 'post_decode': fxn
-decorated = {}
+unclaimed = {}
+
 
 def post_decode(fxn):
-    decorated[fxn] = 'post_decode'
+    unclaimed[fxn] = 'post_decode'
     return fxn

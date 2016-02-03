@@ -71,8 +71,8 @@ class registry(type):
         called with the proper arguments during encode/decode.
         """
         ElementClass = super().__new__(cls, clsname, bases, attr_dict)
-        decorated = dict(decode.decorated)
-        decorated.update(encode.decorated)
+        decorated = dict(decode.unclaimed)
+        decorated.update(encode.unclaimed)
         for fxn_name, fxn in attr_dict.items():
             try:
                 hash(fxn)

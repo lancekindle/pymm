@@ -8,9 +8,9 @@
     of mindmaps
 """
 
-# decorated is the dictionary of functions decorated, and their
+# unclaimed is the dictionary of functions decorated, and their
 # keyword-used in decorating them. For example, 'post_encode': fxn
-decorated = {}
+unclaimed = {}
 
 
 def pre_encode(fxn):
@@ -19,7 +19,7 @@ def pre_encode(fxn):
     from the root to subchildren, in the order they appear in the tree
     in breadth-first search
     """
-    decorated[fxn] = 'pre_encode'
+    unclaimed[fxn] = 'pre_encode'
     return fxn
 
 
@@ -30,7 +30,7 @@ def post_encode(fxn):
     if some custom modification of a pymm element should be undone
     afterwards
     """
-    decorated[fxn] = 'post_encode'
+    unclaimed[fxn] = 'post_encode'
     return fxn
 
 
@@ -41,7 +41,7 @@ def get_children(fxn):
     removing children that you don't want to include in the exported
     file
     """
-    decorated[fxn] = 'encode_getchildren'
+    unclaimed[fxn] = 'encode_getchildren'
     return fxn
 
 def get_attrib(fxn):
@@ -51,6 +51,6 @@ def get_attrib(fxn):
     key,values. The attrib returned by this function will be used
     in exporting
     """
-    decorated[fxn] = 'encode_getattrib'
+    unclaimed[fxn] = 'encode_getattrib'
     return fxn
 
