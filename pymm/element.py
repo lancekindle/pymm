@@ -79,10 +79,21 @@ class registry(type):
             except TypeError:
                 continue
             if fxn in decorated:
-                event_name = decorated[fxn]
+                event_name = decorated.pop(fxn)
                 class_decorated = cls._decorated_fxns[ElementClass]
                 class_decorated[event_name] = fxn
         cls._elements.append(ElementClass)
+        #erase unclaimed @decode or @encode, but give error if some fxns
+        #went unclaimed
+        decode.unclaimed.clear()
+        encode.unclaimed.clear()
+        if decorated:
+            raise RuntimeError(
+                '@decode or @encode must be used to decorate a function ' +
+                'inside a new element class declaration. ' +
+                'The following were unclaimed by the last-created element: ' +
+                str(ElementClass) + '\n and functions: ' + str(decorated)
+            )
         return ElementClass 
 
 
