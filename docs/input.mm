@@ -1,7 +1,7 @@
 <map version="freeplane 1.3.0">
 <!--To view this file, download free mind mapping software Freeplane from http://freeplane.sourceforge.net -->
 <attribute_registry SHOW_ATTRIBUTES="selected"/>
-<node ID="ID_1723255651" CREATED="1283093380553" MODIFIED="1453697180839"><richcontent TYPE="NODE">
+<node ID="ID_1723255651" CREATED="1283093380553" MODIFIED="1454519561346"><richcontent TYPE="NODE">
 
 <html>
   <head>
@@ -102,6 +102,20 @@
 </html>
 </richcontent>
 <attribute NAME="blah" VALUE="2" OBJECT="org.freeplane.features.format.FormattedNumber|2"/>
+<richcontent TYPE="DETAILS">
+
+<html>
+  <head>
+    
+  </head>
+  <body>
+    <p style="margin-top: 0">
+      AND this is node-details
+    </p>
+  </body>
+</html>
+
+</richcontent>
 <node TEXT="Child Node 1" POSITION="right" ID="ID_1707799934" CREATED="1421458652275" MODIFIED="1454451386686"><richcontent TYPE="NOTE">
 
 <html>
