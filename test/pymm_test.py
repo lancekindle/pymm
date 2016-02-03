@@ -146,6 +146,39 @@ class TestFactoryRegistry(unittest.TestCase):
         factories = pymm.factory.registry.get_factories()
         self.assertTrue(pymm.factory.DefaultFactory == factories[0])
 
+    def test_inheritance(self):
+        """Verify factory inheritance mimics element inheritance:
+                     /= B <= BB
+                /= A <============== C
+        BaseElement <========== Base
+        """
+        A = pymm.element.AutomaticEdgeColor
+        class B(A):
+            pass
+        class BB(B):
+            pass
+        class Base(pymm.element.BaseElement):
+            pass
+        class C(A):
+            pass
+        ch = pymm.factory.ConversionHandler()
+        a = A()
+        b = B()
+        bb = BB()
+        base = Base()
+        c = C()
+        f_a = ch.find_encode_factory(a)
+        f_b = ch.find_encode_factory(b)
+        f_bb = ch.find_encode_factory(bb)
+        f_base = ch.find_encode_factory(base)
+        f_c = ch.find_encode_factory(c)
+        self.assertTrue(issubclass(f_b, f_a))
+        self.assertFalse(f_b == f_a)
+        self.assertTrue(issubclass(f_bb, f_b))
+        self.assertFalse(f_bb == f_b)
+        self.assertTrue(issubclass(f_c, f_a))
+        self.assertFalse(issubclass(f_c, f_b))
+
 
 class TestConversionHandler(unittest.TestCase):
     """ConversionHandler is responsible for non-recursively encoding or
@@ -155,7 +188,7 @@ class TestConversionHandler(unittest.TestCase):
 
     def setUp(self):
         self.ch = pymm.factory.ConversionHandler()
-        class FakeNode0x123(pymm.element.Node):
+        class FakeNode0x123(pymm.Node):
             pass
         self.fake_element = FakeNode0x123
 
