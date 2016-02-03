@@ -88,7 +88,8 @@ class decode:
 
     @classmethod
     def post_decode(cls, fxn):
-        return _decode.post_decode(fxn)
+        _decode.post_decode(fxn)
+        return fxn
 
 
 class encode:
@@ -106,22 +107,26 @@ class encode:
         if not isinstance(pymm_element, element.BaseElement):
             raise ValueError('encoding requires a pymm element')
         return factory.encode(pymm_element)
-    
+
     @classmethod
     def pre_encode(cls, fxn):
-        return _encode.pre_encode(fxn)
+        _encode.pre_encode(fxn)
+        return fxn
 
     @classmethod
     def post_encode(cls, fxn):
-        return _encode.post_encode(fxn)
+        _encode.post_encode(fxn)
+        return fxn
 
     @classmethod
     def get_attrib(cls, fxn):
-        return _encode.get_attrib(fxn)
+        _encode.get_attrib(fxn)
+        return fxn
 
     @classmethod
     def get_children(cls, fxn):
-        return _encode.get_children(fxn)
+        _encode.get_children(fxn)
+        return fxn
 
 
 class file_locked:
