@@ -19,7 +19,7 @@ try:
     from pymm.access import ChildSubset, SingleChild
 except ImportError:
     print('Error: I think you are editting file NOT from the test directory')
-    print('please cd to test/ and rerun tests.py')
+    print('please cd to test/ and rerun tests')
     raise
 
 # pylint: disable=R0904
@@ -103,6 +103,7 @@ class TestElementRegistry(unittest.TestCase):
         @pymm.encode.get_children
         def unclaimed_function():
             pass
+        unclaimed_function()  # run it for coverage
         with self.assertRaises(RuntimeError):
             class InnocentElement(pymm.element.BaseElement):
                 pass
@@ -426,9 +427,13 @@ class TestMutableClassVariables(unittest.TestCase):
             elem = elem_class()
 
             # check if vars have same memory address
-            for key in mutables:
-                if id(getattr(elem, key)) == id(getattr(elem_class, key)):
-                    self.fail(str(elem_class) + ' does not copy ' + key)
+            uses_same_memory_address = [
+                key for key in mutables if \
+                id(getattr(elem, key)) == id(getattr(elem_class, key))
+            ]
+            err_msg = str(elem_class) + ' does not copy mutable variables ' + \
+                      str(uses_same_memory_address)
+            self.assertFalse(uses_same_memory_address, err_msg)
 
     def test_specific_nonduplicates(self):
         """test that children, attrib, _display_attrib, and spec are
@@ -699,15 +704,13 @@ class TestTypeVariants(unittest.TestCase):
         """
         root = self.second_mind_map.root
         variants = self.variants.copy()
-        child = None
         for variant in variants:
-            for child in root.children:
-                if isinstance(child, variant):
-                    break
-            # we only reach `else` if no child matched the given variant
-            else:
-                self.fail('no child of type: ' + str(variant))
-            # remove child after it matches a variant
+            child_is_variant = [
+                child for child in root.children if isinstance(child, variant)
+            ]
+            err_msg = 'no child of type: ' + str(variant)
+            self.assertTrue(child_is_variant, err_msg)
+            child = child_is_variant[0]
             root.children.remove(child)
 
 
@@ -1093,10 +1096,7 @@ class TestBaseElement(unittest.TestCase):
         elem.attrib['string'] = 'good'
         elem.attrib['integer'] = 42
         elem.attrib['one_or_two'] = 1
-        try:
-            pymm.factory.sanity_check(elem)
-        except Warning:
-            self.fail('in-spec attributes raised warning')
+        pymm.factory.sanity_check(elem)
         elem.attrib['string'] = 5
         self.assertWarns(Warning, pymm.factory.sanity_check, elem)
 
