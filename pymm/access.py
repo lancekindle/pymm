@@ -76,7 +76,6 @@ class ChildSubsetSimplified:
 
         return getter, setter
 
-
     def append(self, element):
         self.parent.children.append(element)
 
@@ -111,7 +110,6 @@ class ChildSubsetSimplified:
                     break
             else:
                 yield elem
-
 
     def __setitem__(self, index, elem):
         """remove element(s), then re-appends after modification. Sloppy, but
@@ -158,9 +156,6 @@ class ChildSubset(ChildSubsetSimplified):
 
     def extend(self, elements):
         self.parent.children.extend(elements)
-
-    def __contains__(self, element):
-        return element in self[:]
 
     def __repr__(self):
         return str(self[:])
