@@ -90,6 +90,24 @@ class TestElementRegistry(unittest.TestCase):
         factories = pymm.element.registry.get_elements()
         self.assertTrue(pymm.element.BaseElement == factories[0])
 
+    def test_unclaimed_functions(self):
+        """when element.registry creates a new element, it correlates
+        all the currently @decode and @encode decorated functions
+        into a dictionary so that factory can easily create factories
+        that use @decode/@encode decorated functions. Decorated fxns
+        should always be created within the element's class
+        declaration. Therefore each time registry creates an element
+        class, it should auto-correlate every decorated function
+        currently unclaimed. If some functions are NOT found when creating
+        the element, then we throw a RuntimeError.
+        """
+        @pymm.encode.get_children
+        def unclaimed_function():
+            pass
+        with self.assertRaises(RuntimeError):
+            class InnocentElement(pymm.element.BaseElement):
+                pass
+
 
 class TestFactoryRegistry(unittest.TestCase):
     """Factory registry keeps track of all new factories created. Prior
