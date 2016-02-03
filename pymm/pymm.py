@@ -88,7 +88,7 @@ class decode:
 
     @classmethod
     def post_decode(cls, fxn):
-        _decode.post_decode(fxn)
+        return _decode.post_decode(fxn)
 
 
 class encode:
