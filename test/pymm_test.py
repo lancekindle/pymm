@@ -670,17 +670,25 @@ class TestConversionProcess(MindmapSetup):
         super().tearDown()
 
 
-class TestTypeVariants(unittest.TestCase):
-    """test typeVariant attribute of factory to load different objects
-    given the same tag. (special attrib values are given that
-    differentiate them)
+class TestElementVariants(unittest.TestCase):
+    """Elements are generally uniquely identified through their tag,
+    such as "node" or "edge". But some tags are used in conjunction
+    with attrib to specify the type of element. For example, the tag
+    'hook' is used for multiple elements, such as MapConfig, Equation,
+    EmbeddedImage, AutomaticeEdgeColor, and Hook. All of which use the
+    tag 'hook'. Therefore factories are also built to distinguish which
+    element to use based on attrib regex matching. This is built-in to
+    the "identifier" property. This tests that these elements are
+    correctly identified
     """
 
     def setUp(self):
-        # I removed richcontent variants because they do not work correctly
-        # when their html is not set. it causes ET to crash
-        self.variants = [mme.Hook,
-                         mme.EmbeddedImage, mme.MapConfig, mme.Equation,
+        """create variant children. Must be in order from least
+        specific to most specific. Hook must come before an element
+        that inherits from Hook, for example
+        """
+        self.variants = [mme.Hook, mme.RichContent, mme.NodeNote, mme.Equation,
+                         mme.EmbeddedImage, mme.MapConfig, mme.NodeDetails,
                          mme.AutomaticEdgeColor]
         self.mind_map = Mindmap()
         root = self.mind_map.root
