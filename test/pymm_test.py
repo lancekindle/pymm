@@ -447,18 +447,6 @@ class TestMutableClassVariables(unittest.TestCase):
         self.test_unique_mutable_vars(filt)
 
 
-class TestIfRichContentFixedYet(unittest.TestCase):
-    """ for now I expect this to fail. idk what to do about it """
-
-    @unittest.expectedFailure
-    def test_convert_and_write(self):
-        """Test that a RichContent object will convert and write"""
-        rich_content = mme.RichContent()
-        mind_map = pymm.Mindmap()
-        mind_map.nodes[0].children.append(rich_content)
-        pymm.write('richcontent_test.mm', mind_map)
-
-
 class MindmapSetup(unittest.TestCase):
     """provide setUp and tearDown functions for testing Mindmap.
     Also provide shared variables for easier debugging
