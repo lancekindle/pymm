@@ -690,8 +690,8 @@ class TestElementVariants(unittest.TestCase):
         os.remove(self.filename)
 
     def test_for_variants(self):
-        """Check that the root contains at least one child for each
-        variant element type
+        """Check that the root contains one child for each variant
+        element type
         """
         root = self.second_mind_map.root
         variants = self.variants.copy()
@@ -703,6 +703,7 @@ class TestElementVariants(unittest.TestCase):
             self.assertTrue(child_is_variant, err_msg)
             child = child_is_variant[0]
             root.children.remove(child)
+        self.assertFalse(root.children) # verify no more children
 
 
 class TestReadWriteExample(unittest.TestCase):
