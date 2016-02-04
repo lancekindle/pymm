@@ -199,17 +199,12 @@ class TestConversionHandler(unittest.TestCase):
         """test that AFTER a ConversionHandler instance is made,
         a new pymm element will still be matched to a factory
         (specifically DefaultFactory) when encoding.
-        Verify that during decoding, new pymm element will be matched
-        to factory for inherited class.
         """
         fake = self.fake_element()
         self.assertTrue(
             self.ch.find_encode_factory(fake) == pymm.factory.DefaultFactory
         )
         factory = self.ch.find_decode_factory(fake)
-        self.assertTrue(isinstance(fake, factory.decoding_element))
-        node_factory = self.ch.find_decode_factory(pymm.Node())
-        self.assertTrue(factory == node_factory)
 
     def test_convert_keyword(self):
         """test that any convert keyword not "encode" or "decode" raises
