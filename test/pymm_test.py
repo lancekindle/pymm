@@ -573,6 +573,32 @@ class TestFileLocked(MindmapSetup):
         self.assertFalse(pymm.file_locked(self.filename))
 
 
+class TestConversionDecoration(unittest.TestCase):
+    """test that certain features of @decode/@encode functions work
+    as expected
+    """
+
+    def test_super(self):
+        """verify that super() within a decorated function works:
+        calling parent function of element, NOT of factory
+        """
+        attr = 'x01234'
+        value = 'asdf'
+        self.assertFalse(hasattr(pymm.element.Node, attr))
+        class Fake(pymm.element.Node):
+            @pymm.decode.post_decode
+            def call_super(self, parent):
+                super().tostring()  # just call any function on parent element
+                setattr(pymm.element.Node, attr, value)
+        self.assertFalse(hasattr(pymm.element.Node, attr))
+        mm = pymm.Mindmap()
+        self.assertTrue(getattr(pymm.element.Node, attr) == value)
+        # cleanup
+        delattr(pymm.element.Node, attr)
+        self.assertFalse(hasattr(pymm.element.Node, attr))
+        class FakeOverride(pymm.element.Node):
+            pass
+
 class TestConversionProcess(MindmapSetup):
     """test that the conversion process does not skip elements if an
     element removes itself during the conversion process
