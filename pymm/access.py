@@ -31,8 +31,8 @@ class ChildSubsetSimplified:
         self.ATTRIB_REGEX = identifier.get('attrib_regex', {})
         self.parent = elementInstance
 
-    @classmethod
-    def _verify_arguments(cls, identifier):
+    @staticmethod
+    def _verify_arguments(identifier):
         """verify that identifier dict keys contain valid (and only
         valid) entries, and that values are strings for regex searching
         """
@@ -147,7 +147,7 @@ class ChildSubset(ChildSubsetSimplified):
     :param descriptor: the list of specific descriptor of elements to group and
         provide access to.
     '''
-    
+
     def pop(self, index=-1):
         """ Remove and return element in children list """
         elem = self[index]
@@ -171,8 +171,8 @@ class SingleChild:
     example in Node.cloud.
     """
 
-    @classmethod
-    def setup(cls, **regexes):
+    @staticmethod
+    def setup(**regexes):
         if not regexes:
             raise ValueError('expected either tag_regex or attrib_regex')
 
@@ -231,14 +231,14 @@ class Link:
     If user links a node, set attrib['LINK'] = node.attrib['ID']
     """
 
-    @classmethod
-    def setup(cls, BaseElement):
+    @staticmethod
+    def setup(ElementClass):
 
         def getter(parent):
             return parent.attrib.get('LINK')
 
         def setter(parent, url):
-            if isinstance(url, BaseElement):
+            if isinstance(url, ElementClass):
                 url = url.attrib.get('ID')
             parent.attrib['LINK'] = url
 
