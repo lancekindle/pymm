@@ -1,5 +1,3 @@
-import warnings
-import copy
 import re
 
 class ChildSubsetSimplified:

@@ -147,7 +147,7 @@ class ConversionHandler:
                 # copy prevents .children manipulation from ruining iteration
                 # if child removed itself from .children list, the above
                 # iteration would abort prematurely
-                grandchildren = list(child.children)
+                grandchildren = child.children.copy()
                 queue.append((child, grandchildren))
 
 
@@ -204,7 +204,7 @@ class registry(type):
             else:
                 factory = cls.create_factory(elem, closest_match, convert_fxns)
                 generated.append(factory)
-                # allow generated factories to inherit from generated
+                # allow generated factories to inherit from prior generated
                 factories.append(factory)
         cls.verbose = False
         return generated

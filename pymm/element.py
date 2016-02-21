@@ -374,7 +374,7 @@ class Node(ImplicitNodeAttributes, BaseElement):
     attrib = {'ID': 'random#', 'TEXT': ''}
     # _attribute is node-specific, excel-like tables underneath a node that
     # have key/value pairs
-    _attribute = {}
+    _attribute = collections.OrderedDict()
     # cloud automatically gets/sets a cloud within children
     cloud = property(*access.SingleChild.setup(tag_regex=r'cloud'))
     # note automaticaly gets/sets a note within children
@@ -425,7 +425,7 @@ class Node(ImplicitNodeAttributes, BaseElement):
         """Node has an Attribute dictionary that represents Attribute
         children. So here we add those missing Attribute children
         """
-        children = list(self.children)  # copy so self.children is unmodified
+        children = self.children.copy()  # copy so self.children is unmodified
         for name, value in self.items():
             child = Attribute(NAME=name, VALUE=value)
             children.append(child)
@@ -515,7 +515,7 @@ class AutomaticEdgeColor(Hook):
     attrib = {'NAME': 'AutomaticEdgeColor', 'COUNTER': 0}
     identifier = {r'NAME': r'AutomaticEdgeColor'}
     spec = {'NAME': [str], 'COUNTER': [int]}
-    color_rotation = [
+    colors = [
         "#ff0000", "#0000ff", "#00ff00", "#ff00ff", "#00ffff", "#ffff00"
         "#7c0000", "#00007c", "#007c00", "#7c007c", "#007c7c", "#7c7c00"
     ]
@@ -534,16 +534,15 @@ class AutomaticEdgeColor(Hook):
             return
         if parent.find(tag='edge'):
             return  # a root node does not have an edge child
-        colors = self.color_rotation
         siblings = parent.nodes[:]
         for node in siblings:
             # only create an edge if node does not have one already
             if node.find(tag='edge') is None:
-                color = colors[self.count]
+                color = self.colors[self.count]
                 edge = Edge(COLOR=color)
                 node.children.append(edge)
                 self.count += 1
-                self.count %= len(colors)
+                self.count %= len(self.colors)
 
 
 

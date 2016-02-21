@@ -398,7 +398,7 @@ class TestMutableClassVariables(unittest.TestCase):
     def test_unique_mutable_vars(
             self, filt=None,
             filter_out=[
-                'spec', '_display_attrib', 'identifier', 'color_rotation'
+                'spec', '_display_attrib', 'identifier', 'colors',
             ]):
         """Test each element's mutable variable and confirm it does not
         share the same memory address as the element's Class
