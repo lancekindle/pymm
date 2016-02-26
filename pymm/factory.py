@@ -452,20 +452,23 @@ class DefaultFactory(
 
     @classmethod
     def can_decode(cls, elem):
-        """return False is element.tag does not equal decoding
-        element's tag.
-        If decoding_element has identifier, only
-        return True if all key/value pairs of identifier regex match
-        attrib key/value pair
+        """Return whether factory can decode given element. To verify,
+        compare .tag and .attrib of the element to .tag and .identifier
+        from this factory's decoding_element.
+        Return False immediately if element.tag does not equal decoding
+        element's tag. Otherwise, only return True if each key/value
+        pair in decoding_element.identifier can regex-match at least
+        one key/value pair from element.attrib
         """
-        if elem.tag != cls.decoding_element.tag:
+        decodee = cls.decoding_element
+        if elem.tag != decodee.tag:
             return False
-        for key_id, val_id in cls.decoding_element.identifier.items():
-            # return False if identifying key/val is not found in attrib
-            for key, val in elem.attrib.items():
-                if re.fullmatch(key_id, key) and re.fullmatch(val_id, val):
-                    break
-            else:
+        for key_regex, val_regex in decodee.identifier.items():
+            matching_attrib = (
+                re.fullmatch(key_regex, key) and re.fullmatch(val_regex, val) \
+                for key, val in elem.attrib.items()
+            )
+            if not any(matching_attrib):
                 return False
         return True
 
