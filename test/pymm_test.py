@@ -18,47 +18,10 @@ try:
     from pymm import Mindmap
     from pymm.access import ChildSubset, SingleChild
 except ImportError:
-    print('Error: I think you are editting file NOT from the test directory')
-    print('please cd to test/ and rerun tests')
-    raise
+    raise ImportError('you must run pymm_test from test directory')
 
 # pylint: disable=R0904
 # pylint: disable=no-self-use
-
-
-# FAILING: richcontent does not handle itself correctly if html is not set
-# (usually if somebody just inits a richcontent node)
-# AKA: I have no idea if type variants are used at all in any mindmap
-
-
-def append_elements_to_list(children_list, *children):
-    """given a children list and 1+ children, append children in the order
-    given to the children list. Note children_list is not an element. It is the
-    element's .children or .nodes, etc attribute
-    """
-    for child in children:
-        children_list.append(child)
-
-
-def is_pymm_element_class(cls):
-    """Checks that cls is an object representing a class which inherits
-    from BaseElement
-    """
-    return inspect.isclass(cls) and issubclass(cls, pymm.element.BaseElement)
-
-
-def get_all_pymm_element_classes(*namespaces):
-    """Return list of pymm elements. Search pymm and pymm.Elements namespaces
-    for any elements inheriting from BaseElement, including BaseElement. Any
-    namespaces/modules passed as an argument to this function will also be
-    searched, and any elements found will be including in returned list.
-    """
-    modules = [pymm, pymm.element] + list(namespaces)
-    elements = set()
-    for module in modules:
-        for _, cls in inspect.getmembers(module, is_pymm_element_class):
-            elements.add(cls)
-    return list(elements)
 
 
 class TestElementRegistry(unittest.TestCase):
@@ -235,7 +198,7 @@ class TestAttribSpec(unittest.TestCase):
     """
 
     def setUp(self):
-        self.elements = get_all_pymm_element_classes(pymm)
+        self.elements = pymm.element.registry.get_elements()
 
     def test_spec_values_are_lists(self):
         """Each element has a spec dictionary. For each key/value pair,
@@ -393,7 +356,7 @@ class TestMutableClassVariables(unittest.TestCase):
     def setUp(self):
         """Gather all the `element` classes into `self.elements`"""
         self.base = pymm.element.BaseElement
-        self.elements = get_all_pymm_element_classes()
+        self.elements = pymm.element.registry.get_elements()
 
     def test_unique_mutable_vars(
             self, filt=None,
@@ -787,17 +750,20 @@ class TestReadWriteExample(unittest.TestCase):
         pymm.write(self.filename, mind_map)
 
 
-class TestNativeChildIndexing(unittest.TestCase):
-    """Native child indexing iterates over all children
-    using native indexing style [0], or [1:4], etc.
-    """
+class ChildrenSetup(unittest.TestCase):
 
     def setUp(self):
-        """Create generic objects for use in tests"""
+        """create two nodes and add to self.element.children"""
         self.element = mme.BaseElement()
         self.node = mme.Node()
         self.node2 = mme.Node()
-        append_elements_to_list(self.element.children, self.node, self.node2)
+        self.element.children.extend((self.node, self.node2,))
+
+
+class TestNativeChildIndexing(ChildrenSetup):
+    """Native child indexing iterates over all children
+    using native indexing style [0], or [1:4], etc.
+    """
 
     def test_append_and_index(self):
         """Test successful appending of node to element"""
@@ -836,19 +802,15 @@ class TestNativeChildIndexing(unittest.TestCase):
         self.assertRaises(ValueError, self.element.children.remove, self.node2)
 
 
-class TestChildSubset(unittest.TestCase):
+class TestChildSubset(ChildrenSetup):
 
     def setUp(self):
         """self.element will have childsubsets nodes, clouds."""
-        self.element = mme.BaseElement()
-        self.node = mme.Node()
-        self.node2 = mme.Node()
+        super().setUp()
         self.cloud = mme.Cloud()
+        self.element.children.append(self.cloud)
         self.element.nodes = ChildSubset(self.element, tag=r'node')
         self.element.clouds = ChildSubset(self.element, tag_regex=r'cloud')
-        append_elements_to_list(
-            self.element.children, self.node, self.node2, self.cloud
-        )
 
     def test_specificity(self):
         """test that ChildSubset only returns matching children"""
@@ -966,7 +928,7 @@ class TestChildSubset(unittest.TestCase):
         self.assertTrue(self.cloud not in self.element.nodes)
 
 
-class TestSingleChild(unittest.TestCase):
+class TestSingleChild(ChildrenSetup):
     """Test Element Accessor"""
 
     def setUp(self):
@@ -976,13 +938,9 @@ class TestSingleChild(unittest.TestCase):
         mme.BaseElement.firstchild = property(
             *SingleChild.setup(tag_regex=r'node')
         )
-        self.element = mme.BaseElement()
-        self.node = mme.Node()
-        self.node2 = mme.Node()
+        super().setUp()
         self.cloud = mme.Cloud()
-        append_elements_to_list(
-            self.element.children, self.node, self.node2, self.cloud
-        )
+        self.element.children.append(self.cloud)
 
     def tearDown(self):
         del mme.BaseElement.firstchild
