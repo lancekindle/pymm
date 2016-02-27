@@ -65,8 +65,8 @@ class ChildSubsetSimplified(ChildSetupVerify):
         self.parent = elementInstance
 
     @classmethod
-    def setup(cls, **regexes):
-        self = cls(None, **regexes)
+    def setup(cls, **identifier):
+        self = cls(None, **identifier)
 
         def getter(parent):
             self.parent = parent
@@ -105,9 +105,13 @@ class ChildSubsetSimplified(ChildSetupVerify):
             if self.TAG:
                 if self.TAG != elem.tag:
                     continue
-            matches = lambda x, y, rx, ry: re.fullmatch(rx, x) and re.fullmatch(ry, y)
+            matches = lambda x, y, rx, ry: \
+                      re.fullmatch(rx, x) and re.fullmatch(ry, y)
             for regK, regV in self.ATTRIB_REGEX.items():
-                match = [k for k, v in elem.attrib.items() if matches(k, v, regK, regV)]
+                match = [
+                    k for k, v in elem.attrib.items() \
+                    if matches(k, v, regK, regV)
+                ]
                 if not match:
                     break
             else:
