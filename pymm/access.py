@@ -1,7 +1,7 @@
 import re
 
 class ChildSubsetSimplified:
-    ''' Provide simplified access to specific child elements through regex
+    """Provide simplified access to specific child elements through regex
     matching of descriptors such as tag, attributes, or a combination thereof.
     For example, if you want to simply match a tag (or tags), pass in a regular
     expression string that will fully match the desired tag(s).
@@ -21,7 +21,7 @@ class ChildSubsetSimplified:
         ElementAccessor
     :param descriptor: the list of specific descriptor of elements to group and
         provide access to.
-    '''
+    """
     def __init__(self, elementInstance, **identifier):
         self._verify_arguments(identifier)
         self.TAG = identifier.get('tag', None)
@@ -110,11 +110,11 @@ class ChildSubsetSimplified:
                 yield elem
 
     def __setitem__(self, index, elem):
-        """remove element(s), then re-appends after modification. Sloppy, but
-        it works, and elements are reordered later anyways.
-        what really matters is that the order of elements of the same tag are
-        not altered. Note that this is very inefficient because the list is
-        reconstructed each time a set-operation is applied
+        """remove element(s), then re-appends after modification.
+        Sloppy, but it works, and elements are reordered later anyways.
+        What really matters is that the order of elements of the same
+        tag are not altered. Note that this is very inefficient because
+        the list is reconstructed each time a set-operation is applied
         """
         # check for index == 0, can use shortcut in that case
         if index == 0:
@@ -136,18 +136,20 @@ class ChildSubsetSimplified:
 
 
 class ChildSubset(ChildSubsetSimplified):
-    ''' Provide access to specific elements within an element through matching
-    of descriptor. Most useful for allowing access to child nodes. Provide
-    access with indexing, slicing, removal, appending, etc.
 
-    :param element: the linked element whose children will be available through
-        ElementAccessor
-    :param descriptor: the list of specific descriptor of elements to group and
-        provide access to.
-    '''
+    """Provide access to specific elements within an element through
+    matching of descriptor. Most useful for allowing access to child
+    nodes. Provide access with indexing, slicing, removal, appending,
+    etc.
+
+    :param element: the linked element whose children will be available
+        through ElementAccessor
+    :param descriptor: the list of specific descriptor of elements to
+        group and provide access to.
+    """
 
     def pop(self, index=-1):
-        """ Remove and return element in children list """
+        """Remove and return element in children list"""
         elem = self[index]
         self.parent.children.remove(elem)
         return elem
@@ -160,13 +162,14 @@ class ChildSubset(ChildSubsetSimplified):
 
 
 class SingleChild:
-    """Provide access to a single child within an element's children. It does
-    not directly store the child, but rather provides functions for getting,
-    setting, and deleting the specified child from a parent element's children
-    attribute. This is meant to be instantiated as a class property. Pass the
-    setup fxn a tag_regex or attrib_regex in the same fashion as specifying a
-    ChildSubset, and pass the returned values to property(). You can look at an
-    example in Node.cloud.
+    """Provide access to a single child within an element's children.
+    It does not directly store the child, but rather provides functions
+    for getting, setting, and deleting the specified child from a
+    parent element's children attribute. This is meant to be
+    instantiated as a class property. Pass the setup fxn a tag_regex or
+    attrib_regex in the same fashion as specifying a ChildSubset, and
+    pass the returned values to property(). You can look at an example
+    in Node.cloud.
     """
 
     @staticmethod
@@ -183,9 +186,10 @@ class SingleChild:
                 parent.children.remove(deleteable)
 
         def setter(parent, child):
-            """replace or remove child. If child passed is None, will delete
-            first matching child. Otherwise will replace existing child with
-            passed child or append to end of children
+            """replace or remove child. If child passed is None, will
+            delete first matching child. Otherwise will replace
+            existing child with passed child or append to end of
+            children
             """
             if child is None:
                 deleter(parent)
