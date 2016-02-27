@@ -1,6 +1,41 @@
 import re
 
-class ChildSubsetSimplified:
+
+class ChildSetupVerify:
+    """hold onto method to verify ChildSubset or SingleChild setup
+    arguments
+    """
+
+    @staticmethod
+    def _verify_identifier_args(identifier):
+        """verify that identifier dict keys contain valid (and only
+        valid) identifiers. tag and tag_regex must contain string
+        identifiers, while attrib_regex must be a dict with string
+        identifiers. In the case of tag_regex and attrib_regex, the
+        strings will be used for regex matching
+        """
+        expected = {'tag': str, 'tag_regex': str, 'attrib_regex': dict}
+        keys_expected = set(expected.keys())
+        keys_got = set(identifier.keys())
+        unexpected_keys = keys_got.difference(keys_expected)
+        if not keys_got:
+            raise KeyError('Expected either tag/tag_regex and/or attrib_regex')
+        if unexpected_keys:
+            raise KeyError('Unexpected keys found:' + str(unexpected_keys))
+        incompatible = set(('tag', 'tag_regex',))
+        if incompatible.issubset(keys_got):
+            raise KeyError('Cannot specify both tag and tag_regex matching')
+        for key in keys_got:
+            val_type = expected[key]
+            value = identifier[key]
+            if not value or not isinstance(value, val_type):
+                raise ValueError(
+                    str(key) + ' should be non-empty and have value of type ' +
+                    str(val_type)
+                )
+
+
+class ChildSubsetSimplified(ChildSetupVerify):
     """Provide simplified access to specific child elements through regex
     matching of descriptors such as tag, attributes, or a combination thereof.
     For example, if you want to simply match a tag (or tags), pass in a regular
@@ -23,42 +58,11 @@ class ChildSubsetSimplified:
         provide access to.
     """
     def __init__(self, elementInstance, **identifier):
-        self._verify_arguments(identifier)
+        self._verify_identifier_args(identifier)
         self.TAG = identifier.get('tag', None)
         self.TAG_REGEX = identifier.get('tag_regex', None)
         self.ATTRIB_REGEX = identifier.get('attrib_regex', {})
         self.parent = elementInstance
-
-    @staticmethod
-    def _verify_arguments(identifier):
-        """verify that identifier dict keys contain valid (and only
-        valid) entries, and that values are strings for regex searching
-        """
-        keys_expected = set(('tag', 'tag_regex', 'attrib_regex'))
-        keys_got = set(identifier.keys())
-        unexpected = keys_got.difference(keys_expected)
-        if not keys_got:
-            raise ValueError('Must pass in either/both tag_regex and ' +
-                             'attrib_regex')
-        if unexpected:
-            raise KeyError('Unexpected keys found in subset init: ' +
-                           str(unexpected))
-        tagr = identifier.get('tag_regex', None)
-        if not tagr:
-            tagr = None
-        attribr = identifier.get('attrib_regex', {})
-        tag = identifier.get('tag', None)
-        if tagr and not isinstance(tagr, str):
-            raise ValueError('tag_regex should be string. Got ' + str(tag))
-        if attribr and not isinstance(attribr, dict):
-            raise ValueError('attrib_regex should be dict.Got ' + str(attribr))
-        if not tagr and not attribr and not tag:
-            raise ValueError(
-                'Must define either tag, tag_regex or attribregex. Got ' +
-                str(tagr) + str(attribr)
-            )
-        if tag and tagr:
-            raise ValueError('cannot specify both tag and tag_regex matching')
 
     @classmethod
     def setup(cls, **regexes):
@@ -161,7 +165,7 @@ class ChildSubset(ChildSubsetSimplified):
         return str(self[:])
 
 
-class SingleChild:
+class SingleChild(ChildSetupVerify):
     """Provide access to a single child within an element's children.
     It does not directly store the child, but rather provides functions
     for getting, setting, and deleting the specified child from a
@@ -172,16 +176,15 @@ class SingleChild:
     in Node.cloud.
     """
 
-    @staticmethod
-    def setup(**regexes):
-        if not regexes:
-            raise ValueError('expected either tag_regex or attrib_regex')
+    @classmethod
+    def setup(cls, **identifier):
+        cls._verify_identifier_args(identifier)
 
         def getter(parent):
-            return parent.find(**regexes)
+            return parent.find(**identifier)
 
         def deleter(parent):
-            deleteable = parent.find(**regexes)
+            deleteable = parent.find(**identifier)
             if deleteable is not None:
                 parent.children.remove(deleteable)
 
@@ -194,7 +197,7 @@ class SingleChild:
             if child is None:
                 deleter(parent)
                 return
-            replaceable = parent.find(**regexes)
+            replaceable = parent.find(**identifier)
             if replaceable is None:
                 parent.children.append(child)
                 return
