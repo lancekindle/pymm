@@ -154,8 +154,42 @@ class ChildSubsetSimplified(ChildSetupVerify):
                 del self.parent.children[i]
 
 
-class ChildSubset(ChildSubsetSimplified):
+class ChildSubsetCompare:
+    """implement methods for comparing lists"""
 
+    def _verify_other_is_comparable(self, other):
+        if isinstance(other, ChildSubsetSimplified) or isinstance(other, list):
+            return
+        raise TypeError(
+            'cannot compare: ' + str(type(self)) + str(type(other))
+        )
+
+    def __lt__(self, other):
+        self._verify_other_is_comparable(other)
+        return list(self) < list(other)
+
+    def __gt__(self, other):
+        self._verify_other_is_comparable(other)
+        return list(self) > list(other)
+
+    def __le__(self, other):
+        self._verify_other_is_comparable(other)
+        return list(self) <= list(other)
+
+    def __ge__(self, other):
+        self._verify_other_is_comparable(other)
+        return list(self) >= list(other)
+
+    def __eq__(self, other):
+        self._verify_other_is_comparable(other)
+        return list(self) == list(other)
+
+    def __ne__(self, other):
+        self._verify_other_is_comparable(other)
+        return list(self) != list(other)
+
+
+class ChildSubset(ChildSubsetSimplified, ChildSubsetCompare):
     """Provide access to specific elements within an element through
     matching of descriptor. Most useful for allowing access to child
     nodes. Provide access with indexing, slicing, removal, appending,
