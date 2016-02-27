@@ -82,15 +82,17 @@ class ChildSubsetSimplified(ChildSetupVerify):
         self.parent.children.append(element)
 
     def remove(self, element):
-        self.parent.chilren.remove(element)
+        self.parent.children.remove(element)
 
     def __len__(self):
         return len(self[:])
 
     def __getitem__(self, index):
-        if index == 0:  # speed shortcut
-            for elem in self:
-                return elem
+        if isinstance(index, int):  # speed shortcut
+            for i, elem in enumerate(self):
+                if i == index:
+                    return elem
+            raise IndexError('list index out of range')
         elements = [e for e in self]
         return elements[index]
 
@@ -124,13 +126,12 @@ class ChildSubsetSimplified(ChildSetupVerify):
         tag are not altered. Note that this is very inefficient because
         the list is reconstructed each time a set-operation is applied
         """
-        # check for index == 0, can use shortcut in that case
-        if index == 0:
+        if isinstance(index, int):
             e = self[index]
             i = self.parent.children.index(e)
             self.parent.children[i] = elem
             return
-        subchildren = self[:]
+        subchildren = list(self)
         for element in subchildren:
             self.parent.children.remove(element)
         subchildren[index] = elem
@@ -138,9 +139,19 @@ class ChildSubsetSimplified(ChildSetupVerify):
             self.parent.children.append(element)
 
     def __delitem__(self, index):
-        element = self[index]
-        i = self.parent.children.index(element)
-        del self.parent[i]
+        if isinstance(index, int):
+            element = self[index]
+            i = self.parent.children.index(element)
+            del self.parent.children[i]
+        elif isinstance(index, slice):
+            indices = []
+            for element in self[index]:
+                i = self.parent.children.index(element)
+                indices.append(i)
+            indices.sort()
+            # delete indices from largest index to smallest
+            for i in reversed(indices):
+                del self.parent.children[i]
 
 
 class ChildSubset(ChildSubsetSimplified):
@@ -158,7 +169,8 @@ class ChildSubset(ChildSubsetSimplified):
 
     def pop(self, index=-1):
         """Remove and return element in children list"""
-        elem = self[index]
+        children = list(self)
+        elem = children.pop(index)
         self.parent.children.remove(elem)
         return elem
 
