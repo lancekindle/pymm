@@ -211,9 +211,6 @@ class ChildSubset(ChildSubsetSimplified, ChildSubsetCompare):
     def extend(self, elements):
         self.parent.children.extend(elements)
 
-    def __repr__(self):
-        return str(self[:])
-
 
 class SingleChild(ChildSetupVerify):
     """Provide access to a single child within an element's children.
