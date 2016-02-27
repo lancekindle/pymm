@@ -803,21 +803,71 @@ class TestNativeChildIndexing(ChildrenSetup):
 
 
 class TestChildSubset(ChildrenSetup):
+    """ChildSubset identifies a subset of children on an element
+    based on one or more of their tag and/or attrib properties. In
+    order to be more flexible, tag_regex or attrib_regex can also
+    be used
+    """
 
     def setUp(self):
         """self.element will have childsubsets nodes, clouds."""
+        mme.BaseElement.nodes = property(*ChildSubset.setup(tag='node'))
+        mme.BaseElement.clouds = property(*ChildSubset.setup(tag='cloud'))
         super().setUp()
         self.cloud = mme.Cloud()
         self.element.children.append(self.cloud)
-        self.element.nodes = ChildSubset(self.element, tag=r'node')
-        self.element.clouds = ChildSubset(self.element, tag_regex=r'cloud')
+
+    def tearDown(self):
+        try:
+            del mme.BaseElement.nodes
+        except:
+            pass
+        try:
+            del mme.BaseElement.clouds
+        except:
+            pass
+
+    def test_setup_error(self):
+        """verify that no identifiers passed to setup raises error.
+        Verify that identifiers that do not include one of tag,
+        tag_regex, or attrib_regex will raise error. Verify that empty
+        identifier values will raise error. Verify that use of two
+        conflicting identifiers (tag and tag_regex) raises error
+        """
+        empty = [
+            {'tag': ''}, {'tag_regex': ''}, {'attrib_regex': {}}
+        ]
+        invalid = [
+            {'tagg': 't'}, {'3attrib_regex': {'k': 'v'}}, {'attrib': 'dfs'}
+        ]
+        incompatible = {'tag': 't', 'tag_regex': 'tr'}
+        self.assertRaises(KeyError, ChildSubset.setup, **{})
+        self.assertRaises(KeyError, ChildSubset.setup, **incompatible)
+        for identifier in empty:
+            self.assertRaises(ValueError, ChildSubset.setup, **identifier)
+        for identifier in invalid:
+            self.assertRaises(KeyError, ChildSubset.setup, **identifier)
+
+    def test_valid_setup(self):
+        """verify three arguments (tag, tag_regex, attrib_regex) are
+        accepted by setup. Also verify that all other combinations
+        aside from tag/tag_regex can be mixed,
+        """
+        valid = [
+            {'tag': 't'}, {'tag_regex': 'r'}, {'attrib_regex': {'k': 'v'}}
+        ]
+        for identifier in valid:
+            ChildSubset.setup(**identifier)
+        attrib_identifier = identifier
+        ChildSubset.setup(tag='n', **attrib_identifier)
+        ChildSubset.setup(tag_regex='n', **attrib_identifier)
 
     def test_specificity(self):
         """test that ChildSubset only returns matching children"""
         self.assertTrue(self.element.clouds[:] == [self.cloud])
         self.assertTrue(self.element.nodes[:] == [self.node, self.node2])
 
-    def test_setup(self):
+    def test_property_setup(self):
         """Test that ChildSubset.setup can be applied to existing
         element classes
         """
@@ -841,20 +891,8 @@ class TestChildSubset(ChildrenSetup):
         del node.attrib['COLOR']
         self.assertTrue(len(colored) == colored_count)
 
-    def test_constructor_empty_attrib(self):
-        """Test that a child subset cannot be created given an empty
-        regex
-        """
-        elem = self.element
-        empties = [[], (), {}, '']
-        for empty in empties:
-            self.assertRaises(ValueError, ChildSubset, elem, tag_regex=empty)
-            self.assertRaises(ValueError, ChildSubset, elem, attrib_regex=empty)
-        self.assertRaises(ValueError, ChildSubset,
-                          elem, tag_regex='', attrib_regex={})
-
     def test_constructor_bad_attrib(self):
-        """Test that child subset cannot be created with non-regex
+        """Test that child subset cannot be created with non-dictionary
         attribute
         """
         self.assertRaises(ValueError, ChildSubset, self.element,
@@ -863,16 +901,15 @@ class TestChildSubset(ChildrenSetup):
                           tag_regex=r'node', attrib_regex=('sf', 'as'))
 
     def test_constructor_bad_tag(self):
-        """Test that child subset cannot be created with non-regex tag
+        """Test that child subset cannot be created with non-string tag
         """
         self.assertRaises(ValueError, ChildSubset, self.element,
                           tag_regex=['node'])
         self.assertRaises(ValueError, ChildSubset, self.element, tag_regex=5,
                           attrib_regex={'TEXT': '.*'})
 
-    def test_node_added_element_nodes(self):
-        """Test that a node added to elem nodes is properly accessible
-        """
+    def test_append(self):
+        """Test node is properly added to element via append method"""
         elem = self.element
         node = self.node
         elem.nodes.append(node)
@@ -881,28 +918,109 @@ class TestChildSubset(ChildrenSetup):
         self.assertIn(node, elem.nodes[:])
         self.assertIn(node, elem.nodes)
 
-    def test_node_is_added_using_append(self):
-        """Test node is properly added to element via append method"""
+    def test_extend(self):
+        """test adding multiple nodes via extend works"""
         elem = self.element
         node = self.node
-        elem.children.append(node)
-        self.assertIn(node, elem.children)
-        self.assertIn(node, elem.children[:])
-        self.assertIn(node, elem.nodes[:])
+        elements = [node, node]
+        num = len(elem.nodes)
+        elem.nodes.extend(elements)
         self.assertIn(node, elem.nodes)
+        self.assertTrue(len(elem.nodes) == num + 2)
 
-    def test_node_added_to_element(self):
-        """Test node is added to element via appending to children"""
+    def test_remove(self):
+        """verify remove method on nodes"""
+        self.element.nodes.remove(self.node)
+        self.assertRaises(ValueError, self.element.nodes.remove, self.node)
+
+    def test_pop(self):
+        """verify pop method on nodes"""
+        node1 = self.element.nodes.pop()
+        node2 = self.element.nodes.pop()
+        self.assertRaises(IndexError, self.element.nodes.pop)
+
+    def test_get_set_index(self):
+        """verify can replace elements at specific index"""
+        nodes = self.element.nodes
+        node2 = nodes[1]
+        nodes[0] = node2
+        self.assertTrue(list(nodes) == [node2, node2])
+
+    def test_slicing(self):
+        """verify slicing correctly sets nodes"""
+        nodes = self.element.nodes
+        node0 = nodes[0]
+        node1 = nodes[1]
+        self.assertTrue(nodes[:] == [node0, node1])
+        self.assertTrue(nodes[:5] == [node0, node1])
+        # remove first node
+        nodes[:1] = []
+        self.assertTrue(nodes == [node1])
+        # remove all nodes
+        nodes.append(node0)
+        nodes[:] = []
+        self.assertTrue(nodes == [])
+        # add both nodes back
+        nodes[:] = [node0, node1]
+        self.assertTrue(nodes == [node0, node1])
+
+    def test_delete(self):
+        """verify deleting index or slice"""
+        nodes = self.element.nodes
+        self.assertTrue(len(nodes) == 2)
+        del nodes[1:2]
+        self.assertTrue(len(nodes) == 1)
+        del nodes[3:6]
+        self.assertTrue(len(nodes) == 1)
+        del nodes[0]
+        self.assertTrue(len(nodes) == 0)
+        nodes.append(self.node)
+        self.assertTrue(len(nodes) == 1)
+        del nodes[:]
+        self.assertTrue(len(nodes) == 0)
+
+    def test_comparisons(self):
+        """test <, >, >=, ==, != comparisons mimic list behavior.
+        Comparison only works if elements are in exact order, since
+        comparison of Elements is by identity (memory address) only.
+        So if the first two elements of children were anything other
+        than the first two children in .nodes, this would fail. (as it
+        would normally fail if comparing lists of elements)
+        """
+        nodes = self.element.nodes
+        children = self.element.children
+        self.assertTrue(nodes < children)
+        self.assertTrue(nodes <= children)
+        self.assertFalse(nodes > children)
+        self.assertFalse(nodes >= children)
+        self.assertFalse(nodes == children)
+        self.assertTrue(nodes == list(nodes))
+        self.assertTrue(nodes == nodes)
+        self.assertTrue(nodes != children)
+        self.assertFalse(nodes != list(nodes))
+
+    def test_comparisons_error(self):
+        """test <, >, >=, ==, != raise error if compared to dict"""
+        nodes = self.element.nodes
+        children = self.element.children
+        for operator in ['<', '<=', '>', '>=', '==', '!=']:
+            with self.assertRaises(TypeError):
+                eval('nodes ' + operator + ' {}')
+
+    def test_set_list(self):
+        """set nodes to an empty list, verify it correctly removes all
+        nodes
+        """
         elem = self.element
-        node = self.node
-        elem.children.append(node)
-        self.assertIn(node, elem.children)
-        self.assertIn(node, elem.children[:])
-        self.assertIn(node, elem.nodes[:])
-        self.assertIn(node, elem.nodes)
+        nodes = len(elem.nodes)
+        children = len(elem.children)
+        self.assertTrue(nodes > 0)
+        elem.nodes = []
+        self.assertTrue(len(elem.nodes) == 0)
+        self.assertTrue(len(elem.children) == children - nodes)
 
-    def test_element_not_in_nodes(self):
-        """Test that an element doesn't show up in a list of nodes"""
+    def test_nonmatching_element(self):
+        """Test that a non-node doesn't show up in a list of nodes"""
         elem = self.element
         node = self.node
         node.children.append(elem)
@@ -926,6 +1044,7 @@ class TestChildSubset(ChildrenSetup):
         """
         self.element.children.append(self.cloud)
         self.assertTrue(self.cloud not in self.element.nodes)
+        self.assertTrue(self.cloud in self.element.clouds)
 
 
 class TestSingleChild(ChildrenSetup):
@@ -936,7 +1055,7 @@ class TestSingleChild(ChildrenSetup):
         which will grab first node in children list
         """
         mme.BaseElement.firstchild = property(
-            *SingleChild.setup(tag_regex=r'node')
+            *SingleChild.setup(tag='node')
         )
         super().setUp()
         self.cloud = mme.Cloud()
@@ -946,10 +1065,10 @@ class TestSingleChild(ChildrenSetup):
         del mme.BaseElement.firstchild
 
     def test_setup_error(self):
-        """verify ValueError is raised if no regexes are passed into
+        """verify KeyError is raised if no regexes are passed into
         SingleChild.setup
         """
-        self.assertRaises(ValueError, SingleChild.setup)
+        self.assertRaises(KeyError, SingleChild.setup)
 
     def test_singlechild_when_empty(self):
         """test that None is returned when no matches are found.
