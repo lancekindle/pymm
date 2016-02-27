@@ -384,7 +384,7 @@ class Node(ImplicitNodeAttributes, BaseElement):
     #: contain formatted (e.g. bold) text or html/non-textual elements such as
     #: tables. But may be safely treated as a simple string. (any string method
     #: called on this will return a plaintext string
-    text = property(*access.SingleAttrib('TEXT', ''))
+    text = property(*access.SingleAttrib.setup('TEXT', ''))
     link = property(*access.Link.setup(BaseElement))
     spec = {
         'BACKGROUND_COLOR': [str], 'COLOR': [str], 'FOLDED': [bool],
@@ -519,7 +519,7 @@ class AutomaticEdgeColor(Hook):
         "#ff0000", "#0000ff", "#00ff00", "#ff00ff", "#00ffff", "#ffff00"
         "#7c0000", "#00007c", "#007c00", "#7c007c", "#007c7c", "#7c7c00"
     ]
-    count = property(*access.SingleAttrib('COUNTER', 0))
+    count = property(*access.SingleAttrib.setup('COUNTER', 0))
 
     @encode.pre_encode
     def colorize_sibling_nodes(self, parent):

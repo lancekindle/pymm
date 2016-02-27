@@ -267,7 +267,8 @@ class SingleAttrib:
     text = property(*SingleAttrib(attrib_name, default_value))
     """
 
-    def __new__(cls, attrib_name, default_value):
+    @staticmethod
+    def setup(attrib_name, default_value):
 
         def getter(element):
             return element.attrib.get(attrib_name, default_value)
