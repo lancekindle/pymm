@@ -254,7 +254,7 @@ class BaseElement(metaclass=registry):
         return list(subset)
 
     def find(self, **identifier):
-        """ search all children using keywords "tag", "tag_regex", and
+        """Search all children using keywords "tag", "tag_regex", and
         "attrib_regex". Like findall, but only returns first result
 
         :Return: first child found matching keyword criteria, else None
@@ -311,7 +311,7 @@ class BaseElement(metaclass=registry):
                 'prefers to use newer elements over older elements (by order',
                 'in which they were defined), a recently-defined Element',
                 'Class (this one) MAY have taken preference over the element',
-                'you wanted at this moment.', relevant_elements,
+                'you wanted at this moment, aka:', relevant_elements,
                 '\nSome examples of what you may do to rememdy this problem',
                 'are\n1) double-check your code for mistakes\n2) change the',
                 'order in which you define new element classes\n3) define a',
