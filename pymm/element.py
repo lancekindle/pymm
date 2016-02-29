@@ -255,22 +255,7 @@ class Node(ImplicitNodeAttributes, BaseElement):
     A Node contains an ID and text by default
     """
     tag = 'node'
-    nodes = property(*access.ChildSubset.setup(tag_regex=r'node'))
     attrib = {'ID': 'random#', 'TEXT': ''}
-    # _attribute is node-specific, excel-like tables underneath a node that
-    # have key/value pairs
-    _attribute = collections.OrderedDict()
-    # cloud automatically gets/sets a cloud within children
-    cloud = property(*access.SingleChild.setup(tag_regex=r'cloud'))
-    # note automaticaly gets/sets a note within children
-    note = property(*access.SingleChild.setup(tag_regex=r'hook',
-                    attrib_regex={r'STYLE': r'NOTE'}))
-    #: text can be used interchangeably with attrib['TEXT']. Node text may
-    #: contain formatted (e.g. bold) text or html/non-textual elements such as
-    #: tables. But may be safely treated as a simple string. (any string method
-    #: called on this will return a plaintext string
-    text = property(*access.SingleAttrib.setup('TEXT', ''))
-    link = property(*access.Link.setup(BaseElement))
     spec = {
         'BACKGROUND_COLOR': [str], 'COLOR': [str], 'FOLDED': [bool],
         'ID': [str], 'LINK': [str], 'POSITION': ['left', 'right'],
@@ -279,6 +264,21 @@ class Node(ImplicitNodeAttributes, BaseElement):
         'VSHIFT': [int], 'ENCRYPTED_CONTENT': [str], 'OBJECT': [str],
         'MIN_WIDTH': [int], 'MAX_WIDTH': [int],
     }
+    #: nodes allow quick access to all node children
+    nodes = property(*access.ChildSubset.setup(tag_regex=r'node'))
+    #: cloud automatically gets/sets a cloud within children
+    cloud = property(*access.SingleChild.setup(tag_regex=r'cloud'))
+    #: note automaticaly gets/sets a note within children
+    note = property(*access.SingleChild.setup(tag_regex=r'hook',
+                    attrib_regex={r'STYLE': r'NOTE'}))
+    #: text can be used interchangeably with attrib['TEXT']. Node text may
+    #: contain formatted (e.g. bold) text or html/non-textual elements such as
+    #: tables.
+    text = property(*access.SingleAttrib.setup('TEXT', ''))
+    link = property(*access.Link.setup(BaseElement))
+    #: _attribute is node-specific, excel-like tables underneath a node that
+    #: have key/value pairs
+    _attribute = collections.OrderedDict()
 
     def __new__(cls, *args, **attrib):
         self = super().__new__(cls, *args, **attrib)
