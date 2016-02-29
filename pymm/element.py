@@ -40,82 +40,8 @@ import collections
 from . import access
 from . import decode
 from . import encode
+from .registry import ElementRegistry as registry
 # http://freeplane.sourceforge.net/wiki/index.php/Current_Freeplane_File_Format
-
-
-class registry(type):
-    """Metaclass to hold all elements created. As each element class is
-    created, Registry adds it (The new element class) to its internal
-    registry, so long as an element inherits from BaseElement.
-    Factories will search through all registered elements and use the
-    newest matching element.
-    """
-    _elements = []
-    _decorated_fxns = collections.defaultdict(dict)
-
-    @classmethod
-    def get_elements(cls):
-        """Return list of all registered elements"""
-        return list(cls._elements)
-
-    @classmethod
-    def get_decorated_fxns(cls):
-        """Return dict of encode/decode-decorated fxns"""
-        return dict(cls._decorated_fxns)
-
-    class attribute_searched:
-        """class to use in keeping track of which attribute is being
-        looked up currently. Used to prevent recursive __getattr__
-        calls
-        """
-        _searched = collections.defaultdict(bool)
-        _name = None
-
-        def __init__(self, name):
-            self._name = name
-
-        def __bool__(self):
-            return self._searched[self._name]
-
-        def __enter__(self):
-            self._searched[self._name] = True
-            return self
-
-        def __exit__(self, *errors):
-            self._searched[self._name] = False
-
-    def __new__(cls, clsname, bases, attr_dict):
-        """Record unaltered class. In addition, identify encode/decode
-        decorated functions within the element and organize as
-        class: {fxn: 'event_name'}. The decorated function is kept here
-        and added to the Element's factory during creation. It is then
-        called with the proper arguments during encode/decode.
-        """
-        ElementClass = super().__new__(cls, clsname, bases, attr_dict)
-        decorated = dict(decode.unclaimed)
-        decorated.update(encode.unclaimed)
-        for fxn_name, fxn in attr_dict.items():
-            try:
-                hash(fxn)
-            except TypeError:
-                continue
-            if fxn in decorated:
-                event_name = decorated.pop(fxn)
-                class_decorated = cls._decorated_fxns[ElementClass]
-                class_decorated[event_name] = fxn
-        cls._elements.append(ElementClass)
-        #erase unclaimed @decode or @encode, but give error if some fxns
-        #went unclaimed
-        decode.unclaimed.clear()
-        encode.unclaimed.clear()
-        if decorated:
-            raise RuntimeError(
-                '@decode or @encode must be used to decorate a function ' +
-                'inside a new element class declaration. ' +
-                'The following were unclaimed by the last-created element: ' +
-                str(ElementClass) + '\n and functions: ' + str(decorated)
-            )
-        return ElementClass 
 
 
 class BaseElement(metaclass=registry):
