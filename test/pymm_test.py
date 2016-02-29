@@ -1129,13 +1129,14 @@ class TestIconElement(unittest.TestCase):
         self.assertWarns(SyntaxWarning, icon.set_icon, '0x123BAD')
 
 
-class TestBaseElement(unittest.TestCase):
+class TestBaseElement(ChildrenSetup):
     """Test BaseElement functions"""
 
     def setUp(self):
         """Add generic elements for tests"""
-        self.element = mme.BaseElement()
-        self.node = mme.Node()
+        super().setUp()
+        cloud = mme.Cloud()
+        self.element.children.append(cloud)
 
     def test_element_to_string(self):
         """test that str(element) returns string representation,
@@ -1152,6 +1153,19 @@ class TestBaseElement(unittest.TestCase):
         self.assertNotIn('xA', str(self.element))
         self.assertNotIn('xC', str(self.element))
         self.element._display_attrib.remove('A')  # cleanup
+
+    def test_findall(self):
+        """test that findall always returns a list, and correctly
+        matches elements
+        """
+        matching = self.element.findall(tag='nonexistant')
+        self.assertTrue(matching == [])
+        nodes = [e for e in self.element.children if isinstance(e, mme.Node)]
+        matching = self.element.findall(tag='node')
+        self.assertTrue(nodes == matching)
+        clouds = self.element.findall(attrib_regex={'COLOR': '.*'})
+        self.assertTrue(clouds)
+        self.assertTrue(isinstance(clouds[0], mme.Cloud))
 
     def test_element_repr(self):
         """verify that a small portion of string is used in making
