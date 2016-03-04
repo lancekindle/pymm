@@ -36,26 +36,26 @@ class ChildSetupVerify:
 
 
 class ChildSubsetSimplified(ChildSetupVerify):
-    """Provide simplified access to specific child elements through regex
-    matching of descriptors such as tag, attributes, or a combination thereof.
-    For example, if you want to simply match a tag (or tags), pass in a regular
-    expression string that will fully match the desired tag(s).
-    e.g. 'node|cloud'  # matches any
-    If you want to match a set of attributes, pass in a dictionary containing
-    regexes to fully match the key(s) and value(s) of the element's attributes
-    e.g. {'TEXT':'.*'}  # matches any element with a 'TEXT' attribute
-    e.g. {'.*': '.*flag.*'}  # matches any element with a 'flag' in its value
-    e.g. {'COLOR': '.*'}  # matches anything with a 'COLOR' attribute
-    You can include any number of tag and attribute regexes, each separated by
-    a comma. All descriptors will have to fully match in order for an element
-    to qualify as part of this subset.
-    Most useful for allowing access
-    to child nodes. Provide access to slicing, removal, appending
+    """Provide simplified access to specific child elements through
+    regexasdfdsfdfdf  asdf asdfa sdfasdf a matching of descriptors such
+    as tag, attributes, or a combination thereof.  For example, if you
+    want to simply match a tag (or tags), pass in a regular expression
+    string that will fully match the desired tag(s).  e.g. 'node|cloud'
+    # matches any If you want to match a set of attributes, pass in a
+    dictionary containing regexes to fully match the key(s) and value(s)
+    of the element's attributes. For example:
+    {'TEXT':'.*'}  matches any element with a 'TEXT' attribute
+    {'.*': '.*flag.*'}  matches any element with a 'flag' in its value
+    {'COLOR': '.*'}  matches anything with a 'COLOR' attribute.
+    You can include any number
+    of tag and attribute regexes, each separated by a comma. All
+    descriptors will have to fully match in order for an element to
+    qualify as part of this subset.  Most useful for allowing access to
+    child nodes. Provide access to slicing, removal, appending
 
-    :param element: the linked element whose children will be available through
-        ElementAccessor
-    :param descriptor: the list of specific descriptor of elements to group and
-        provide access to.
+    :param element: the linked element whose children will be available
+    through ElementAccessor :param descriptor: the list of specific
+    descriptor of elements to group and provide access to.
     """
     def __init__(self, elementInstance, **identifier):
         self._verify_identifier_args(identifier)
@@ -97,27 +97,33 @@ class ChildSubsetSimplified(ChildSetupVerify):
         return elements[index]
 
     def __iter__(self):
-        """Iterate through _parent's children, yielding children when they
-        match tag_regex and/or attrib_regex
+        """Iterate through _parent's children, yielding children when
+        they match tag/tag_regex and/or attrib_regex
         """
         for elem in self.parent.children:
-            if self.TAG_REGEX:
-                if not re.fullmatch(self.TAG_REGEX, elem.tag):
-                    continue
-            if self.TAG:
-                if self.TAG != elem.tag:
-                    continue
-            matches = lambda x, y, rx, ry: \
-                      re.fullmatch(rx, x) and re.fullmatch(ry, y)
-            for regK, regV in self.ATTRIB_REGEX.items():
-                match = [
-                    k for k, v in elem.attrib.items() \
-                    if matches(k, v, regK, regV)
-                ]
-                if not match:
-                    break
-            else:
+            if self._element_matches(elem):
                 yield elem
+
+    def _element_matches(self, elem):
+        """return true if element matches all identifier criteria,
+        which can include tag, tag_regex, and attrib_regex
+        """
+        matches = lambda x, y, rx, ry: \
+            re.fullmatch(rx, x) and re.fullmatch(ry, y)
+        if self.TAG:
+            if self.TAG != elem.tag:
+                return False
+        if self.TAG_REGEX:
+            if not re.fullmatch(self.TAG_REGEX, elem.tag):
+                return False
+        for regK, regV in self.ATTRIB_REGEX.items():
+            matching_attrib = [
+                key for key, val in elem.attrib.items() \
+                if matches(key, val, regK, regV)
+            ]
+            if not matching_attrib:
+                return False
+        return True
 
     def __setitem__(self, index, elem):
         """remove element(s), then re-appends after modification.
