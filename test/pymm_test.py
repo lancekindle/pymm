@@ -1,7 +1,7 @@
 """
-    This is the testing module for pymm. It tests that import and export work
-    correctly, as well as that element features like child subsets and node
-    attributes work correctly.
+    This is the testing module for pymm. It tests that import and export
+    work correctly, as well as that element features like child subsets
+    and node attributes work correctly.
 """
 from __future__ import print_function
 import sys
@@ -30,10 +30,10 @@ class TestElementRegistry(unittest.TestCase):
     """
 
     def test_register_new_class(self):
-        """This tests that Elements.registry registers a new
-        element class when created (it must inherit from BaseElement).
-        Order of elements also matters, so this verifies that newly
-        created test class is the last one in the list.
+        """This tests that Elements.registry registers a new element
+        class when created (it must inherit from BaseElement). Order of
+        elements also matters, so this verifies that newly created test
+        class is the last one in the list.
         """
         before = pymm.element.registry.get_elements()
         class TestElementClass0x123(pymm.element.BaseElement):
@@ -45,23 +45,24 @@ class TestElementRegistry(unittest.TestCase):
         self.assertTrue(test_class == after[-1])
 
     def test_elements_order(self):
-        """order of elements matters. Older elements (as far as when
+        """Order of elements matters. Older elements (as far as when
         they were created) should be first in list, with newer-defined
-        classes being at the end of the list. Verify BaseElement is first
+        classes being at the end of the list. Verify BaseElement is
+        first
         """
         factories = pymm.element.registry.get_elements()
         self.assertTrue(pymm.element.BaseElement == factories[0])
 
     def test_unclaimed_functions(self):
         """when element.registry creates a new element, it correlates
-        all the currently @decode and @encode decorated functions
-        into a dictionary so that factory can easily create factories
-        that use @decode/@encode decorated functions. Decorated fxns
-        should always be created within the element's class
-        declaration. Therefore each time registry creates an element
-        class, it should auto-correlate every decorated function
-        currently unclaimed. If some functions are NOT found when creating
-        the element, then we throw a RuntimeError.
+        all the currently @decode and @encode decorated functions into a
+        dictionary so that factory can easily create factories that use
+        @decode/@encode decorated functions. Decorated fxns should
+        always be created within the element's class declaration.
+        Therefore each time registry creates an element class, it should
+        auto-correlate every decorated function currently unclaimed. If
+        some functions are NOT found when creating the element, then we
+        throw a RuntimeError.
         """
         @pymm.encode.get_children
         def unclaimed_function():
@@ -81,7 +82,7 @@ class TestFactoryRegistry(unittest.TestCase):
     """
 
     def test_factory_exists_for_each_element(self):
-        """when calling get_factories(), the existing list of factories
+        """When calling get_factories(), the existing list of factories
         are returned PLUS a generated list of factories for unclaimed
         elements. The factories are generated in the order that the
         unclaimed factories were created
@@ -159,9 +160,9 @@ class TestConversionHandler(unittest.TestCase):
         pymm.element.registry._elements.remove(self.fake_element)
 
     def test_unknown_element(self):
-        """test that AFTER a ConversionHandler instance is made,
-        a new pymm element will still be matched to a factory
-        (specifically DefaultFactory) when encoding.
+        """Test that AFTER a ConversionHandler instance is made, a new
+        pymm element will still be matched to a factory (specifically
+        DefaultFactory) when encoding.
         """
         fake = self.fake_element()
         self.assertTrue(
@@ -181,20 +182,21 @@ class TestConversionHandler(unittest.TestCase):
         )
 
     def test_wrong_element_conversion(self):
-        """verify that decoding a pymm element raises TypeError.
-        Verify that encoding a non-pymm element raises TypeError
-        (because you decode other -> pymm, and encode pymm -> other
+        """verify that decoding a pymm element raises TypeError. Verify
+        that encoding a non-pymm element raises TypeError (because you
+        decode other -> pymm, and encode pymm -> other
         """
         self.assertRaises(TypeError, pymm.factory.decode, self.fake_element())
         self.assertRaises(TypeError, pymm.factory.encode, pymm.ET.Element('d'))
 
 
 class TestAttribSpec(unittest.TestCase):
-    """Element.spec contains a key/value pair that describes an attribute
-    (key) and a list of alloweable values. These allowable values can be
-    specific elements (like a 1, or '1') or a class (like str, int) or a
-    function that converts the attrib. If an allowable value presents a
-    function, then any attribute for that specific key is allowed
+    """Element.spec contains a key/value pair that describes an
+    attribute (key) and a list of alloweable values. These allowable
+    values can be specific elements (like a 1, or '1') or a class (like
+    str or int) or a function that converts the attrib. If an allowable
+    value presents a function, then any attribute for that specific key
+    is allowed
     """
 
     def setUp(self):
@@ -226,8 +228,8 @@ class TestAttribSpec(unittest.TestCase):
 class TestNodeProperties(unittest.TestCase):
     """Node has a large number of properties that act as a quick
     shortcut to attrib or children. For example, Node.cloud gets/sets a
-    cloud. Node.text gets/sets Node.attrib['TEXT'], etc.
-    This is to verify these different properties work as expected
+    cloud. Node.text gets/sets Node.attrib['TEXT'], etc. This is to
+    verify these different properties work as expected
     """
 
     def setUp(self):
@@ -265,13 +267,13 @@ class TestNodeProperties(unittest.TestCase):
 
 
 class TestNodeImplicitAttributes(unittest.TestCase):
-    """Nodes have attributes that are a name, value pair visually
-    stored beneath the node in freeplane. They are implemented as a
-    dictionary within Node, such that node[key] = value is a valid
-    assignment. During reading of a file, "Attribute" Element removes
-    itself from the hierarchy and adds itself to the node's implicit
-    attribute dictionary. Test that decode and encode correctly removes
-    and adds Attribute to hierarchy.
+    """Nodes have attributes that are a name, value pair visually stored
+    beneath the node in freeplane. They are implemented as a dictionary
+    within Node, such that node[key] = value is a valid assignment.
+    During reading of a file, "Attribute" Element removes itself from
+    the hierarchy and adds itself to the node's implicit attribute
+    dictionary. Test that decode and encode correctly removes and adds
+    Attribute to hierarchy.
     """
 
     def setUp(self):
