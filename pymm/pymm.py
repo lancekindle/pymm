@@ -1,16 +1,17 @@
 """
-    Pymm is a module dedicated towards easing the development and parsing of
-    mindmaps built with or for Freeplane. Freeplane is a graphical
-    "spider-diagram" interface that allows one to build mindmaps; a
-    hierarchical tree of nodes, where each node contains some text, and parent
-    nodes can be "folded" to hide their child nodes. Pymm can read or write
-    Freeplane's file format: an xml-file with a .mm extension. Because
-    Freeplane's files are xml formatted, Pymm uses Python's built-in
-    xml.etree library to parse the file, and then decodes the generated tree
-    structure into Pymm's version of the tree, using Pymm's Elements instead.
-    The structure of the Pymm's tree (as opposed to xml.etree's version) is
-    similar but has different syntax aimed at making development
-    easy and clear to those new and experienced with Freeplane.
+    Pymm is a module dedicated towards easing the development and
+    parsing of mindmaps built with or for Freeplane. Freeplane is a
+    graphical "spider-diagram" interface that allows one to build
+    mindmaps; a hierarchical tree of nodes, where each node contains
+    some text, and parent nodes can be "folded" to hide their child
+    nodes. Pymm can read or write Freeplane's file format: an xml-file
+    with a .mm extension. Because Freeplane's files are xml formatted,
+    Pymm uses Python's built-in xml.etree library to parse the file, and
+    then decodes the generated tree structure into Pymm's version of the
+    tree, using Pymm's Elements instead. The structure of the Pymm's
+    tree (as opposed to xml.etree's version) is similar but has
+    different syntax aimed at making development easy and clear to those
+    new and experienced with Freeplane.
 """
 import xml.etree.ElementTree as ET
 import os
@@ -27,17 +28,19 @@ from .element import Node, Cloud, Icon, Edge, Arrow
 
 
 def read(file_or_filename):
-    """decode the file/filename into a pymm tree. User should expect to use
-    this module-wide function to decode a freeplane file (.mm) into a pymm
-    tree. If file specified is a fully-formed mindmap, the user should expect
-    to receive a Mindmap instance. Calling .getroot() on that should get
-    the user the first node in the tree structure.
+    """decode the file/filename into a pymm tree. User should expect to
+    use this module-wide function to decode a freeplane file (.mm) into
+    a pymm tree. If file specified is a fully-formed mindmap, the user
+    should expect to receive a Mindmap instance. Calling .getroot() on
+    that should get the user the first node in the tree structure.
 
-    :param file_or_filename: string path to file or file instance of mindmap
+    :param file_or_filename: string path to file or file instance of
+                             mindmap
     :return: If the file passed was a full mindmap, will return Mindmap
-             instance, otherwise if file represents an incomplete mindmap, it
-             will pass the instance of the top-level element, which could be
-             BaseElement or any inheriting element in the Elements module.
+             instance, otherwise if file represents an incomplete
+             mindmap, it will pass the instance of the top-level
+             element, which could be BaseElement or any inheriting
+             element in the Elements module.
     """
     # must lock default_mindmap_filename
     with file_locked(file_or_filename), \
@@ -69,18 +72,18 @@ def write(file_or_filename, pymm_element):
 
 class decode:
     """function-like class that allows decorating of functions to
-    configure a pymm element post-decode. If called with an element, instead
-    decode the supplied element and return it's decoded state
+    configure a pymm element post-decode. If called with an element,
+    instead decode the supplied element and return it's decoded state
     """
 
     def __new__(cls, et_element):
         """decode ElementTree Element to pymm Element.
 
-        :param et_element: Element Tree Element -> generally an element from
-                           python's xml.etree.ElementTree module
-        :return: Pymm hierarchical tree. Usually Mindmap instance but may return
-                 BaseElement-inheriting element if et_element was not complete
-                 mindmap hierarchy.
+        :param et_element: Element Tree Element -> generally an element
+                           from python's xml.etree.ElementTree module
+        :return: Pymm hierarchical tree. Usually Mindmap instance but
+                 may return BaseElement-inheriting element if
+                 et_element was not complete mindmap hierarchy.
         """
         if isinstance(et_element, element.BaseElement):
             raise ValueError('cannot decode a pymm element')
@@ -94,8 +97,8 @@ class decode:
 
 class encode:
     """function-like class that allows decorating of functions to
-    configure a pymm element post-decode. If called with an element, instead
-    decode the supplied element and return it's decoded state
+    configure a pymm element post-decode. If called with an element,
+    instead decode the supplied element and return it's decoded state
     """
 
     def __new__(cls, pymm_element):
@@ -156,8 +159,8 @@ class file_locked:
 
 
 class Mindmap(element.Map):
-    """Interface to Freeplane structure. Allow reading and writing of xml
-    mindmap formats (.mm)
+    """Interface to Freeplane structure. Allow reading and writing of
+    xml mindmap formats (.mm)
 
     some properties inherited from Elements.Map that will prove useful:
     root - set/get the Mindmap's only child node
@@ -172,15 +175,16 @@ class Mindmap(element.Map):
     del _, path, filepath
 
     def __new__(cls, *args, **attrib):
-        """FreeplaneFile acts as an interface to intrepret
-        xml-based .mm files into a tree of Nodes.
-        if Mindmap is created with no arguments, a default hierarchy
-        will be loaded. Any non-keyword arguments are assumed to be
-        filename and mode, respectively. Mindmap will load the file
-        specified. If mode is 'w', A default hierarchy will be loaded.
-        Opening a file in write mode is only useful as if Mindmap is
-        used as a context manager. The file will be written after
-        context manager exits, if no errors caused an early exit.
+        """FreeplaneFile acts as an interface to intrepret xml-based .mm
+        files into a tree of Nodes.  if Mindmap is created with no
+        arguments, a default hierarchy will be loaded. Any non-keyword
+        arguments are assumed to be filename and mode, respectively.
+        Mindmap will load the file specified. If mode is 'w', A default
+        hierarchy will be loaded.  Opening a file in write mode is only
+        useful as if Mindmap is used as a context manager. The file will
+        be written after context manager exits, if no errors caused an
+        early exit.
+
         with Mindmap(filename, 'w') as mm:
             etc...
         # mm written to filename
@@ -222,9 +226,10 @@ class Mindmap(element.Map):
         return cls.__new__(cls, cls.default_mindmap_filename, **attrib)
 
     def __enter__(self):
-        """allow user to use Mindmap as context-manager, in which Mindmap can
-        take filename and a mode as seen in __init__. If set to write mode 'w',
-        then upon exit Mindmap will write to file given
+        """allow user to use Mindmap as context-manager, in which
+        Mindmap can take filename and a mode as seen in __init__. If set
+        to write mode 'w', then upon exit Mindmap will write to file
+        given
         """
         return self
 
