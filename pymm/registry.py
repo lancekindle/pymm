@@ -1,9 +1,9 @@
 """
     registry holds the two registry metaclasses for element.py and
-    factory.py. These metaclasses are responsible for keeping track
-    of each element or factory class created, including any new
-    elements created by you. This is done so that newly created
-    elements are automaticallly used when reading from a mindmap
+    factory.py. These metaclasses are responsible for keeping track of
+    each element or factory class created, including any new elements
+    created by you. This is done so that newly created elements are
+    automaticallly used when reading from a mindmap
 """
 import collections
 from uuid import uuid4
@@ -12,11 +12,10 @@ from . import encode
 
 
 class ElementRegistry(type):
-    """Metaclass to hold all elements created. As each element class is
-    created, Registry adds it (The new element class) to its internal
-    registry, so long as an element inherits from BaseElement.
-    Factories will search through all registered elements and use the
-    newest matching element.
+    """Metaclass to hold all elements created that inherit from
+    BaseElement. As each element class is created, Registry adds it (The
+    new element class) to its internal registry. Factories will search
+    through all registered elements and use the newest matching element.
     """
     _elements = []
     _decorated_fxns = collections.defaultdict(dict)
@@ -30,27 +29,6 @@ class ElementRegistry(type):
     def get_decorated_fxns(cls):
         """Return dict of encode/decode-decorated fxns"""
         return dict(cls._decorated_fxns)
-
-    class attribute_searched:
-        """class to use in keeping track of which attribute is being
-        looked up currently. Used to prevent recursive __getattr__
-        calls
-        """
-        _searched = collections.defaultdict(bool)
-        _name = None
-
-        def __init__(self, name):
-            self._name = name
-
-        def __bool__(self):
-            return self._searched[self._name]
-
-        def __enter__(self):
-            self._searched[self._name] = True
-            return self
-
-        def __exit__(self, *errors):
-            self._searched[self._name] = False
 
     def __new__(cls, clsname, bases, attr_dict):
         """Record unaltered class. In addition, identify encode/decode
@@ -85,6 +63,27 @@ class ElementRegistry(type):
             )
         return ElementClass
 
+    class attribute_searched:
+        """class to use in keeping track of which attribute is being
+        looked up currently. Used to prevent recursive __getattr__
+        calls
+        """
+        _searched = collections.defaultdict(bool)
+        _name = None
+
+        def __init__(self, name):
+            self._name = name
+
+        def __bool__(self):
+            return self._searched[self._name]
+
+        def __enter__(self):
+            self._searched[self._name] = True
+            return self
+
+        def __exit__(self, *errors):
+            self._searched[self._name] = False
+
     @classmethod
     def identify_attribute_error(mcs, element, name):
         """this is called ONLY if an attribute is missing from an
@@ -110,7 +109,7 @@ class ElementRegistry(type):
                 elem for elem in reversed(has_attr) if elem not in most_likely
             ]
         err_msg = name
-        if most_likely + least_likely:
+        if most_likely or least_likely:
             relevant_elements = ''
             if most_likely:
                 relevant_elements += ' '.join((
@@ -142,9 +141,6 @@ class ElementRegistry(type):
                 'that this element is not used in this situation\n',
             ))
         raise AttributeError(err_msg)
-
-
-
 
 
 class FactoryRegistry(type):
