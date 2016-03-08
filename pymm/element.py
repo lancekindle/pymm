@@ -584,6 +584,20 @@ class Arrow(BaseElement):
         'SHAPE': ['CUBIC_CURVE', 'LINE', 'LINEAR_PATH', 'EDGE_LIKE'],
         'FONT_SIZE': [int], 'FONT_FAMILY': [str],
     }
+    destination = property(*access.SingleAttrib.setup('DESTINATION', ''))
+
+    @encode.get_attrib
+    def _use_destination_ID(self):
+        """verify that 'DESTINATION' attrib is a string ID pointing to
+        a node. If a node is found, use it's ID attrib
+        """
+        attrib = self.attrib.copy()
+        destination = 'DESTINATION'
+        dest = attrib[destination]
+        if isinstance(dest, Node):
+            dest = dest.attrib['ID']
+        attrib[destination] = dest
+        return attrib
 
 
 class AttributeLayout(BaseElement):
