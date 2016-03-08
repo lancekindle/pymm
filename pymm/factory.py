@@ -226,31 +226,27 @@ class DefaultAttribFactory:
         return value unaltered.  Generate warning if value matches none
         of spec's values and/or cannot be cast to available types
         """
-        entries = spec.get(key)
-        if entries is None:
+        if key not in spec:
             return value
+        entries = spec[key]
         if not isinstance(entries, list):
             raise ValueError('spec value must be a list of choices/types')
-        # break out of for loop if match found
         for entry in entries:
             if entry == value:
-                break
-            if isinstance(entry, type):  # bool, str, int, custom class, etc...
-                # special handling for finding false bool
-                if issubclass(entry, bool):
-                    if value in ['0', 'false', 'False', 'FALSE']:
-                        value = False
-                        break
-                try:
-                    value = entry(value)  # decode value to new type
-                    break
-                except:
-                    warnings.warn(
-                        key + ': ' + value + ' not of type ' + str(entry)
-                    )
-                    continue  # try next entry
-        else:
-            warnings.warn(key + ': ' + value + ' does not match spec')
+                return value
+            if not isinstance(entry, type):
+                continue
+            # handle special bool conversion, where any non-empty string
+            # is considered true, but 'false' or '0' should be false
+            if issubclass(entry, bool):
+                if value in ['0', 'false', 'False', 'FALSE']:
+                    return False
+            try:
+                # convert value to type
+                return entry(value)
+            except:
+                continue
+        warnings.warn(str(key) + ': ' + str(value) + " doesn't match spec")
         return value
 
     def encode_attrib(self, attrib, src_element, dst_element_class):
@@ -262,15 +258,11 @@ class DefaultAttribFactory:
         :param mmElement - pymm element containing attrib to be
         encoded
         """
-        attrib = {
-            key: value for key, value in attrib.items() if \
-            value is not None
-        }
+        attrib = {key: val for key, val in attrib.items() if val is not None}
         spec = src_element.spec
         encoded_attrib = {}
         for key, value in attrib.items():
-            if key in spec:
-                value = self.decode_attrib_value(key, value, spec)
+            value = self.match_attrib_value_to_spec(key, value, spec)
             value = self.stringify(value)
             key = self.stringify(key)
             encoded_attrib[key] = value
