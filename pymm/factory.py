@@ -71,8 +71,9 @@ class ConversionHandler:
         information passed to can_decode to just tag and attrib.
         Default to DefaultFactory
         """
+        tag, attrib = elem.tag, elem.attrib.copy()
         for factory in reversed(self.factories):
-            if factory.can_decode(elem):
+            if factory.can_decode(tag, attrib):
                 return factory
         return DefaultFactory
 
@@ -355,22 +356,23 @@ class DefaultFactory(
         return elem, children
 
     @classmethod
-    def can_decode(cls, elem):
-        """Return whether factory can decode given element. To verify,
-        compare .tag and .attrib of the element to .tag and .identifier
-        from this factory's decoding_element.
-        Return False immediately if element.tag does not equal decoding
-        element's tag. Otherwise, only return True if each key/value
+    def can_decode(cls, tag, attrib):
+        """Return whether factory can decode given element. Tag and
+        attrib of element are passed to this function. To verify,
+        compare tag and attrib to this factory's decoding_element .tag
+        and .identifier Return False immediately if element.tag does not
+        equal decoding element's tag. Otherwise, only return True if
+        each key/value
         pair in decoding_element.identifier can regex-match at least
         one key/value pair from element.attrib
         """
         decodee = cls.decoding_element
-        if elem.tag != decodee.tag:
+        if tag != decodee.tag:
             return False
         for key_regex, val_regex in decodee.identifier.items():
             matching_attrib = (
                 re.fullmatch(key_regex, key) and re.fullmatch(val_regex, val) \
-                for key, val in elem.attrib.items()
+                for key, val in attrib.items()
             )
             if not any(matching_attrib):
                 return False
