@@ -7,6 +7,7 @@ from __future__ import print_function
 import sys
 # append parent directory so that import finds pymm
 sys.path.append('../')
+import warnings
 from uuid import uuid4
 import unittest
 import inspect
@@ -1122,13 +1123,19 @@ class TestIconElement(unittest.TestCase):
     """test Icon-specific features"""
 
     def test_set_icon(self):
-        """verify that set_icon set's correct attrib and that warning
-        is generated for out-of-spec icon
+        """verify that icon's .icon property correctly sets icon in
+        attrib. Verify out-of-spec icon generates warning when encoding
         """
         icon = pymm.element.Icon()
-        icon.set_icon('yes')
+        icon.icon = 'yes'
         self.assertTrue(icon.attrib['BUILTIN'] == 'yes')
-        self.assertWarns(SyntaxWarning, icon.set_icon, '0x123BAD')
+        # verify icon 'yes' does NOT generate warning
+        warnings.filterwarnings('error')
+        with warnings.catch_warnings():
+            pymm.factory.encode(icon)
+        # verify icon '0x123BAD' does create warning
+        icon.icon = '0x123BAD'
+        self.assertWarns(Warning, pymm.factory.encode, icon)
 
 
 class TestBaseElement(ChildrenSetup):
@@ -1198,7 +1205,7 @@ class TestBaseElement(ChildrenSetup):
 
     def test_dictionary_inspec_attr(self):
         """Test that dict won't raise error for inspec attribute
-        assignment
+        assignment, but will raise warning when attempting to encode
         """
         elem = self.element
         elem.spec['string'] = [str]
@@ -1207,9 +1214,11 @@ class TestBaseElement(ChildrenSetup):
         elem.attrib['string'] = 'good'
         elem.attrib['integer'] = 42
         elem.attrib['one_or_two'] = 1
-        pymm.factory.sanity_check(elem)
-        elem.attrib['string'] = 5
-        self.assertWarns(Warning, pymm.factory.sanity_check, elem)
+        warnings.filterwarnings('error')  # throw warning as exception
+        with warnings.catch_warnings():
+            pymm.factory.encode(elem)
+        elem.attrib['integer'] = 'X'
+        self.assertWarns(Warning, pymm.factory.encode, elem)
 
 
 if __name__ == '__main__':

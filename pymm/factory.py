@@ -211,17 +211,20 @@ class DefaultAttribFactory:
         for key, value in attrib.items():
             key = self.stringify(key)
             value = self.stringify(value)
-            value = self.decode_attrib_value(key, value, spec)
+            value = self.match_attrib_value_to_spec(key, value, spec)
             decoded_attrib[key] = value
         return decoded_attrib
 
-    def decode_attrib_value(self, key, value, spec):
-        """Spec values are lists that contain expected attrib values OR
-        expected type of value (such as bool, int, or a custom class).
-        Convert to expected type or verify that value matches one of
-        corresponding spec value. If spec does not contain key, return
-        value unaltered. Generate warning if value matched none of the
-        spec values and/or could not be cast to type specified
+    @staticmethod
+    def match_attrib_value_to_spec(key, value, spec):
+        """Each pymm element has a .spec dict which specifies expected
+        types (such as int or str) or expected values of a given attrib
+        key/value pair.  This function attempts to conform the attrib
+        value to the expected values/types given by spec.  Aka: convert
+        value to expected type or verify that value matches one of
+        spec's corresponding values.  If spec does not contain key,
+        return value unaltered.  Generate warning if value matches none
+        of spec's values and/or cannot be cast to available types
         """
         entries = spec.get(key)
         if entries is None:
@@ -390,32 +393,3 @@ class DefaultFactory(
         if elem.__class__ == cls.decoding_element:
             return True
         return False
-
-
-def sanity_check(pymm_element):
-    """checks for common errors in pymm element and issues warnings
-    for out-of-spec attrib
-    """
-    unchecked = [pymm_element]
-    while unchecked:
-        elem = unchecked.pop(0)
-        unchecked.extend(elem.children)
-        attrib = elem.attrib
-        for key, allowed_values in elem.spec.items():
-            if key in attrib:
-                attribute = attrib[key]
-                for allowed in allowed_values:
-                    if attribute == allowed or isinstance(attribute, allowed):
-                        break
-                    # allow attribute if spec contains a function
-                    if isinstance(allowed, types.BuiltinMethodType) or \
-                            isinstance(allowed, types.LambdaType) or \
-                            isinstance(allowed, types.MethodType) or \
-                            isinstance(allowed, types.FunctionType) or \
-                            isinstance(allowed, types.BuiltinFunctionType):
-                        break
-                else:
-                    warnings.warn(
-                        'out-of-spec attribute "' + str(attribute) +
-                        ' in element: ' + str(elem.tag)
-                    )
