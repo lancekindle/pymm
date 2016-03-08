@@ -492,20 +492,7 @@ class Icon(BaseElement):
             'addition', 'subtraction', 'multiplication', 'division'
         ],
     }
-
-
-    def set_icon(self, icon):
-        """ set icon of node. Will warn if icon is not from builtin list
-
-        :param icon: (string) icon to display on node in freeplane
-        """
-        self.attrib['BUILTIN'] = icon
-        if icon not in self.spec['BUILTIN']:
-            warnings.warn(
-                'icon "' + str(icon) + '" not part of freeplanes builtin icon '
-                + 'list. Freeplane may not display icon. Use an icon from '
-                + 'spec["BUILTIN"] instead', SyntaxWarning, stacklevel=2
-            )
+    icon = property(*access.SingleAttrib.setup('BUILTIN', 'bookmark'))
 
 
 class Edge(BaseElement):
