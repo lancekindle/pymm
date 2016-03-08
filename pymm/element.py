@@ -430,21 +430,21 @@ class AutomaticEdgeColor(Hook):
                 self.count %= len(self.colors)
 
 
-
 class MapStyles(BaseElement):
-    """MapStyles is the child of the MapConfig Hook. MapStyles defines the
-    styles of all the nodes. MapStyles contains multiple StyleNodes, each
-    defining a new style.
+    """MapStyles is the child of the MapConfig Hook. MapStyles defines
+    the styles of all the nodes. MapStyles contains multiple StyleNodes,
+    each defining a new style.
     """
     tag = 'map_styles'
 
 
 class StyleNode(BaseElement):
-    """StyleNode defines the characteristics of a style. Its LOCALIZED_TEXT
-    attribute is the same name used by a Node's LOCALIZED_STYLE_REF, when
-    choosing what style to use. StyleNodes share their attributes through
-    inheritance. Their children StyleNodes will contain the same attributes as
-    their parents + their unique attributes.
+    """StyleNode defines the characteristics of a style. Its
+    LOCALIZED_TEXT attribute is the same name used by a Node's
+    LOCALIZED_STYLE_REF, when choosing what style to use. StyleNodes
+    share their attributes through inheritance. Their children
+    StyleNodes will contain the same attributes as their parents + their
+    unique attributes.
     """
     tag = 'stylenode'
     spec = {
@@ -556,7 +556,7 @@ class Attribute(BaseElement):
 
 
 class Properties(BaseElement):
-    """ Properties is a non-visible element that controls the visual appearance
+    """Properties is a non-visible element that controls the visual appearance
     of notes, icons, and attributes on a Node. It is a child of MapStyle,
     another non-visible element.
     Set attrib values in Properties to show or hide notes and attributes,

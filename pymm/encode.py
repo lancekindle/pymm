@@ -17,7 +17,11 @@ def pre_encode(fxn):
     """any function decorated by pre_encode will be called before any
     other encode functions. pre_encode functions are called top-down
     from the root to subchildren, in the order they appear in the tree
-    in breadth-first search
+    in breadth-first search. Decorate an element's function with
+    pre_encode if you have some custom modifications to do before the
+    element is encoded to file. (if you want to then undo these
+    modifications after encoding is finished, decorate the undo
+    function with post_encode)
     """
     unclaimed[fxn] = 'pre_encode'
     return fxn
@@ -26,9 +30,8 @@ def pre_encode(fxn):
 def post_encode(fxn):
     """decorate a function with post_encode if you want to re-configure
     an element after encoding. Since anything done in post_encode will
-    not influence the file / encoded tree, this decoration is only used
-    if some custom modification of a pymm element should be undone
-    afterwards
+    not influence the file / encoded tree, this decoration is best used
+    to undo a custom modification to the element
     """
     unclaimed[fxn] = 'post_encode'
     return fxn
@@ -43,6 +46,7 @@ def get_children(fxn):
     """
     unclaimed[fxn] = 'encode_getchildren'
     return fxn
+
 
 def get_attrib(fxn):
     """the function decorated by get_Attrib will be used when getting

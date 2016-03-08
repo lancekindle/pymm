@@ -67,7 +67,8 @@ class ConversionHandler:
         return DefaultFactory
 
     def find_decode_factory(self, elem):
-        """Return factory that can handle given element.
+        """Return factory that can handle given element. Limit
+        information passed to can_decode to just tag and attrib.
         Default to DefaultFactory
         """
         for factory in reversed(self.factories):
@@ -306,7 +307,6 @@ class DefaultGetAttributesFactory:
     def encode_getattrib(self, elem):
         """return attrib dict from pymm element"""
         return dict(elem.attrib)
-
 
 
 class DefaultChildFactory:
