@@ -66,6 +66,9 @@ class ChildSubsetSimplified(ChildSetupVerify):
 
     @classmethod
     def setup(cls, **identifier):
+        """Return getter and setter methods for self, such that returned
+        functions can be used in defining a property of an element
+        """
         self = cls(None, **identifier)
 
         def getter(parent):
@@ -163,7 +166,7 @@ class ChildSubsetSimplified(ChildSetupVerify):
 class ChildSubsetCompare:
     """implement methods for comparing lists"""
 
-    def _verify_other_is_comparable(self, other):
+    def _assert_other_is_comparable(self, other):
         if isinstance(other, ChildSubsetSimplified) or isinstance(other, list):
             return
         raise TypeError(
@@ -171,27 +174,27 @@ class ChildSubsetCompare:
         )
 
     def __lt__(self, other):
-        self._verify_other_is_comparable(other)
+        self._assert_other_is_comparable(other)
         return list(self) < list(other)
 
     def __gt__(self, other):
-        self._verify_other_is_comparable(other)
+        self._assert_other_is_comparable(other)
         return list(self) > list(other)
 
     def __le__(self, other):
-        self._verify_other_is_comparable(other)
+        self._assert_other_is_comparable(other)
         return list(self) <= list(other)
 
     def __ge__(self, other):
-        self._verify_other_is_comparable(other)
+        self._assert_other_is_comparable(other)
         return list(self) >= list(other)
 
     def __eq__(self, other):
-        self._verify_other_is_comparable(other)
+        self._assert_other_is_comparable(other)
         return list(self) == list(other)
 
     def __ne__(self, other):
-        self._verify_other_is_comparable(other)
+        self._assert_other_is_comparable(other)
         return list(self) != list(other)
 
 
