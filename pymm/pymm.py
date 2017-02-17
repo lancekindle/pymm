@@ -70,6 +70,7 @@ def write(file_or_filename, pymm_element):
     xmltree = ET.ElementTree(et_elem)
     xmltree.write(file_or_filename)
 
+
 class decode:
     """function-like class that allows decorating of functions to
     configure a pymm element post-decode. If called with an element,

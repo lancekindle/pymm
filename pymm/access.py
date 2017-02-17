@@ -37,25 +37,26 @@ class ChildSetupVerify:
 
 class ChildSubsetSimplified(ChildSetupVerify):
     """Provide simplified access to specific child elements through
-    regexasdfdsfdfdf  asdf asdfa sdfasdf a matching of descriptors such
-    as tag, attributes, or a combination thereof.  For example, if you
-    want to simply match a tag (or tags), pass in a regular expression
-    string that will fully match the desired tag(s).  e.g. 'node|cloud'
+    regex matching of descriptors such as tag, attributes, or a
+    combination thereof.  For example, if you want to simply match a tag
+    (or tags), pass in a regular expression string that will fully match
+    the desired tag(s).  e.g. 'node|cloud'
     # matches any If you want to match a set of attributes, pass in a
     dictionary containing regexes to fully match the key(s) and value(s)
     of the element's attributes. For example:
-    {'TEXT':'.*'}  matches any element with a 'TEXT' attribute
-    {'.*': '.*flag.*'}  matches any element with a 'flag' in its value
+    {'TEXT':'.*'}  matches any element with a 'TEXT' attribute.
+    {'.*': '.*flag.*'}  matches any element with 'flag' in its value.
     {'COLOR': '.*'}  matches anything with a 'COLOR' attribute.
-    You can include any number
-    of tag and attribute regexes, each separated by a comma. All
-    descriptors will have to fully match in order for an element to
-    qualify as part of this subset.  Most useful for allowing access to
-    child nodes. Provide access to slicing, removal, appending
+    You can include any number of tag and attribute regexes, each
+    separated by a comma. All descriptors will have to fully match in
+    order for an element to qualify as part of this subset.  Most useful
+    for allowing access to child nodes.  Provide access to slicing,
+    removal, appending
 
     :param element: the linked element whose children will be available
-    through ElementAccessor :param descriptor: the list of specific
-    descriptor of elements to group and provide access to.
+        through ElementAccessor
+    :param descriptor: the list of specific
+        descriptor of elements to group and provide access to.
     """
     def __init__(self, elementInstance, **identifier):
         self._verify_identifier_args(identifier)
