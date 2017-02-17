@@ -212,12 +212,13 @@ class DefaultAttribFactory:
         for key, value in attrib.items():
             key = self.stringify(key)
             value = self.stringify(value)
-            value = self.match_attrib_value_to_spec(key, value, spec)
+            tag = dst_element_class.tag
+            value = self.match_attrib_value_to_spec(key, value, spec, tag)
             decoded_attrib[key] = value
         return decoded_attrib
 
     @staticmethod
-    def match_attrib_value_to_spec(key, value, spec):
+    def match_attrib_value_to_spec(key, value, spec, tag=''):
         """Each pymm element has a .spec dict which specifies expected
         types (such as int or str) or expected values of a given attrib
         key/value pair.  This function attempts to conform the attrib
@@ -247,7 +248,8 @@ class DefaultAttribFactory:
                 return entry(value)
             except:
                 continue
-        warnings.warn(str(key) + ': ' + str(value) + " doesn't match spec")
+        key, val = str(key), str(value)
+        warnings.warn(tag + '-> ' + key + ': ' + val + " doesn't match spec")
         return value
 
     def encode_attrib(self, attrib, src_element, dst_element_class):
@@ -263,7 +265,8 @@ class DefaultAttribFactory:
         spec = src_element.spec
         encoded_attrib = {}
         for key, value in attrib.items():
-            value = self.match_attrib_value_to_spec(key, value, spec)
+            tag = src_element.tag
+            value = self.match_attrib_value_to_spec(key, value, spec, tag)
             value = self.stringify(value)
             key = self.stringify(key)
             encoded_attrib[key] = value
