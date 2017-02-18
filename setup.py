@@ -25,16 +25,16 @@ structure of MindMaps, and presents the information in a clear and intuitive
 manner that mimicks how Freeplane and Freemind build their own.
 Building a mindmap is easy::
     import pymm
-    with pymm.Mindmap('output.mm', 'w') as mm:
-        root = mm.root
-        root.cloud = pymm.Cloud(SHAPE='STAR')
-        root.text = 'space topics'
-        for text in ['stars', 'planets', 'astroids']:
-            root.children.append(pymm.Node(TEXT=text))
-    # on context-exit, mindmap is written to file
+    mm = pymm.Mindmap()
+    root = mm.root
+    root.cloud = pymm.Cloud(SHAPE='STAR')
+    root.text = 'space topics'
+    for txt in ['stars', 'planets', 'astroids']:
+        root.children.append(pymm.Node(TEXT=txt))
+    pymm.write('output.mm', mm)
 Reading, editting, and writing a mindmap is also easy::
     import pymm
-    mm = pymm.Mindmap('docs/pymm_documentation.mm')
+    mm = pymm.read('docs/pymm_documentation.mm')
     root = mm.nodes[0]
     root.nodes.append(pymm.Node(TEXT='another child of root'))
     pymm.write('output2.mm', mm)

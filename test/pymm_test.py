@@ -331,12 +331,13 @@ class TestNodeImplicitAttributes(unittest.TestCase):
         """verify that attribute saves to file, and is loaded
         back into node
         """
-        with pymm.Mindmap(self.filename, 'w') as mm:
-            for key, val in self.attributes.items():
-                mm.root[key] = val
+        mm = pymm.read(self.filename)
+        for key, val in self.attributes.items():
+            mm.root[key] = val
+        pymm.write(self.filename, mm)
         self.assertTrue(mm.root.items() == self.attributes.items())
         mm = None
-        mm = pymm.Mindmap(self.filename)
+        mm = pymm.read(self.filename)
         self.assertTrue(mm.root.items() == self.attributes.items())
 
 
@@ -366,8 +367,8 @@ class TestMutableClassVariables(unittest.TestCase):
             filter_out=[
                 'spec', '_display_attrib', 'identifier', 'colors',
             ]):
-        """Test each element's mutable variable and confirm it does not
-        share the same memory address as the element's Class
+        """Test each element's mutable variable(s) and confirm it does not
+        share the same memory address as the class-wide variables
         """
         is_mutable = lambda k, v: (isinstance(v, dict) or
                                    isinstance(v, list)) and \
@@ -415,7 +416,7 @@ class MindmapSetup(unittest.TestCase):
 
     def setUp(self):
         self.filename = 'test_context_manager.mm'
-        self.text = 'testing 123'
+        pymm.write(self.filename, pymm.Mindmap())
 
     def tearDown(self):
         try:
@@ -426,20 +427,6 @@ class MindmapSetup(unittest.TestCase):
 
 class TestMindmapFeatures(MindmapSetup):
     """test context manager. Test loading-default hierarchy"""
-
-    def test_max_arg_error(self):
-        """verify that arguments in excess of 2 (filename and mode) to
-        mindmap result in an error
-        """
-        self.assertRaises(ValueError, pymm.Mindmap, self.filename, 'r', 'r')
-
-    def test_mode_error(self):
-        """verify that a mode of both read and write raises error.
-        Also verify that any mode aside from 'r' or 'w' raises error
-        """
-        self.assertRaises(ValueError, pymm.Mindmap, self.filename, 'rw')
-        for mode in 'abcdefghijklmnopqstuvxyz':  # missing r and w
-            self.assertRaises(ValueError, pymm.Mindmap, self.filename, mode)
 
     def test_loads_default_hierarchy(self):
         """test that default hierarchy loads correctly.
@@ -452,42 +439,6 @@ class TestMindmapFeatures(MindmapSetup):
         self.assertTrue(mm.children != [])
         self.assertTrue(mm.root is not None)
         self.assertTrue(mm.root.text == "new_mindmap")
-
-    def test_context_manager_write(self):
-        """verify that mindmap context manager writes to file"""
-        with pymm.Mindmap(self.filename, 'w') as mm:
-            mm.root.text = self.text
-        self.assertTrue(os.path.exists(self.filename))
-
-    def test_read_error(self):
-        """Verify that attempting to read from a non-existant file
-        raises a FileNotFoundError
-        """
-        self.assertRaises(FileNotFoundError, pymm.Mindmap, self.filename, 'r')
-        self.assertRaises(FileNotFoundError, pymm.Mindmap, self.filename)
-
-    def test_context_manager_read(self):
-        """context manager should be able to read a file"""
-        with pymm.Mindmap(self.filename, 'w') as mm:
-            mm.root.text = self.text
-        with pymm.Mindmap(self.filename, 'r') as mm:
-            self.assertTrue(mm.root.text == self.text)
-
-    def test_context_manager_abort(self):
-        """Test that context manager writes to file even if an error
-        occurs. Also verify that context-manager does not handle error,
-        instead allowing error to propagate
-        """
-        mm = None
-        self.assertFalse(os.path.exists(self.filename))
-        with self.assertRaises(TypeError):
-            with pymm.Mindmap(self.filename, 'w') as mm:
-                mm.root.text = self.text
-                mm.root.children.append(3, 3)  # triggers TypeError
-        self.assertTrue(os.path.exists(self.filename))
-        self.assertTrue(mm is not None)
-        with pymm.Mindmap(self.filename) as mm:
-            self.assertTrue(mm.root.text == self.text)
 
 
 class TestPymmModuleFeatures(MindmapSetup):
@@ -509,36 +460,6 @@ class TestPymmModuleFeatures(MindmapSetup):
         self.assertRaises(ValueError, pymm.encode, [])
 
 
-class TestFileLocked(MindmapSetup):
-    """file_locked is a special function-like class to handle marking a
-    file as "locked" when being read. It is only used by pymm.decode
-    and pymm.Mindmap to ensure that Mindmap does not recursively load
-    its default hierarchy
-    """
-
-    def test_lock_context(self):
-        """verify file stays "locked" only as long as within context
-        """
-        self.assertFalse(pymm.file_locked(self.filename))
-        with pymm.file_locked(self.filename) as file_lock:
-            self.assertTrue(file_lock)
-            self.assertTrue(pymm.file_locked(self.filename))
-        self.assertFalse(pymm.file_locked(self.filename))
-
-    def test_no_locked_files(self):
-        """verify no files are currently locked"""
-        for filename, status in pymm.file_locked.locked.items():
-            self.assertFalse(status, str(filename) + ' marked as locked')
-
-    def test_lock_boolean(self):
-        """file_locked can also act a boolean, returning true or false
-        if a file is locked or not.
-        """
-        self.assertFalse(pymm.file_locked(self.filename))
-        mm = pymm.Mindmap(self.filename, 'w')
-        self.assertFalse(pymm.file_locked(self.filename))
-
-
 class TestConversionDecoration(unittest.TestCase):
     """test that certain features of @decode/@encode functions work
     as expected
@@ -558,12 +479,14 @@ class TestConversionDecoration(unittest.TestCase):
                 setattr(pymm.element.Node, attr, value)
         self.assertFalse(hasattr(pymm.element.Node, attr))
         mm = pymm.Mindmap()
+        self.assertTrue(hasattr(pymm.element.Node, attr))
         self.assertTrue(getattr(pymm.element.Node, attr) == value)
         # cleanup
         delattr(pymm.element.Node, attr)
         self.assertFalse(hasattr(pymm.element.Node, attr))
         class FakeOverride(pymm.element.Node):
             pass
+
 
 class TestConversionProcess(MindmapSetup):
     """test that the conversion process does not skip elements if an
@@ -580,66 +503,80 @@ class TestConversionProcess(MindmapSetup):
             def remove_self(self, parent):
                 parent.children.remove(self)
 
-        with pymm.Mindmap(self.filename, 'w') as mm:
-            mm.root.children = [Fake() for i in range(11)]
-            self.assertTrue(mm.root.children)
+        mm = pymm.read(self.filename)
+        mm.root.children = [Fake() for i in range(11)]
+        self.assertTrue(mm.root.children)
+        pymm.write(self.filename, mm)
         self.assertFalse(mm.root.children)
         # verify written file is affected
-        with pymm.Mindmap(self.filename, 'r') as mm:
-            self.assertFalse(mm.root.children)
+        mm = pymm.read(self.filename)
+        self.assertFalse(mm.root.children)
 
     def test_post_encode_removal(self):
         """create an element that removes itself from hierarchy
         after encoding. Verify that multiple of thes elements in a row
-        are removed which indicates no skipping of elements
+        are removed which indicates no skipping of elements.
+        Additionally, the encoded mindmap file SHOULD have these
+        elements (since they were removed post-encode)
         """
         class Fake(pymm.element.BaseElement):
             @pymm.encode.post_encode
             def remove_self(self, parent):
                 parent.children.remove(self)
 
-        with pymm.Mindmap(self.filename, 'w') as mm:
-            mm.root.children = [Fake() for i in range(11)]
-            self.assertTrue(mm.root.children)
+        mm = pymm.read(self.filename)
+        mm.root.children = [Fake() for i in range(11)]
+        self.assertTrue(mm.root.children)
+        pymm.write(self.filename, mm)
         self.assertFalse(mm.root.children)
         ch = pymm.factory.ConversionHandler()
         factory = ch.find_encode_factory(Fake())
         # verify written file is NOT affected
-        with pymm.Mindmap(self.filename) as mm:
-            self.assertTrue(mm.root.children)
-            for child in mm.root.children:
-                self.assertTrue(isinstance(child, Fake))
+        mm = pymm.read(self.filename)
+        self.assertTrue(mm.root.children)
+        for child in mm.root.children:
+            self.assertTrue(isinstance(child, Fake))
+        pymm.write(self.filename, mm)
 
     def test_post_decode_removal(self):
-        """test that elements remove themselves from hierarchy after
-        decoding. Verify that before self-removing-element is created,
-        mindmap looks normal. After self-removing-element is created,
-        mindmap should have removed children
+        """test that base elements remove themselves from hierarchy
+        after decoding. Verify that before self-removing-element is
+        created, mindmap looks normal. After self-removing-element is
+        created, mindmap should have no children
         """
-        self.test_post_encode_removal()
-        with pymm.Mindmap(self.filename) as mm:
-            self.assertTrue(mm.root.children)
+        self.test_post_encode_removal()  # root.children = [BaseElement(),...]
+        mm = pymm.read(self.filename)
+        self.assertTrue(mm.root.children)
 
-        class Fake(pymm.element.BaseElement):
+        class SelfRemover(pymm.element.BaseElement):
             @pymm.decode.post_decode
             def remove_self(self, parent):
                 parent.children.remove(self)
 
-        with pymm.Mindmap(self.filename) as mm:
-            self.assertFalse(mm.root.children)
+        mm = pymm.read(self.filename)
+        self.assertFalse(mm.root.children)
+        # now test that the nodes can remove themselves if inheriting
+        # from a self-destructive Node
+        class SelfNodeRemover(pymm.element.Node):
+            @pymm.decode.post_decode
+            def remove_nodeself(self, parent):
+                parent.children.remove(self)
+
+        mm = pymm.read(self.filename)
+        self.assertFalse(mm.root)
 
     def tearDown(self):
-        """create a new class that inherits from BaseElement so that
-        previous "bad" elements created do not interfere with other
-        tests (all elements created are stored in an internal
-        registry. Newer elements are used in place of old ones). So this
-        ensures that the newer used element does contain destructive
-        encoding / decoding behavior
+        """create a new class that inherits from BaseElement & Node so
+        that previous "bad" elements created do not interfere with other
+        tests (all elements created are stored in an internal registry.
+        Newer elements are used in place of old ones). So this ensures
+        that the newer used element does contain destructive encoding /
+        decoding behavior
         """
-        class A(pymm.element.BaseElement):
+        class SafeBaseElement(pymm.element.BaseElement):
             """create a non-destructive element for pymm to prefer"""
             pass
-        class B(pymm.Node):
+        class SafeNode(pymm.Node):
             """create a non-destructive Node for pymm to prefer"""
             pass
         super().tearDown()
