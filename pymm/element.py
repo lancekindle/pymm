@@ -81,9 +81,10 @@ class BaseElement(metaclass=registry):
     #: <edge COLOR='ff0000', STYLE='linear', WIDTH='2'>
     #: would be:
     #: attrib = {'COLOR': 'ff0000', 'STYLE': 'linear', 'WIDTH': '2'}
-    #: If you modify attrib in a class, thereafter each instance of that class
-    #: will include your attrib version unless overwritten when decoding
-    #: from an existing xml Element.
+    #: If you modify the class-wide attrib dict (NOT within an instance),
+    #: thereafter each instance of that class will include your attrib
+    #: modifications unless overwritten when decoding from an existing
+    #: xml Element.
     attrib = {}
 
     #: identifier holds xml attributes that are used to identify a

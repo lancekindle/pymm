@@ -131,8 +131,8 @@ class ElementRegistry(type):
                 'prefers to use newer elements over older elements (by order',
                 'in which they were defined), a recently-defined Element',
                 'Class (this one) MAY have taken preference over the element',
-                'you wanted at this moment.', relevant_elements,
-                '\nSome examples of what you may do to rememdy this problem',
+                'you wanted at this moment. For example:', relevant_elements,
+                '\nSome examples of what you may do to remedy this problem',
                 'are\n1) double-check your code for mistakes\n2) change the',
                 'order in which you define new element classes\n3) define a',
                 'newer class that inherits from the element you wanted here.',
@@ -179,35 +179,43 @@ class FactoryRegistry(type):
         Closest-matching factory is determined as the newest factory to
         use a decoding-element of which the unclaimed element is a
         subclass AND which inherits from the previous closest-matching
-        factory. (this second part ensures that a DefaultFactory-clone
-        will not become the closest-match
+        factory. (this second part ensures that a newly-created Factory
+        will not become the closest-match unless it was specifically
+        designed for the element)
 
         Return list of all factories created in this way
         """
         generated = []
-        factories = list(factories)
-        convert_fxns = ElementRegistry.get_decorated_fxns()
+        # copy factories list since we make temp modifications
+        inheritable = list(factories)
+        element_convert_fxns = ElementRegistry.get_decorated_fxns()
         for elem in ElementRegistry.get_elements():
             closest_match = cls.default
-            for factory in factories:
+            for factory in inheritable:
                 if issubclass(elem, factory.decoding_element) and \
                         issubclass(factory, closest_match):
                     closest_match = factory
                 if factory.decoding_element == elem:
+                    # a factory for this element already exists
                     break
             else:
+                # we get here if the above for-loop ended without
+                # breaking. Meaning no factory exists for the current
+                # element (elem). Create a factory-class for the element
+                # using the information gathered above
+                convert_fxns = element_convert_fxns.get(elem, {})
                 factory = cls.create_factory(elem, closest_match, convert_fxns)
                 generated.append(factory)
-                # allow generated factories to inherit from prior generated
-                factories.append(factory)
+                # allow generated factories to inherit from this new factory
+                inheritable.append(factory)
         cls.verbose = False
         return generated
 
     @classmethod
-    def create_factory(cls, elem, closest_matching_factory, convert_fxns):
+    def create_factory(cls, elem, closest_matching_factory, convert_events):
         """creat factory for given element, inheriting from closest
         matching factory, and include any functions decorated by
-        encode.* or decode.*
+        encode.* or decode.* from its respective pymm element.
         """
         if cls.verbose:
             print(
@@ -220,17 +228,29 @@ class FactoryRegistry(type):
         name = element_name + '-Factory@' + uuid4().hex
         cls._skip_registration = name
         inherit_from = (closest_matching_factory,)
+        # variables holds class-defined variables and functions
         variables = {'decoding_element': elem}
-        def simulate_bound_method(event_fxn):
-            """wrap function to discard the first argument, thereby
-            simulating a method call for the 2nd argument, the element.
-            Wrapping a fxn through this helps create a permanent scope
-            for wrapping a function as well.
+        def simulate_element_bound_method(event_fxn):
+            """wrap function to discard the first argument (the factory
+            instance), thereby simulating a method call for the 2nd
+            argument (the element instance).
+            This enables all the @encode.* or @decode.* decorated functions
+            to act as if they were bound to the element, instead of the
+            factory instance. This is because we want to use the exact
+            function, as defined in the element class, rather than
+            dynamically calling the function-name on the element's
+            instance each time. Since the encode/decode functions are
+            used from the factory instead of the element, factories
+            themselves control how an element is converted. This allows
+            the flexibility to convert any element without its specific
+            @encode/decode functions by converting with DefaultFactory.
+            Why would this be useful? In very rare instances, the user
+            may wish to downgrade an element's type so that it is
+            treated in a more generic fashion.
             """
             return lambda factory, *args: event_fxn(*args)
-        convert_events = convert_fxns.get(elem, {})
         for event_name, event_fxn in convert_events.items():
-            wrapped_event = simulate_bound_method(event_fxn)
-            variables[event_name] = wrapped_event
-        new_factory = type(name, inherit_from, variables)
-        return new_factory
+            convert_fxn = simulate_element_bound_method(event_fxn)
+            variables[event_name] = convert_fxn
+        new_factory_class = type(name, inherit_from, variables)
+        return new_factory_class

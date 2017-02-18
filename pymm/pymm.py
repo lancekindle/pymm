@@ -73,8 +73,9 @@ def write(file_or_filename, pymm_element):
 
 class decode:
     """function-like class that allows decorating of functions to
-    configure a pymm element post-decode. If called with an element,
-    instead decode the supplied element and return it's decoded state
+    configure a pymm element post-decode. If instead called with an
+    ElementTree element, decode the supplied element and return it's
+    decoded state (as a Pymm Element)
     """
 
     def __new__(cls, et_element):
@@ -92,14 +93,33 @@ class decode:
 
     @staticmethod
     def post_decode(fxn):
+        """each element's function decorated with decode.post_decode
+        will be called after a freeplane mindmap has been decoded into
+        the pymm hierarchy. The function will be called with the
+        element's parent as the only argument (aside from the implicit
+        self). An example element with decorated fxn below:
+
+        class custom_node(pymm.Node):
+            @pymm.decode.post_decode
+            def after_decoding(self, parent):
+                blahblahblah
+
+        Since this is called just after decoding and before the element is
+        handled by the user, this can be used for correcting small
+        deficiencies in an element (such as unexpected attrib key:
+        values or undesirable children) before it gets manipulated by
+        user code.
+        """
         _decode.post_decode(fxn)
         return fxn
 
 
 class encode:
     """function-like class that allows decorating of functions to
-    configure a pymm element post-decode. If called with an element,
-    instead decode the supplied element and return it's decoded state
+    configure a pymm element post/pre-encode, which includes the ability
+    to manipulate which children and/or attrib get encoded into the
+    final mindmap file. If called with an element, instead encode the
+    supplied element and return it's encoded state
     """
 
     def __new__(cls, pymm_element):
@@ -113,23 +133,102 @@ class encode:
         return factory.encode(pymm_element)
 
     @staticmethod
+    def get_children(fxn):
+        """each element's function decorated with encode.get_children
+        will be called while a pymm hierarchy is being encoded into
+        a freeplane file. The function will be called with no arguments
+        (aside from the implicit self). An example element with
+        decorated fxn below:
+
+        class CloudedNode(pymm.Node):
+            @pymm.encode.get_children
+            def add_cloud_child(self, parent):
+                children = list(self.children)
+                return children + [pymm.Cloud()]
+
+        You should return a list of children. Typically this is a
+        modified list of self.children. Remember to perform a
+        `children = list(self.children)` to create a new temporary list
+        with which you may add/remove children without changing the
+        element's children
+        """
+        _encode.get_children(fxn)
+        return fxn
+
+    @staticmethod
+    def get_attrib(fxn):
+        """each element's function decorated with encode.get_attrib
+        will be called while a pymm hierarchy is being encoded into
+        a freeplane file. The function will be called with no arguments
+        (aside from the implicit self). An example element with
+        decorated fxn below:
+
+        class BoldedNode(pymm.Node):
+            @pymm.encode.get_attrib
+            def boldify_text(self, parent):
+                attrib = dict(self.attrib)
+                text = attrib['TEXT']
+                attrib['TEXT'] = '<b>' + text + '</b>'
+                return attrib
+
+        You should return a dict of attribs. Typically this is a
+        modified dict of self.attrib. Remember to perform a
+        `attrib = dict(self.attrib)` to create a new temporary dict
+        which you may modify without changing the element's attrib
+        """
+        _encode.get_attrib(fxn)
+        return fxn
+
+    @staticmethod
     def pre_encode(fxn):
+        """each element's function decorated with encode.pre_encode
+        will be called before a pymm hierarchy is encoded into
+        a freeplane file. The function will be called with the
+        element's parent as the only argument (aside from the implicit
+        self). An example element with decorated fxn below:
+
+        class CustomNode(pymm.Node):
+            @pymm.encode.pre_encode
+            def before_encoding(self, parent):
+                blahblahblah
+
+        Since this is called just before encoding, this can be used (in
+        conjunction with post_encode) to add / remove siblings or edit
+        nearby element's properties. Just be aware that post/pre_encode
+        may or may not get called on these elements depending on
+        how/when you add/remove them. If you wish to temporarily edit
+        this element's own children or attrib, it's recommended to
+        decorate with the more specific @encode.get_children and
+        @encode.get_attrib. In each of those, you simply return the
+        desired list of children or dict of attributes, respectively.
+        """
         _encode.pre_encode(fxn)
         return fxn
 
     @staticmethod
     def post_encode(fxn):
+        """each element's function decorated with encode.post_encode
+        will be called after a pymm hierarchy is encoded into
+        a freeplane file. The function will be called with the
+        element's parent as the only argument (aside from the implicit
+        self). An example element with decorated fxn below:
+
+        class CustomNode(pymm.Node):
+            @pymm.encode.post_encode
+            def after_encoding(self, parent):
+                blahblahblah
+
+        Since this is called just after encoding, this can be used (in
+        conjunction with pre_encode) to add / remove siblings or edit
+        nearby element's properties. Just be aware that post/pre_encode
+        may or may not get called on these elements depending on
+        how/when you add/remove them. If you wish to temporarily edit
+        this element's own children or attrib, it's recommended to
+        decorate with the more specific @encode.get_children and
+        @encode.get_attrib. In each of those, you simply return the
+        desired list of children or dict of attributes, respectively.
+        """
         _encode.post_encode(fxn)
-        return fxn
-
-    @staticmethod
-    def get_attrib(fxn):
-        _encode.get_attrib(fxn)
-        return fxn
-
-    @staticmethod
-    def get_children(fxn):
-        _encode.get_children(fxn)
         return fxn
 
 

@@ -45,10 +45,10 @@ class ConversionHandler:
     last_decode = []
 
     def __init__(self):
-        """Lock in set of factories for handling elements. If you
-        create another element after instantiating ConversionHandler,
-        get another instance to auto-generate a factory for that
-        element. Otherwise, DefaultFactory will be used
+        """Lock in set of factories for handling elements. If you define
+        another element type after instantiating ConversionHandler, get
+        another instance to auto-generate a factory for that element.
+        Otherwise, DefaultFactory will be used
         """
         self.factories = registry.get_factories()
 
@@ -157,8 +157,8 @@ class DefaultElementFactory:
     """Expose methods to construct encoding / decoding element class
     given attrib and children. At this point in the conversion process,
     the attribs are converted but the children are not.
-    It is the responsibility of this factory to add the converted
-    element to it's parent.
+    It is the responsibility of this factory to append the converted
+    element to its parent's list of children.
     """
 
     def decode_element(
@@ -365,9 +365,8 @@ class DefaultFactory(
         compare tag and attrib to this factory's decoding_element .tag
         and .identifier Return False immediately if element.tag does not
         equal decoding element's tag. Otherwise, only return True if
-        each key/value
-        pair in decoding_element.identifier can regex-match at least
-        one key/value pair from element.attrib
+        each key/value pair in decoding_element.identifier can
+        regex-match at least one key/value pair from element.attrib
         """
         decodee = cls.decoding_element
         if tag != decodee.tag:

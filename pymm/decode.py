@@ -8,8 +8,11 @@
     and importing of mindmaps
 """
 
-# decorated is the dictionary of functions decorated, and their
-# keyword-used in decorating them. For example, 'post_decode': fxn
+# unclaimed is the dictionary of functions decorated, and their
+# keyword-used in decorating them. For example, fxn: 'post_decode'
+# when a decorated function's corresponding class is fully defined,
+# these unclaimed fxns are associated with its corresponding class
+# and removed from this dictionary
 unclaimed = {}
 
 
